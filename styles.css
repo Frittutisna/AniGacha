@@ -1,0 +1,112 @@
+body,
+button,
+input,
+select,
+textarea,
+code {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+@keyframes popIn {
+    0%      {transform: scale(0.85) translateY(15px);   opacity: 0}
+    100%    {transform: scale(1)    translateY(0);      opacity: 1}
+}
+
+.card-animate {animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards}
+
+/* Hide number input spin buttons for cleaner pagination input */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+select {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.custom-select-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-select-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-select-menu::-webkit-scrollbar-thumb {
+    background: rgb(148 163 184 / 0.4);
+    border-radius: 9999px;
+}
+
+.dark .custom-select-menu::-webkit-scrollbar-thumb {
+    background: rgb(71 85 105 / 0.6);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+input[type="range"].photo-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    background: rgb(203 213 225); /* slate-300 */
+    outline: none;
+    cursor: pointer;
+}
+
+.dark input[type="range"].photo-slider {
+    background: rgb(51 65 85); /* slate-700 */
+}
+
+input[type="range"].photo-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: rgb(79 70 229); /* indigo-600 */
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+input[type="range"].photo-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    background: rgb(99 102 241); /* indigo-500 */
+}
+
+input[type="range"].photo-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: rgb(79 70 229);
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+input[type="range"].photo-slider::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    background: rgb(99 102 241);
+}
+
+input[type="number"].photo-num-input {
+    -moz-appearance: textfield;
+}
+
+[data-tooltip],
+[title] {
+    -webkit-touch-callout: none;
+}

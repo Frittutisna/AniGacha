@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>AniGacha: Character Summoner</title>
+    <script>
+        if (localStorage.getItem('anigacha_theme') === 'light') {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css"/>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white transition-colors">
+    <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-3 py-1.5 flex items-center justify-center gap-1.5">
+            <!-- Left Section: [AniList] [Photo] Username or Discord Login -->
+            <div id="anilist-header-wrapper" class="relative shrink-0">
+                <button id="anilist-header-btn" type="button" aria-label="Link AniList Account"
+                    data-tooltip-title="Link AniList"
+                    title="Link your account to:&#10;1. Unlock the List banner, and&#10;2. Summon characters from your list"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#02A9FF] hover:bg-[#0295e0] active:scale-95 shadow-sm shadow-[#02A9FF]/25 transition">
+                    <img src="anilist.svg" alt="AniList" class="w-4 h-4 invert" />
+                </button>
+            </div>
+            <div id="header-logged-out" class="relative flex items-center shrink-0">
+                <button id="login-btn" type="button" aria-label="Login with Discord"
+                    data-tooltip-title="Login with Discord"
+                    title="Login to:&#10;1. Save your collection&#10;2. Earn daily stars, and&#10;3. Customize your profile"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#5865F2] hover:bg-[#4752C4] active:scale-95 shadow-sm shadow-[#5865F2]/25 text-white transition">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="header-logged-in" class="hidden flex items-center gap-2 mr-1">
+                <button id="profile-btn" type="button" data-tooltip-title="Profile"
+                    title="Edit your display name, icon, framing, or AniList account"
+                    class="flex items-center gap-2 group text-left">
+                    <span id="profile-photo-frame"
+                        class="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                        <img id="header-photo-img" src="" alt="Profile" class="hidden w-full h-full object-cover object-top pointer-events-none" />
+                        <span id="header-photo-placeholder" class="text-[10px] font-bold text-slate-500 dark:text-slate-400">?</span>
+                    </span>
+                    <span id="header-username" class="hidden sm:inline text-xl sm:text-2xl font-bold tracking-tight max-w-[130px] sm:max-w-[200px] truncate select-none group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition">Account</span>
+                </button>
+            </div>
+
+            <!-- Right Section: [★ Amount] [☆] [Theme] [Anime] [➜|] [Debug/Demo] -->
+            <div class="flex items-center gap-1.5">
+                <div data-tooltip-title="Stars"
+                    title="Currency used to summon on banners&#10;Earned from daily claims and selling unlocked cards"
+                    class="h-8 px-2.5 flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-bold select-none cursor-help">
+                    <span>★</span>
+                    <span id="star-count">∞</span>
+                </div>
+                <button id="daily-stars-btn" type="button" data-tooltip-title="Daily Bonus"
+                    title="Claim your free 90 Stars for today (resets at 00:00 JST)" aria-label="Claim Daily Free 90 Stars"
+                    class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-600 dark:text-amber-300 text-sm font-bold transition">
+                    ☆
+                </button>
+                <button id="theme-toggle" data-tooltip-title="Appearance"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                    title="Switch between Light and Dark theme" aria-label="Toggle Theme">
+                    <svg id="icon-sun" class="w-4 h-4 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg id="icon-moon" class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </button>
+                <button id="lang-toggle" data-tooltip-title="Language"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                    title="Switch between Romaji (JP) and English (EN)">
+                    JP
+                </button>
+                <button id="share-collection-btn" type="button" data-tooltip-title="Share"
+                    title="Copy the link to share your collection with others" aria-label="Share"
+                    class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 border border-indigo-600 hover:border-indigo-500 text-white transition">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                    </svg>
+                </button>
+                <button id="logout-btn" type="button" data-tooltip-title="Logout"
+                    title="Logout of your Discord account" aria-label="Logout"
+                    class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-rose-600 hover:bg-rose-500 border border-rose-600 hover:border-rose-500 text-white transition">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H3m18-8v14"/>
+                    </svg>
+                </button>
+                <span id="mode-indicator" data-tooltip-title="Mode"
+                    title="Debug: Unlimited local sandbox&#10;Beta: Linked with Discord account"
+                    class="h-8 px-2 flex items-center justify-center rounded-lg bg-slate-800 dark:bg-slate-100 border border-slate-700 dark:border-slate-300 text-xs font-bold text-slate-100 dark:text-slate-800 select-none cursor-help">
+                    Debug
+                </span>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-3 pb-3 space-y-2.5">
+        <div id="error-banner" class="hidden bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 px-3 py-2.5 rounded-xl text-sm space-y-1">
+            <p class="font-bold">Could not load local CSV files automatically.</p>
+            <p class="text-xs text-rose-700 dark:text-rose-300" id="error-detail"></p>
+            <p class="text-xs text-rose-700 dark:text-rose-300 pt-0.5">
+                Make sure the CSV files (<code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">anime.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">char.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">era.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">franchise.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">genre.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">source.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">studio.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">tag.csv</code>) are in the dataset folder, and run a local server (e.g., <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">python -m http.server 8000</code>).
+            </p>
+        </div>
+
+        <!-- Shared Collection View Header (shown only when ?share=<user_id> is active) -->
+        <div id="shared-view-banner" class="hidden bg-white dark:bg-slate-900 border border-indigo-500/40 rounded-xl p-2 flex items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <span id="shared-photo-frame" class="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center shrink-0">
+                    <img id="shared-photo-img" src="" alt="Shared Profile" class="hidden w-full h-full object-cover object-top pointer-events-none" />
+                    <span id="shared-photo-placeholder" class="text-xs sm:text-base font-bold text-slate-500 dark:text-slate-400">?</span>
+                </span>
+                <div class="min-w-0 flex flex-col justify-center">
+                    <span id="shared-username" class="text-lg sm:text-2xl font-bold leading-tight truncate">Player</span>
+                    <a id="shared-anilist-link" href="#" target="_blank" rel="noopener noreferrer"
+                        class="hidden -mt-0.5 text-xs sm:text-sm text-[#02A9FF] hover:underline font-semibold leading-tight truncate w-fit max-w-full"></a>
+                </div>
+            </div>
+            <button id="exit-shared-btn" type="button"
+                class="shrink-0 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                My Collection
+            </button>
+        </div>
+
+        <div id="gacha-top-section" class="w-full flex flex-col lg:grid lg:grid-cols-12 gap-2.5 items-stretch">
+            <section class="w-full lg:col-span-5 bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center">
+                <div class="w-full h-full overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 flex items-center">
+                    <table class="w-full h-full table-fixed text-xs sm:text-base text-center border-collapse whitespace-nowrap">
+                        <colgroup id="rates-table-colgroup">
+                            <col class="w-20" />
+                        </colgroup>
+                        <thead>
+                            <tr id="rates-table-head" class="border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60">
+                                <th data-tooltip-title="Character Rarity Tiers"
+                                    title="Ranked by character popularity from SSR (top 0.5%) to F&#10;Duplicates level up cards: 2 copies = Lv.1, 3–5 = Lv.2, 6+ = Lv.3"
+                                    class="py-1 px-2 text-center font-bold text-slate-600 dark:text-slate-300 cursor-help">Tier</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rates-table-body" class="divide-y divide-slate-200 dark:divide-slate-800/80">
+                            <tr id="rates-row-pool">
+                                <td data-tooltip-title="Pool Distribution (%)"
+                                    title="Percentage of the entire character database in each rarity tier"
+                                    class="py-1 px-2 text-center text-slate-600 dark:text-slate-300 font-bold cursor-help">Pool%</td>
+                            </tr>
+                            <tr id="rates-row-spawn">
+                                <td data-tooltip-title="Summon Spawn Rate (%)"
+                                    title="Base probability of rolling each rarity per summon slot&#10;Premium banner doubles SSR, SR, and S rates"
+                                    class="py-1 px-2 text-center text-slate-600 dark:text-slate-300 font-bold cursor-help">Spawn%</td>
+                            </tr>
+                            <tr id="rates-row-spark">
+                                <td data-tooltip-title="Spark Cost"
+                                    title="1 Summon = 1 Spark on that banner category&#10;Carries over across rotations in the same category (e.g. KyoAni → Wit Studio)&#10;Does not carry over between different categories (e.g. KyoAni → Slice of Life)"
+                                    class="py-1 px-2 text-center text-slate-600 dark:text-slate-300 font-bold cursor-help">Spark</td>
+                            </tr>
+                            <tr id="rates-row-sell">
+                                <td data-tooltip-title="Sell Value (★)"
+                                    title="Stars earned when selling an unlocked character:&#10;Level 0: Base Price&#10;Level 1: Base Price × 2&#10;Level 2: Base Price × 3&#10;Level 3: Base Price × 4"
+                                    class="py-1 px-2 text-center text-slate-600 dark:text-slate-300 font-bold cursor-help">Sell</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- NEW -->
+            <div id="banner-carousel" class="w-full lg:col-span-7 flex lg:grid lg:grid-cols-2 gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar">
+                <section class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 data-tooltip-title="Standard: All-Star"
+                            title="First summon is guaranteed to be a B-tier or better&#10;Free 10-summon daily, 00:00 JST&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-indigo-600 dark:text-indigo-400">Standard:</span> All-Star
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: Free
+                        </button>
+                        <button id="spark-standard" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-standard">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-era" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="era-banner-pill" data-tooltip-title="Era Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this era&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-amber-600 dark:text-amber-400">Era:</span> <span id="era-banner-title">Era</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-era-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 75
+                        </button>
+                        <button id="spark-era" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-amber-500/40 text-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-era">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-franchise" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="franchise-banner-pill" data-tooltip-title="Franchise Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this franchise&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-rose-600 dark:text-rose-400">Franchise:</span> <span id="franchise-banner-title">Franchise</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-franchise-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 75
+                        </button>
+                        <button id="spark-franchise" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-rose-500/40 text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-franchise">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-genre" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="genre-banner-pill" data-tooltip-title="Genre Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this genre&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-emerald-600 dark:text-emerald-400">Genre:</span> <span id="genre-banner-title">Genre</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-genre-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 75
+                        </button>
+                        <button id="spark-genre" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-genre">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-source" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="source-banner-pill" data-tooltip-title="Source Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this source&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-sky-600 dark:text-sky-400">Source:</span> <span id="source-banner-title">Source</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-source-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 75
+                        </button>
+                        <button id="spark-source" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-700 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-source">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-studio" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="studio-banner-pill" data-tooltip-title="Studio Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this studio&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-violet-600 dark:text-violet-400">Studio:</span> <span id="studio-banner-title">Studio</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-studio-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 75
+                        </button>
+                        <button id="spark-studio" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-violet-500/40 text-violet-700 dark:text-violet-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-studio">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-tag" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="tag-banner-pill" data-tooltip-title="Tag Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this tag&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-teal-600 dark:text-teal-400">Tag:</span> <span id="tag-banner-title">Tag</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-tag-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 75
+                        </button>
+                        <button id="spark-tag" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-teal-500/40 text-teal-700 dark:text-teal-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-tag">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-hof" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="hof-banner-pill" data-tooltip-title="Premium: Hall-of-Fame"
+                            title="First summon is guaranteed to be an A-tier or better&#10;SSR, SR, and S spawn rates are doubled at the cost of F-tier spawn rates&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-purple-600 dark:text-purple-400">Premium:</span> <span id="hof-banner-title">Hall-of-Fame</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-hof-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: Free
+                        </button>
+                        <button id="spark-hof" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-purple-500/40 text-purple-700 dark:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-hof">0</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="banner-card-list" class="hidden w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
+                    <div class="flex items-center justify-center">
+                        <h2 id="list-banner-pill" data-tooltip-title="AniList Banner"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from your AniList&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
+                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
+                            <span class="text-sky-500 dark:text-sky-400">List:</span> <span id="list-banner-title">AniList</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="pull-list-10" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Summon: ★ 105
+                        </button>
+                        <button id="spark-list" disabled
+                            class="w-full py-1.5 rounded-lg font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-600 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            Spark: <span id="spark-count-list">0</span>
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <section id="results-section" class="hidden border-t border-slate-200 dark:border-slate-800 pt-2.5 space-y-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Summon Results</h3>
+                <button id="clear-results" class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Hide Results</button>
+            </div>
+            <div id="results-grid" class="flex flex-wrap items-stretch gap-2"></div>
+        </section>
+
+        <section class="border-t border-slate-200 dark:border-slate-800 pt-1.5 space-y-1.5">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1.5">
+                <!-- Stacked & horizontally centered on mobile/tablet, left-aligned with right spacing on desktop -->
+                <div class="text-center lg:text-left lg:shrink-0 lg:mr-3">
+                    <h3 data-tooltip-title="Character Collection"
+                        title="Format: [L][Rarity][Level]&#10;[L]: = Character is from an anime on your AniList&#10;[Level]: Duplicate count: Level 1 (2 copies), Level 2 (3-5), Level 3 (6+)&#10;Auto-locks sparks and S+ summons"
+                        class="text-lg font-bold whitespace-nowrap cursor-help inline-block">Character Collection</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        Owned <span id="unlocked-count" class="text-slate-900 dark:text-white font-semibold">0</span>/<span id="pool-count">0</span>
+                    </p>
+                </div>
+
+                <!-- 2-col structured grid on mobile, inline flex row right-aligned on desktop -->
+                <div class="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-1.5 lg:ml-auto lg:justify-end">
+                    <!-- Spark Mode indicator button (click to exit Spark Mode) -->
+                    <button type="button" id="spark-mode-indicator" title="Exit Spark"
+                        class="hidden col-span-2 sm:order-1 w-full sm:w-auto shrink-0 px-2.5 py-1.5 sm:py-1 rounded-lg text-base sm:text-sm font-semibold bg-amber-500/15 hover:bg-amber-500/25 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/40 whitespace-nowrap transition">
+                        <span id="spark-mode-label">Standard Spark</span>
+                    </button>
+
+                    <!-- Sell All unlocked cards button -->
+                    <button type="button" id="sell-all-btn" disabled data-tooltip-title="Sell All"
+                        title="Sell all unlocked characters for Stars"
+                        class="col-span-2 sm:order-1 w-full sm:w-auto shrink-0 px-2.5 py-1.5 sm:py-1 rounded-lg border border-transparent text-base sm:text-sm font-semibold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white whitespace-nowrap transition">
+                        Sell All: ★ <span id="sell-all-amount">0</span>
+                    </button>
+
+                    <!-- Sort dropdown -->
+                    <div class="custom-select-wrapper relative col-span-2 sm:order-2 w-full sm:w-auto shrink-0" data-target="sort-select">
+                        <select id="sort-select" class="sr-only" aria-hidden="true" tabindex="-1">
+                            <option value="RARITY_DESC">Highest Character Rarity</option>
+                            <option value="RARITY_ASC">Lowest Character Rarity</option>
+                            <option value="CHAR_COUNT_DESC">Highest Character Popularity</option>
+                            <option value="CHAR_COUNT_ASC">Lowest Character Popularity</option>
+                            <option value="LEVEL_DESC">Highest Character Level</option>
+                            <option value="LEVEL_ASC">Lowest Character Level</option>
+                            <option value="ANIME_COUNT_DESC">Highest Anime Popularity</option>
+                            <option value="ANIME_COUNT_ASC">Lowest Anime Popularity</option>
+                            <option value="CHAR_AZ">Character (A-Z)</option>
+                            <option value="CHAR_ZA">Character (Z-A)</option>
+                            <option value="ANIME_AZ">Anime (A-Z)</option>
+                            <option value="ANIME_ZA">Anime (Z-A)</option>
+                            <option value="DATE_NEW">Newest Anime</option>
+                            <option value="DATE_OLD">Oldest Anime</option>
+                        </select>
+                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            <span class="custom-select-label truncate">Highest Rarity</span>
+                        </button>
+                        <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        <div class="custom-select-menu hidden absolute left-0 right-0 sm:right-auto sm:min-w-full mt-1 z-40 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                    </div>
+
+                    <!-- Rarity dropdown -->
+                    <div id="filter-rarity-wrapper" class="custom-select-wrapper relative col-span-1 sm:order-4 w-full sm:w-auto shrink-0" data-target="filter-rarity">
+                        <select id="filter-rarity" class="sr-only" aria-hidden="true" tabindex="-1">
+                            <option value="ALL">All Rarities</option>
+                            <option value="SSR">SSR</option>
+                            <option value="SR">SR</option>
+                            <option value="S">S</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                        </select>
+                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            <span class="custom-select-label truncate">All Rarities</span>
+                        </button>
+                        <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        <div class="custom-select-menu hidden absolute left-0 right-0 sm:right-auto sm:min-w-full mt-1 z-40 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                    </div>
+
+                    <!-- Owned dropdown -->
+                    <div id="filter-owned-wrapper" class="custom-select-wrapper relative col-span-1 sm:order-5 w-full sm:w-auto shrink-0" data-target="filter-owned">
+                        <select id="filter-owned" class="sr-only" aria-hidden="true" tabindex="-1">
+                            <option value="ALL">All Characters</option>
+                            <option value="OWNED" selected>Owned</option>
+                            <option value="LOCKED">Locked</option>
+                            <option value="UNLOCKED">Unlocked</option>
+                        </select>
+                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            <span class="custom-select-label truncate">Owned</span>
+                        </button>
+                        <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                        <div class="custom-select-menu hidden absolute right-0 sm:left-0 sm:right-auto sm:min-w-full mt-1 z-40 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                    </div>
+
+                    <!-- Search bar -->
+                    <div class="relative col-span-2 sm:order-6 sm:w-80">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 10.5a7.5 7.5 0 0013.15 6.15z" />
+                        </svg>
+                        <input type="text" id="search-input" data-tooltip-title="Search Syntax"
+                            title='Filter results using field operators:&#10;char:"mio" or anime:"k-on"&#10;anime>2020 or era<=2010&#10;tier:SSR, level>=2, or owned>1&#10;genre:Action, tag:Music, studio:MAPPA, source:Manga'
+                            placeholder='Search (e.g. char:"mio" anime>2020)'
+                            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-8 pr-8 py-1.5 sm:py-1 text-base sm:text-sm focus:outline-none focus:border-indigo-500"/>
+                        <button type="button" id="clear-search" aria-label="Clear search"
+                            class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-700">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="pagination-controls hidden flex items-center justify-center gap-1 pb-0.5 text-xs text-slate-600 dark:text-slate-300">
+                <button class="first-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="First Page">
+                    &lt;&lt;
+                </button>
+                <button class="prev-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Previous Page">
+                    &lt;
+                </button>
+                <input type="number" min="1" value="1"
+                    class="page-input w-12 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded py-1 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-indigo-500"/>
+                <span class="px-1 text-slate-500 dark:text-slate-400">out of <span class="total-pages text-slate-900 dark:text-white font-semibold">1</span></span>
+                <button class="next-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Next Page">
+                    &gt;
+                </button>
+                <button class="last-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Last Page">
+                    &gt;&gt;
+                </button>
+            </div>
+            <div id="inventory-grid" class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-2">
+                <div class="col-span-full text-center py-8 text-slate-500 text-sm">
+                    Loading character database...
+                </div>
+            </div>
+            <div class="pagination-controls hidden flex items-center justify-center gap-1 pt-1 text-xs text-slate-600 dark:text-slate-300">
+                <button class="first-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="First Page">
+                    &lt;&lt;
+                </button>
+                <button class="prev-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Previous Page">
+                    &lt;
+                </button>
+                <input type="number" min="1" value="1"
+                    class="page-input w-12 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded py-1 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-indigo-500"/>
+                <span class="px-1 text-slate-500 dark:text-slate-400">out of <span class="total-pages text-slate-900 dark:text-white font-semibold">1</span></span>
+                <button class="next-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Next Page">
+                    &gt;
+                </button>
+                <button class="last-page px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Last Page">
+                    &gt;&gt;
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Profile Photo Editor Modal (click outside backdrop to close) -->
+    <div id="photo-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-md p-4 space-y-3 shadow-xl">
+            <!-- Live Preview (locked to exact height of the slider rows) & 4-Column Control Grid -->
+            <div class="grid grid-cols-[auto_1fr] items-stretch gap-3 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+                <div id="photo-preview-frame" class="h-0 min-h-full aspect-square rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center">
+                    <img id="photo-preview-img" src="" alt="Preview" class="hidden w-full h-full object-cover object-top pointer-events-none"/>
+                    <span id="photo-preview-placeholder" class="text-xs font-bold text-slate-400">None</span>
+                </div>
+
+                <!-- 4 Columns: Icon, Slider/Name Input, Number Input, Unit/Remaining -->
+                <div class="min-w-0 grid grid-cols-[16px_1fr_36px_12px] items-center gap-x-1.5 gap-y-1.5 text-xs">
+                    <!-- Row 1: Display Name -->
+                    <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Display Name">✎</span>
+                    <input id="profile-name-input" type="text" maxlength="24" placeholder="Display name"
+                        class="col-span-2 w-full min-w-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs text-center font-semibold focus:outline-none focus:border-indigo-500"/>
+                    <span id="name-changes-left" data-tooltip-title="Yearly Name Changes"
+                        title="Limited to 1 custom change per calendar year (resets Jan 1 at 00:00 JST)&#10;Free Bypass: Reverting to your Discord name or leaving it blank does not use your yearly change"
+                        class="text-slate-400 text-left font-bold tabular-nums cursor-help">1</span>
+
+                    <!-- Row 2: AniList Username (shown only once linked) -->
+                    <span id="profile-anilist-icon" class="hidden text-slate-500 dark:text-slate-400 flex items-center justify-center" title="AniList">
+                        <img src="anilist.svg" alt="AniList" class="w-3.5 h-3.5 opacity-60 dark:opacity-70 dark:invert" />
+                    </span>
+                    <input id="profile-anilist-input" type="text" maxlength="32" placeholder="AniList"
+                        class="hidden w-full min-w-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs text-center font-semibold focus:outline-none focus:border-indigo-500"/>
+                    <button id="unlink-anilist-btn" type="button" title="Unlink AniList Account" aria-label="Unlink AniList Account"
+                        class="hidden w-full self-stretch rounded bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <span id="anilist-changes-left" data-tooltip-title="Yearly AniList Changes"
+                        title="Limited to 1 change per calendar year (resets Jan 1 at 00:00 JST)&#10;Free Bypass: Reverting to a previously linked AniList username does not use your yearly change"
+                        class="hidden text-slate-400 text-left font-bold tabular-nums cursor-help">1</span>
+
+                    <!-- Row 3: X -->
+                    <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Horizontal Offset">↔</span>
+                    <input id="photo-x" type="range" min="-100" max="100" step="1" value="0" class="photo-slider w-full min-w-0"/>
+                    <input id="photo-x-input" type="number" min="-100" max="100" step="1" value="0"
+                        class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
+                    <span class="text-slate-400 text-left">%</span>
+
+                    <!-- Row 4: Y -->
+                    <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Vertical Offset">↕</span>
+                    <input id="photo-y" type="range" min="-100" max="100" step="1" value="0" class="photo-slider w-full min-w-0"/>
+                    <input id="photo-y-input" type="number" min="-100" max="100" step="1" value="0"
+                        class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
+                    <span class="text-slate-400 text-left">%</span>
+
+                    <!-- Row 5: Zoom -->
+                    <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Zoom">⊕</span>
+                    <input id="photo-zoom" type="range" min="1" max="3" step="0.05" value="1.2" class="photo-slider w-full min-w-0"/>
+                    <input id="photo-zoom-input" type="number" min="1" max="3" step="0.05" value="1.2"
+                        class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
+                    <span class="text-slate-400 text-left">x</span>
+
+                    <!-- Row 6: Rotate -->
+                    <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Rotate">↻</span>
+                    <input id="photo-rotate" type="range" min="-180" max="180" step="1" value="0" class="photo-slider w-full min-w-0"/>
+                    <input id="photo-rotate-input" type="number" min="-180" max="180" step="1" value="0"
+                        class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
+                    <span class="text-slate-400 text-left">°</span>
+                </div>
+            </div>
+
+            <!-- Owned Character Picker -->
+            <div class="space-y-1.5">
+                <input id="photo-char-search" type="text" placeholder="Search owned characters..."
+                    class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500"/>
+                <div id="photo-char-grid" class="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 border border-slate-200 dark:border-slate-800 rounded-lg"></div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button id="reset-photo-transform" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                    Reset
+                </button>
+                <button id="save-photo-btn" type="button" disabled class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AniList Link Modal (click outside backdrop to close) -->
+    <div id="anilist-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <form id="anilist-modal-form" class="w-fit min-w-[18rem] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl space-y-3">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-[#02A9FF] flex items-center justify-center shrink-0">
+                        <img src="anilist.svg" alt="AniList" class="w-4 h-4 invert" />
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white leading-tight">Link AniList Account</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight sm:whitespace-nowrap">Synchronizes Watching/Completed anime</p>
+                    </div>
+                </div>
+                <button id="submit-anilist-btn" type="submit" disabled
+                    class="shrink-0 px-3 py-1 rounded-lg text-xs font-bold bg-[#02A9FF] hover:bg-[#0295e0] disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                    Link
+                </button>
+            </div>
+
+            <div>
+                <input id="anilist-modal-input" type="text" placeholder="AniList Username" autocomplete="off"
+                    class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-base sm:text-sm focus:outline-none focus:border-[#02A9FF]" />
+                <p id="anilist-modal-error" class="hidden mt-1 text-xs text-rose-500"></p>
+            </div>
+        </form>
+    </div>
+
+    <!-- Share Collection Modal (click outside backdrop to close) -->
+    <div id="share-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="w-fit max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white leading-tight">Share</h2>
+                    <p id="share-modal-status" class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight whitespace-nowrap">Copied to clipboard</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   <!-- Global Custom Hover Tooltip -->
+    <div id="global-tooltip" role="tooltip"
+        class="pointer-events-none fixed left-0 top-0 z-[60] opacity-0 transition-opacity duration-150 w-max max-w-[calc(100vw-1rem)] p-2.5 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-xl text-left">
+        <div id="global-tooltip-header" class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+            <span id="global-tooltip-title"></span>
+        </div>
+        <div id="global-tooltip-body" class="mt-1 text-[11px] leading-snug text-slate-600 dark:text-slate-300 space-y-0.5"></div>
+        <div id="global-tooltip-list-wrap" class="hidden mt-1">
+            <div id="global-tooltip-list" class="flex flex-wrap gap-1"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

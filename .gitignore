@@ -1,0 +1,8 @@
+node_modules/
+supabase/.temp/
+backup/
+.vscode/
+script/
+.env
+.env.*
+!.env.example
