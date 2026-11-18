@@ -131,15 +131,15 @@ let lastAnilistChangeJstYear    = null;
 let listPulls                   = 0;
 
 const SUMMON_COSTS = {
-    STANDARD    : 60,
-    ERA         : 75,
-    FRANCHISE   : 75,
-    GENRE       : 75,
-    SOURCE      : 75,
-    STUDIO      : 75,
-    TAG         : 75,
-    HOF         : 90,
-    LIST        : 105
+    STANDARD    : 80,
+    ERA         : 100,
+    FRANCHISE   : 100,
+    GENRE       : 100,
+    SOURCE      : 100,
+    STUDIO      : 100,
+    TAG         : 100,
+    HOF         : 120,
+    LIST        : 140
 };
 
 let sparkPoints = {

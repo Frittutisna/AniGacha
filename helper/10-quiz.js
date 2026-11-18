@@ -8,12 +8,12 @@ let aniQuizCurrentReward = 0;
 let aniQuizAudioPlaying = false;
 let aniQuizSelectedMcBtn = null;
 const ANI_QUIZ_MISSIONS = [
-    {id:"played20", name:"Play 20 songs", reward:10, test:s=>s.songsPlayed>=20},
-    {id:"played40", name:"Play 40 songs", reward:10, test:s=>s.songsPlayed>=40},
-    {id:"correct10", name:"Get 10 correct answers", reward:10, test:s=>s.correct>=10},
-    {id:"correct20", name:"Get 20 correct answers", reward:10, test:s=>s.correct>=20},
-    {id:"streak5", name:"Reach a 5-song streak", reward:10, test:s=>s.bestStreak>=5},
-    {id:"streak10", name:"Reach a 10-song streak", reward:10, test:s=>s.bestStreak>=10},
+    {id:"played20", name:"Play 20 songs", reward:15, test:s=>s.songsPlayed>=20},
+    {id:"played40", name:"Play 40 songs", reward:15, test:s=>s.songsPlayed>=40},
+    {id:"correct10", name:"Get 10 correct answers", reward:15, test:s=>s.correct>=10},
+    {id:"correct20", name:"Get 20 correct answers", reward:15, test:s=>s.correct>=20},
+    {id:"streak5", name:"Reach a 5-song streak", reward:15, test:s=>s.bestStreak>=5},
+    {id:"streak10", name:"Reach a 10-song streak", reward:15, test:s=>s.bestStreak>=10},
     {id:"shorttime", name:"Complete a quiz below 20+0", reward:10, test:s=>s.shortTimeQuiz},
     {id:"entry", name:"Complete a quiz in Entry mode", reward:10, test:s=>s.entryQuiz},
     {id:"alloptions", name:"Complete a quiz with all options enabled", reward:10, test:s=>s.allOptionsQuiz}
@@ -273,8 +273,8 @@ function aniQuizRenderMissions(){
         card.append(label,status);wrap.append(card);
     });
     const quizEarned=d.quizEarned||0, missionEarned=d.missionEarned||0;
-    document.getElementById("quiz-earned").textContent=`${quizEarned}/90`;
-    document.getElementById("quiz-mission-earned").textContent=`${missionEarned}/90`;
+    document.getElementById("quiz-earned").textContent=`${quizEarned}/120`;
+    document.getElementById("quiz-mission-earned").textContent=`${missionEarned}/120`;
 }
 document.addEventListener("keydown",e=>{
     if(e.key==="Enter" && aniQuizRevealing && document.activeElement?.id!=="quiz-answer"){

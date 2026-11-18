@@ -26,8 +26,8 @@ const HOF_RARITIES = RARITIES.map(r => {
 });
 
 const COSTS: Record<string, number> = {
-  STANDARD: 60, ERA: 75, FRANCHISE: 75, GENRE: 75,
-  SOURCE: 75, STUDIO: 75, TAG: 75, HOF: 90, LIST: 105
+  STANDARD: 80, ERA: 100, FRANCHISE: 100, GENRE: 100,
+  SOURCE: 100, STUDIO: 100, TAG: 100, HOF: 120, LIST: 140
 };
 
 const GUARANTEED_B_PLUS = new Set(["SSR", "SR", "S", "A", "B"]);
@@ -333,7 +333,7 @@ serve(async (req) => {
     ]);
 
     const save = existing?.save_data ?? {
-      stars: 900,
+      stars: 1200,
       inventory: {},
       lockedCards: [],
       sparkPoints: { STANDARD: 0, ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0, HOF: 0, LIST: 0 },
@@ -378,8 +378,8 @@ serve(async (req) => {
     if (!save.quizDaily || save.quizDaily.date !== dailyBanners.jstDate) {
       save.quizDaily = emptyQuizDaily();
     } else {
-      save.quizDaily.quizEarned = Math.max(0, Math.min(90, Number(save.quizDaily.quizEarned) || 0));
-      save.quizDaily.missionEarned = Math.max(0, Math.min(90, Number(save.quizDaily.missionEarned) || 0));
+      save.quizDaily.quizEarned = Math.max(0, Math.min(120, Number(save.quizDaily.quizEarned) || 0));
+      save.quizDaily.missionEarned = Math.max(0, Math.min(120, Number(save.quizDaily.missionEarned) || 0));
       if (!Array.isArray(save.quizDaily.claimedMissions)) save.quizDaily.claimedMissions = [];
       if (!Array.isArray(save.quizDaily.completedQuizIds)) save.quizDaily.completedQuizIds = [];
       if (!save.quizDaily.progress) save.quizDaily.progress = emptyQuizDaily().progress;
@@ -433,7 +433,7 @@ serve(async (req) => {
       const streakM = bestStreak >= 15 ? 1.6 : bestStreak >= 10 ? 1.4 : bestStreak >= 5 ? 1.2 : 1;
       const multiplier = categoryM * chantingM * timeM * modeM * streakM;
       const requestedReward = Math.max(0, Math.round(correct * multiplier));
-      const quizReward = Math.min(requestedReward, Math.max(0, 90 - daily.quizEarned));
+      const quizReward = Math.min(requestedReward, Math.max(0, 120 - daily.quizEarned));
 
       daily.quizEarned += quizReward;
       save.stars += quizReward;
@@ -459,7 +459,7 @@ serve(async (req) => {
         alloptions: { reward: 10, ready: p => p.allOptionsQuiz === true }
       };
       for (const [missionId, mission] of Object.entries(missions)) {
-        if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 90) {
+        if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
           daily.claimedMissions.push(missionId);
           daily.missionEarned += mission.reward;
           save.stars += mission.reward;
@@ -492,7 +492,7 @@ serve(async (req) => {
       const daily = save.quizDaily;
       if (daily.claimedMissions.includes(missionId)) throw new Error("Mission already claimed");
       if (!mission.ready(daily.progress)) throw new Error("Mission requirements not met");
-      if (daily.missionEarned + mission.reward > 90) throw new Error("Daily mission reward cap reached");
+      if (daily.missionEarned + mission.reward > 120) throw new Error("Daily mission reward cap reached");
       daily.claimedMissions.push(missionId);
       daily.missionEarned += mission.reward;
       save.stars += mission.reward;
@@ -649,7 +649,7 @@ serve(async (req) => {
       if (save.lastDailyStarsDate === dailyBanners.jstDate) {
         throw new Error("Daily stars already claimed today");
       }
-      save.stars += 90;
+      save.stars += 120;
       save.lastDailyStarsDate = dailyBanners.jstDate;
     } else if (action === "SET_PROFILE") {
       const currentJstYear = dailyBanners.jstDate.slice(0, 4);
