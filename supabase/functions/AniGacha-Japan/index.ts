@@ -217,20 +217,23 @@ function buildTierMapFromKeys(keys: string[], gameData: CachedGameData): Record<
 }
 
 function selectRarityTier(guaranteeTier: string | null, customRarities = RARITIES): string {
-  const rand = Math.random();
-  let cumulative = 0;
   const allowed = guaranteeTier === "A" ? GUARANTEED_A_PLUS : (guaranteeTier === "B" ? GUARANTEED_B_PLUS : null);
 
   if (allowed) {
-    for (const r of customRarities) {
-      if (!allowed.has(r.tier)) continue;
-      if (r.tier === guaranteeTier) return r.tier;
+    const eligible = customRarities.filter(r => allowed.has(r.tier));
+    const totalWeight = eligible.reduce((sum, r) => sum + r.spawn, 0);
+    const rand = Math.random() * totalWeight;
+    let cumulative = 0;
+
+    for (const r of eligible) {
       cumulative += r.spawn;
       if (rand < cumulative) return r.tier;
     }
     return guaranteeTier!;
   }
 
+  const rand = Math.random();
+  let cumulative = 0;
   let selected = customRarities[customRarities.length - 1].tier;
   for (const r of customRarities) {
     cumulative += r.spawn;
@@ -330,7 +333,7 @@ serve(async (req) => {
     ]);
 
     const save = existing?.save_data ?? {
-      stars: 250,
+      stars: 900,
       inventory: {},
       lockedCards: [],
       sparkPoints: { STANDARD: 0, ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0, HOF: 0, LIST: 0 },

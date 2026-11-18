@@ -6,3 +6,4 @@ script/
 .env
 .env.*
 !.env.example
+*.txt

@@ -141,9 +141,7 @@
                         </colgroup>
                         <thead>
                             <tr id="rates-table-head" class="border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60">
-                                <th data-tooltip-title="Character Rarity Tiers"
-                                    title="Ranked by character popularity from SSR (top 0.5%) to F&#10;Duplicates level up cards: 2 copies = Lv.1, 3–5 = Lv.2, 6+ = Lv.3"
-                                    class="py-1 px-2 text-center font-bold text-slate-600 dark:text-slate-300 cursor-help">Tier</th>
+                                <th class="py-1 px-2 text-center font-bold text-slate-600 dark:text-slate-300">Tier</th>
                             </tr>
                         </thead>
                         <tbody id="rates-table-body" class="divide-y divide-slate-200 dark:divide-slate-800/80">
@@ -400,71 +398,103 @@
                         Sell All: ★ <span id="sell-all-amount">0</span>
                     </button>
 
-                    <!-- Sort dropdown -->
-                    <div class="custom-select-wrapper relative col-span-2 sm:order-2 w-full sm:w-auto shrink-0" data-target="sort-select">
-                        <select id="sort-select" class="sr-only" aria-hidden="true" tabindex="-1">
-                            <option value="RARITY_DESC">Highest Character Rarity</option>
-                            <option value="RARITY_ASC">Lowest Character Rarity</option>
-                            <option value="CHAR_COUNT_DESC">Highest Character Popularity</option>
-                            <option value="CHAR_COUNT_ASC">Lowest Character Popularity</option>
-                            <option value="LEVEL_DESC">Highest Character Level</option>
-                            <option value="LEVEL_ASC">Lowest Character Level</option>
-                            <option value="ANIME_COUNT_DESC">Highest Anime Popularity</option>
-                            <option value="ANIME_COUNT_ASC">Lowest Anime Popularity</option>
-                            <option value="CHAR_AZ">Character (A-Z)</option>
-                            <option value="CHAR_ZA">Character (Z-A)</option>
-                            <option value="ANIME_AZ">Anime (A-Z)</option>
-                            <option value="ANIME_ZA">Anime (Z-A)</option>
-                            <option value="DATE_NEW">Newest Anime</option>
-                            <option value="DATE_OLD">Oldest Anime</option>
-                        </select>
-                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
-                            <span class="custom-select-label truncate">Highest Rarity</span>
+                    <!-- Merged Sort & Filter dropdown -->
+                    <div id="sort-filter-wrapper" class="relative col-span-2 sm:order-2 w-full sm:w-auto shrink-0">
+                        <button type="button" id="sort-filter-trigger"
+                            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            <span id="sort-filter-label" class="truncate">Sort/Filter</span>
                         </button>
-                        <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg id="sort-filter-chevron" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
-                        <div class="custom-select-menu hidden absolute left-0 right-0 sm:right-auto sm:min-w-full mt-1 z-40 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
-                    </div>
 
-                    <!-- Rarity dropdown -->
-                    <div id="filter-rarity-wrapper" class="custom-select-wrapper relative col-span-1 sm:order-4 w-full sm:w-auto shrink-0" data-target="filter-rarity">
-                        <select id="filter-rarity" class="sr-only" aria-hidden="true" tabindex="-1">
-                            <option value="ALL">All Rarities</option>
-                            <option value="SSR">SSR</option>
-                            <option value="SR">SR</option>
-                            <option value="S">S</option>
-                            <option value="A">A</option>
-                            <option value="B">B</option>
-                            <option value="C">C</option>
-                            <option value="D">D</option>
-                            <option value="E">E</option>
-                            <option value="F">F</option>
-                        </select>
-                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
-                            <span class="custom-select-label truncate">All Rarities</span>
-                        </button>
-                        <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                        <div class="custom-select-menu hidden absolute left-0 right-0 sm:right-auto sm:min-w-full mt-1 z-40 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
-                    </div>
+                        <div id="sort-filter-menu" class="hidden absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-max mt-1 z-40 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-2.5 space-y-2.5 text-xs">
+                            <!-- Sort Row: [Character/Anime] [Rarity/Popularity/Level/Name/Date] [▼/▲] -->
+                            <div class="space-y-1">
+                                <div class="text-[11px] font-bold text-slate-400">Sort</div>
+                                <div class="flex items-center gap-1.5">
+                                    <!-- Custom Select 1: Character / Anime -->
+                                    <div class="custom-select-wrapper relative w-auto shrink-0" data-target="sort-entity">
+                                        <select id="sort-entity" class="sr-only" aria-hidden="true" tabindex="-1">
+                                            <option value="CHARACTER">Character</option>
+                                            <option value="ANIME">Anime</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger w-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-7 py-1 text-xs text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                                            <span class="custom-select-label whitespace-nowrap">Character</span>
+                                        </button>
+                                        <svg class="custom-select-chevron w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                        <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                                    </div>
 
-                    <!-- Owned dropdown -->
-                    <div id="filter-owned-wrapper" class="custom-select-wrapper relative col-span-1 sm:order-5 w-full sm:w-auto shrink-0" data-target="filter-owned">
-                        <select id="filter-owned" class="sr-only" aria-hidden="true" tabindex="-1">
-                            <option value="ALL">All Characters</option>
-                            <option value="OWNED" selected>Owned</option>
-                            <option value="LOCKED">Locked</option>
-                            <option value="UNLOCKED">Unlocked</option>
-                        </select>
-                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
-                            <span class="custom-select-label truncate">Owned</span>
-                        </button>
-                        <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                        <div class="custom-select-menu hidden absolute right-0 sm:left-0 sm:right-auto sm:min-w-full mt-1 z-40 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                                    <!-- Custom Select 2: Rarity / Popularity / Level / Name / Date (width fits content) -->
+                                    <div class="custom-select-wrapper relative w-auto shrink-0" data-target="sort-field">
+                                        <select id="sort-field" class="sr-only" aria-hidden="true" tabindex="-1">
+                                            <option value="RARITY">Rarity</option>
+                                            <option value="POPULARITY">Popularity</option>
+                                            <option value="LEVEL">Level</option>
+                                            <option value="NAME">Name</option>
+                                            <option value="DATE">Date</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger w-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-7 py-1 text-xs text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                                            <span class="custom-select-label whitespace-nowrap">Rarity</span>
+                                        </button>
+                                        <svg class="custom-select-chevron w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                        <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                                    </div>
+
+                                    <!-- Direction Button -->
+                                    <button type="button" id="sort-dir-btn" data-dir="DESC" title="Sort Direction"
+                                        class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 font-bold text-xs shrink-0 transition">
+                                        ▼
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Rarity Checkboxes (3x3) -->
+                            <div class="space-y-1">
+                                <div class="text-[11px] font-bold text-slate-400">Rarity</div>
+                                <div id="filter-rarity-group" class="grid grid-cols-3 w-fit gap-x-3 gap-y-1">
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="SSR" class="rounded accent-indigo-600"><span>SSR</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="SR" class="rounded accent-indigo-600"><span>SR</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="S" class="rounded accent-indigo-600"><span>S</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="A" class="rounded accent-indigo-600"><span>A</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="B" class="rounded accent-indigo-600"><span>B</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="C" class="rounded accent-indigo-600"><span>C</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="D" class="rounded accent-indigo-600"><span>D</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="E" class="rounded accent-indigo-600"><span>E</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="F" class="rounded accent-indigo-600"><span>F</span></label>
+                                </div>
+                            </div>
+
+                            <!-- Ownership, Lock & AniList Status Checkboxes (same row) -->
+                            <div id="filter-status-row" class="flex items-start gap-4">
+                                <div id="filter-own-section" class="space-y-1">
+                                    <div class="text-[11px] font-bold text-slate-400">Ownership</div>
+                                    <div id="filter-own-group" class="space-y-1">
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="OWNED" checked class="rounded accent-indigo-600"><span>Owned</span></label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="UNOWNED" class="rounded accent-indigo-600"><span>Unowned</span></label>
+                                    </div>
+                                </div>
+                                <div id="filter-lock-section" class="space-y-1">
+                                    <div class="text-[11px] font-bold text-slate-400">Lock</div>
+                                    <div id="filter-lock-group" class="space-y-1">
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="LOCKED" class="rounded accent-indigo-600"><span>Locked</span></label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="UNLOCKED" class="rounded accent-indigo-600"><span>Unlocked</span></label>
+                                    </div>
+                                </div>
+                                <div id="filter-list-section" class="hidden space-y-1">
+                                    <div class="text-[11px] font-bold text-slate-400">AniList</div>
+                                    <div id="filter-list-group" class="space-y-1">
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="IN_LIST" class="rounded accent-indigo-600"><span>Listed</span></label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="NOT_IN_LIST" class="rounded accent-indigo-600"><span>Not listed</span></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Search bar -->

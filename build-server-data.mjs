@@ -2,11 +2,11 @@ import fs from "node:fs";
 import Papa from "papaparse";
 
 const RARITIES = [
-  { tier: "SSR", dist: 0.005 }, { tier: "SR", dist: 0.015 },
+  { tier: "SSR", dist: 0.005 }, { tier: "SR", dist: 0.01 },
   { tier: "S",   dist: 0.02  }, { tier: "A",  dist: 0.04  },
   { tier: "B",   dist: 0.06  }, { tier: "C",  dist: 0.10  },
-  { tier: "D",   dist: 0.17  }, { tier: "E",  dist: 0.26  },
-  { tier: "F",   dist: 0.36  }
+  { tier: "D",   dist: 0.16  }, { tier: "E",  dist: 0.25  },
+  { tier: "F",   dist: 0.355  }
 ];
 
 function readCSV(path) {

@@ -13,7 +13,7 @@ const RARITIES = [{
 }, {
     tier        : "SR",
     color       : "Violet",
-    dist        : 0.015,
+    dist        : 0.01,
     spawn       : 0.0025,
     sparkCost   : 2500,
     sellValue   : 128,
@@ -63,7 +63,7 @@ const RARITIES = [{
 }, {
     tier        : "D",
     color       : "Orange",
-    dist        : 0.17,
+    dist        : 0.16,
     spawn       : 0.16,
     sparkCost   : 50,
     sellValue   : 4,
@@ -73,7 +73,7 @@ const RARITIES = [{
 }, {
     tier        : "E",
     color       : "Red",
-    dist        : 0.26,
+    dist        : 0.25,
     spawn       : 0.32,
     sparkCost   : 25,
     sellValue   : 2,
@@ -83,7 +83,7 @@ const RARITIES = [{
 }, {
     tier        : "F",
     color       : "Black",
-    dist        : 0.36,
+    dist        : 0.355,
     spawn       : 0.37125,
     sparkCost   : 10,
     sellValue   : 1,
@@ -555,20 +555,23 @@ function buildClientTierMapFromKeys(eligibleKeys, globalBuckets) {
 }
 
 function selectClientRarityTier(guaranteeTier, customRarities = RARITIES) {
-    const rand = Math.random();
-    let cumulative = 0;
     const allowed = guaranteeTier === "A" ? GUARANTEED_A_PLUS : (guaranteeTier === "B" ? GUARANTEED_B_PLUS : null);
 
     if (allowed) {
-        for (const r of customRarities) {
-            if (!allowed.has(r.tier)) continue;
-            if (r.tier === guaranteeTier) return r.tier;
+        const eligible = customRarities.filter(r => allowed.has(r.tier));
+        const totalWeight = eligible.reduce((sum, r) => sum + r.spawn, 0);
+        const rand = Math.random() * totalWeight;
+        let cumulative = 0;
+
+        for (const r of eligible) {
             cumulative += r.spawn;
             if (rand < cumulative) return r.tier;
         }
         return guaranteeTier;
     }
 
+    const rand = Math.random();
+    let cumulative = 0;
     let selected = customRarities[customRarities.length - 1].tier;
     for (const r of customRarities) {
         cumulative += r.spawn;
@@ -1029,13 +1032,12 @@ function isCharacterSparkableInBanner(char, bannerKey) {
 function enterSparkMode(bannerKey) {
     activeSparkBanner = bannerKey;
 
-    setCustomSelectValue("sort-select", "CHAR_COUNT_DESC");
-    setCustomSelectValue("filter-rarity", "ALL");
-    setCustomSelectValue("filter-owned", "ALL");
+    setSortControlState("CHARACTER", "POPULARITY", "DESC");
+    clearFilterCheckboxes(["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
 
     document.getElementById("sell-all-btn").classList.add("hidden");
-    document.getElementById("filter-owned-wrapper").classList.add("hidden");
-    document.getElementById("filter-rarity-wrapper").classList.replace("col-span-1", "col-span-2");
+    document.getElementById("filter-own-section").classList.add("hidden");
+    document.getElementById("filter-lock-section").classList.add("hidden");
 
     const indicator = document.getElementById("spark-mode-indicator");
     const label     = document.getElementById("spark-mode-label");
@@ -1051,8 +1053,8 @@ function enterSparkMode(bannerKey) {
 function exitSparkMode() {
     activeSparkBanner = null;
     document.getElementById("sell-all-btn").classList.remove("hidden");
-    document.getElementById("filter-owned-wrapper").classList.remove("hidden");
-    document.getElementById("filter-rarity-wrapper").classList.replace("col-span-2", "col-span-1");
+    document.getElementById("filter-own-section").classList.remove("hidden");
+    document.getElementById("filter-lock-section").classList.remove("hidden");
     document.getElementById("spark-mode-indicator").classList.add("hidden");
     currentPage = 1;
     renderInventory();
@@ -1729,26 +1731,48 @@ function renderInventory() {
     const paginationEls = document.querySelectorAll(".pagination-controls");
     if (characterPool.length === 0) return;
 
-    const rarityFilter   = document.getElementById("filter-rarity")  .value;
-    const ownedFilter    = document.getElementById("filter-owned")   .value;
-    const sortMode       = document.getElementById("sort-select")    .value;
-    const rawQuery       = document.getElementById("search-input")   .value.trim();
-    const searchTokens   = parseSearchQuery(rawQuery);
-    const itemsPerPage   = getItemsPerPage();
-    const isSparkMode    = activeSparkBanner !== null;
-    const availableSpark = isSparkMode ? sparkPoints[activeSparkBanner] : 0;
+    const selectedRarities = getCheckedValues("#filter-rarity-group");
+    const selectedOwn      = getCheckedValues("#filter-own-group");
+    const selectedLock     = getCheckedValues("#filter-lock-group");
+    const selectedList     = getCheckedValues("#filter-list-group");
+    const sortMode         = getResolvedSortMode();
+    const rawQuery         = document.getElementById("search-input").value.trim();
+    const searchTokens     = parseSearchQuery(rawQuery);
+    const itemsPerPage     = getItemsPerPage();
+    const isSparkMode      = activeSparkBanner !== null;
+    const availableSpark   = isSparkMode ? sparkPoints[activeSparkBanner] : 0;
+    const isAnilistLinked  = Boolean(anilistUsername);
+
+    document.getElementById("filter-list-section")?.classList.toggle("hidden", !isAnilistLinked);
+    document.getElementById("filter-status-row")?.classList.toggle("hidden", isSparkMode && !isAnilistLinked);
 
     let filtered = characterPool.filter(c => {
-        const isOwned = Boolean(inventory[c.uniqueKey]);
+        const isOwned  = Boolean(inventory[c.uniqueKey]);
+        const isLocked = isOwned && lockedCards.has(c.uniqueKey);
+
         if (isSparkMode) {
             if (!isCharacterSparkableInBanner(c, activeSparkBanner)) return false;
             if (availableSpark < c.rarity.sparkCost)                 return false;
+        } else {
+            if (selectedOwn.size > 0) {
+                const ownMatch = (selectedOwn.has("OWNED") && isOwned) || (selectedOwn.has("UNOWNED") && !isOwned);
+                if (!ownMatch) return false;
+            }
+            if (selectedLock.size > 0) {
+                const lockMatch = (selectedLock.has("LOCKED") && isLocked) || (selectedLock.has("UNLOCKED") && isOwned && !isLocked);
+                if (!lockMatch) return false;
+            }
         }
-        if (ownedFilter === "OWNED"    && !isOwned)                                  return false;
-        if (ownedFilter === "LOCKED"   && (!isOwned || !lockedCards.has(c.uniqueKey))) return false;
-        if (ownedFilter === "UNLOCKED" && (!isOwned || lockedCards.has(c.uniqueKey)))  return false;
-        if (rarityFilter !== "ALL"     && c.rarity.tier !== rarityFilter)              return false;
-        if (!matchesSearchTokens(c, searchTokens))                                     return false;
+
+        if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity.tier)) return false;
+
+        if (isAnilistLinked && selectedList.size > 0) {
+            const onList = isListCharacter(c);
+            const listMatch = (selectedList.has("IN_LIST") && onList) || (selectedList.has("NOT_IN_LIST") && !onList);
+            if (!listMatch) return false;
+        }
+
+        if (!matchesSearchTokens(c, searchTokens)) return false;
         return true;
     });
 
@@ -1822,7 +1846,36 @@ langToggleBtn.addEventListener("click", () => {
     renderInventory();
 });
 
-// --- Custom Dropdown Menus ---
+// --- Sort & Filter Dropdown ---
+const SORT_FIELDS_BY_ENTITY = {
+    CHARACTER: [
+        { value: "RARITY",     label: "Rarity" },
+        { value: "POPULARITY", label: "Popularity" },
+        { value: "LEVEL",      label: "Level" },
+        { value: "NAME",       label: "Name" }
+    ],
+    ANIME: [
+        { value: "POPULARITY", label: "Popularity" },
+        { value: "NAME",       label: "Name" },
+        { value: "DATE",       label: "Date" }
+    ]
+};
+
+function getCheckedValues(containerSelector) {
+    return new Set(
+        Array.from(document.querySelectorAll(`${containerSelector} input[type="checkbox"]:checked`))
+            .map(cb => cb.value)
+    );
+}
+
+function clearFilterCheckboxes(selectors) {
+    selectors.forEach(sel => {
+        document.querySelectorAll(`${sel} input[type="checkbox"]`).forEach(cb => {
+            cb.checked = false;
+        });
+    });
+}
+
 function closeAllCustomSelects(exceptWrapper = null) {
     document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
         if (wrapper === exceptWrapper) return;
@@ -1832,9 +1885,9 @@ function closeAllCustomSelects(exceptWrapper = null) {
 }
 
 function syncCustomSelectUI(wrapper) {
-    const select = wrapper.querySelector("select");
+    const select  = wrapper.querySelector("select");
     const labelEl = wrapper.querySelector(".custom-select-label");
-    const menu = wrapper.querySelector(".custom-select-menu");
+    const menu    = wrapper.querySelector(".custom-select-menu");
     if (!select || !labelEl || !menu) return;
 
     const selectedOpt = select.options[select.selectedIndex];
@@ -1850,7 +1903,7 @@ function syncCustomSelectUI(wrapper) {
             : `<span class="w-3.5 h-3.5 shrink-0"></span>`;
         return `
             <button type="button" data-option-value="${escapeHTML(opt.value)}"
-                class="w-full px-2.5 py-1.5 text-left text-sm flex items-center justify-between gap-3 whitespace-nowrap transition ${activeClasses}">
+                class="w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between gap-3 whitespace-nowrap transition ${activeClasses}">
                 <span>${escapeHTML(opt.textContent)}</span>
                 ${checkHtml}
             </button>
@@ -1868,9 +1921,9 @@ function setCustomSelectValue(selectId, value) {
 
 function initCustomSelects() {
     document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
-        const select = wrapper.querySelector("select");
+        const select  = wrapper.querySelector("select");
         const trigger = wrapper.querySelector(".custom-select-trigger");
-        const menu = wrapper.querySelector(".custom-select-menu");
+        const menu    = wrapper.querySelector(".custom-select-menu");
         const chevron = wrapper.querySelector(".custom-select-chevron");
         if (!select || !trigger || !menu) return;
 
@@ -1885,6 +1938,7 @@ function initCustomSelects() {
         });
 
         menu.addEventListener("click", (e) => {
+            e.stopPropagation();
             const optBtn = e.target.closest("[data-option-value]");
             if (!optBtn) return;
             const nextVal = optBtn.getAttribute("data-option-value");
@@ -1897,11 +1951,109 @@ function initCustomSelects() {
             chevron?.classList.remove("rotate-180");
         });
     });
+}
 
-    document.addEventListener("click", () => closeAllCustomSelects());
+function syncSortFieldOptions(preferredField = null) {
+    const entityEl = document.getElementById("sort-entity");
+    const fieldEl  = document.getElementById("sort-field");
+    if (!entityEl || !fieldEl) return;
+
+    const currentField = preferredField || fieldEl.value;
+    const options      = SORT_FIELDS_BY_ENTITY[entityEl.value] || SORT_FIELDS_BY_ENTITY.CHARACTER;
+
+    fieldEl.innerHTML = options
+        .map(o => `<option value="${o.value}">${o.label}</option>`)
+        .join("");
+
+    const nextVal = options.some(o => o.value === currentField) ? currentField : options[0].value;
+    setCustomSelectValue("sort-field", nextVal);
+}
+
+function setSortControlState(entity, field, dir) {
+    const dirBtn = document.getElementById("sort-dir-btn");
+    if (!dirBtn) return;
+
+    setCustomSelectValue("sort-entity", entity);
+    syncSortFieldOptions(field);
+    dirBtn.dataset.dir = dir;
+    dirBtn.textContent = dir === "ASC" ? "▲" : "▼";
+}
+
+function getResolvedSortMode() {
+    const entity = document.getElementById("sort-entity")?.value || "CHARACTER";
+    const field  = document.getElementById("sort-field")?.value || "RARITY";
+    const dir    = document.getElementById("sort-dir-btn")?.dataset.dir || "DESC";
+
+    if (entity === "CHARACTER") {
+        if (field === "RARITY")     return dir === "ASC" ? "RARITY_ASC" : "RARITY_DESC";
+        if (field === "POPULARITY") return dir === "ASC" ? "CHAR_COUNT_ASC" : "CHAR_COUNT_DESC";
+        if (field === "LEVEL")      return dir === "ASC" ? "LEVEL_ASC" : "LEVEL_DESC";
+        if (field === "NAME")       return dir === "ASC" ? "CHAR_ZA" : "CHAR_AZ";
+    } else {
+        if (field === "POPULARITY") return dir === "ASC" ? "ANIME_COUNT_ASC" : "ANIME_COUNT_DESC";
+        if (field === "NAME")       return dir === "ASC" ? "ANIME_ZA" : "ANIME_AZ";
+        if (field === "DATE")       return dir === "ASC" ? "DATE_OLD" : "DATE_NEW";
+    }
+    return "RARITY_DESC";
+}
+
+function initSortFilterDropdown() {
+    const wrapper = document.getElementById("sort-filter-wrapper");
+    const trigger = document.getElementById("sort-filter-trigger");
+    const menu    = document.getElementById("sort-filter-menu");
+    const chevron = document.getElementById("sort-filter-chevron");
+    if (!wrapper || !trigger || !menu) return;
+
+    initCustomSelects();
+    syncSortFieldOptions("RARITY");
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeAllCustomSelects();
+        const isHidden = menu.classList.contains("hidden");
+        menu.classList.toggle("hidden", !isHidden);
+        chevron?.classList.toggle("rotate-180", isHidden);
+    });
+
+    menu.addEventListener("click", (e) => {
+        if (!e.target.closest(".custom-select-wrapper")) {
+            closeAllCustomSelects();
+        }
+        e.stopPropagation();
+    });
+
+    document.getElementById("sort-entity")?.addEventListener("change", () => {
+        syncSortFieldOptions();
+        resetPageAndRender();
+    });
+
+    document.getElementById("sort-field")?.addEventListener("change", resetPageAndRender);
+
+    document.getElementById("sort-dir-btn")?.addEventListener("click", (e) => {
+        const btn     = e.currentTarget;
+        const nextDir = btn.dataset.dir === "DESC" ? "ASC" : "DESC";
+        btn.dataset.dir = nextDir;
+        btn.textContent = nextDir === "ASC" ? "▲" : "▼";
+        resetPageAndRender();
+    });
+
+    menu.addEventListener("change", (e) => {
+        if (e.target.matches('input[type="checkbox"]')) {
+            resetPageAndRender();
+        }
+    });
+
+    document.addEventListener("click", () => {
+        closeAllCustomSelects();
+        menu.classList.add("hidden");
+        chevron?.classList.remove("rotate-180");
+    });
+
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             closeAllCustomSelects();
+            menu.classList.add("hidden");
+            chevron?.classList.remove("rotate-180");
             closeAnilistModal();
             document.getElementById("share-modal")?.classList.add("hidden");
             document.getElementById("photo-modal")?.classList.add("hidden");
@@ -1909,7 +2061,7 @@ function initCustomSelects() {
     });
 }
 
-initCustomSelects();
+initSortFilterDropdown();
 
 function initGlobalTooltips() {
     const tooltipEl  = document.getElementById("global-tooltip");
@@ -2178,9 +2330,6 @@ document.getElementById("inventory-grid").addEventListener("click", (e) => {
 });
 
 document.getElementById("clear-results")    .addEventListener("click",  () => {document.getElementById("results-section").classList.add("hidden")});
-document.getElementById("sort-select")      .addEventListener("change", resetPageAndRender);
-document.getElementById("filter-rarity")    .addEventListener("change", resetPageAndRender);
-document.getElementById("filter-owned")     .addEventListener("change", resetPageAndRender);
 
 const searchInput    = document.getElementById("search-input");
 const clearSearchBtn = document.getElementById("clear-search");
