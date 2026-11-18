@@ -49,7 +49,14 @@ function syncCustomSelectUI(wrapper) {
     if (!select || !labelEl || !menu) return;
 
     const selectedOpt   = select.options[select.selectedIndex];
-    labelEl.textContent = selectedOpt ? selectedOpt.textContent : "";
+    const activeText    = selectedOpt ? selectedOpt.textContent : "";
+
+    const sizersHtml = Array.from(select.options)
+        .map(opt => `<span class="col-start-1 row-start-1 invisible h-0 overflow-hidden pointer-events-none" aria-hidden="true">${escapeHTML(opt.textContent)}</span>`)
+        .join("");
+
+    labelEl.className = "custom-select-label inline-grid whitespace-nowrap";
+    labelEl.innerHTML = `<span class="col-start-1 row-start-1">${escapeHTML(activeText)}</span>${sizersHtml}`;
 
     menu.innerHTML = Array.from(select.options).map(opt => {
         const isSelected = opt.value === select.value;
@@ -211,8 +218,15 @@ function initSortFilterDropdown() {
     document.addEventListener("click", () => {
         closeAllCustomSelects();
 
-        menu.       classList.add       ("hidden");
-        chevron?.   classList.remove    ("rotate-180");
+        const sortMenu      = document.getElementById("sort-filter-menu");
+        const sortChevron   = document.getElementById("sort-filter-chevron");
+        const quizMenu      = document.getElementById("quiz-settings-menu");
+        const quizChevron   = document.getElementById("quiz-settings-chevron");
+
+        if (sortMenu)       sortMenu    .classList.add      ("hidden");
+        if (sortChevron)    sortChevron .classList.remove   ("rotate-180");
+        if (quizMenu)       quizMenu    .classList.add      ("hidden");
+        if (quizChevron)    quizChevron .classList.remove   ("rotate-180");
     });
 
     document.addEventListener("keydown", (e) => {if (e.key === "Escape") {
@@ -229,6 +243,34 @@ function initSortFilterDropdown() {
 }
 
 initSortFilterDropdown();
+
+function initQuizSettingsDropdown() {
+    const wrapper   = document.getElementById("quiz-settings-wrapper");
+    const trigger   = document.getElementById("quiz-settings-trigger");
+    const menu      = document.getElementById("quiz-settings-menu");
+    const chevron   = document.getElementById("quiz-settings-chevron");
+
+    if (!wrapper || !trigger || !menu) return;
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation       ();
+        closeAllCustomSelects   ();
+
+        document.getElementById("sort-filter-menu")?.       classList.add       ("hidden");
+        document.getElementById("sort-filter-chevron")?.    classList.remove    ("rotate-180");
+
+        const isHidden = menu.classList.contains("hidden");
+        menu.classList.toggle("hidden", !isHidden);
+        chevron?.classList.toggle("rotate-180", isHidden);
+    });
+
+    menu.addEventListener("click", (e) => {
+        if (!e.target.closest(".custom-select-wrapper")) closeAllCustomSelects();
+        e.stopPropagation();
+    });
+}
+
+initQuizSettingsDropdown();
 
 function initGlobalTooltips() {
     const tooltipEl     = document.getElementById("global-tooltip");

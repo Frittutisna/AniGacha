@@ -566,26 +566,87 @@
             </div>
             <div id="quiz-loading" class="hidden text-sm text-slate-500 mt-3">Loading Stats-Archive song database…</div>
             <div id="quiz-setup" class="w-full mx-auto mt-3">
-                <form id="quiz-setup-form" onsubmit="return false;">
-                    <div class="quiz-dropdowns-mobile">
-                        <label class="quiz-row-mobile text-xs font-semibold text-center">Count<select id="quiz-count" class="quiz-select mt-1">
-                            <option>20</option><option>25</option><option>30</option><option>35</option><option>40</option><option>45</option><option>50</option><option>55</option><option>60</option><option>65</option><option>70</option><option>75</option><option>80</option><option>85</option><option>90</option><option>95</option><option>100</option>
-                        </select></label>
-                        <label class="quiz-row-mobile text-xs font-semibold text-center">Time<select id="quiz-time" class="quiz-select mt-1"><option value="2,8">2+8</option><option value="5,0">5+0</option><option value="15,0">15+0</option><option value="20,0" selected>20+0</option></select></label>
-                        <label class="quiz-row-mobile text-xs font-semibold text-center">Mode<select id="quiz-mode" class="quiz-select mt-1"><option value="entry">Entry</option><option value="mc">Multiple Choice</option></select></label>
-                    </div>
-                    <div class="quiz-type-start-mobile">
-                        <div class="quiz-type-wrap quiz-row-mobile text-xs font-semibold text-center">
-                            <div class="mb-1">Type</div>
-                            <div id="quiz-type-checkboxes" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-2">
-                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-op" checked class="quiz-check"> OP</label>
-                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-ed" checked class="quiz-check"> ED</label>
-                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-in" checked class="quiz-check"> IN</label>
-                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-chanting" checked class="quiz-check"> Chant</label>
+                <form id="quiz-setup-form" onsubmit="return false;" class="grid grid-cols-2 sm:flex sm:items-center sm:justify-center gap-2">
+                    <!-- Quiz Settings Dropdown Menu -->
+                    <div id="quiz-settings-wrapper" class="relative col-span-1 sm:w-auto">
+                        <button type="button" id="quiz-settings-trigger"
+                            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 py-2 text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            <span id="quiz-settings-label" class="truncate font-semibold">Quiz Settings</span>
+                        </button>
+                        <svg id="quiz-settings-chevron" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+
+                        <div id="quiz-settings-menu" class="hidden absolute left-0 sm:left-auto sm:right-0 w-max max-w-[calc(100vw-2rem)] mt-1 z-40 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-3 space-y-3 text-xs">
+                            <!-- Count, Time, and Mode Row (Labels centered above each dropdown) -->
+                            <div class="flex items-start gap-2">
+                                <!-- Count -->
+                                <div class="flex flex-col items-center space-y-1 shrink-0">
+                                    <div class="text-[11px] font-bold text-slate-400">Count</div>
+                                    <div class="custom-select-wrapper relative w-auto" data-target="quiz-count">
+                                        <select id="quiz-count" class="sr-only" aria-hidden="true" tabindex="-1">
+                                            <option>20</option><option>25</option><option>30</option><option>35</option><option>40</option><option>45</option><option>50</option><option>55</option><option>60</option><option>65</option><option>70</option><option>75</option><option>80</option><option>85</option><option>90</option><option>95</option><option>100</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger w-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-7 py-1 text-xs text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                                            <span class="custom-select-label whitespace-nowrap">20</span>
+                                        </button>
+                                        <svg class="custom-select-chevron w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                        <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Time -->
+                                <div class="flex flex-col items-center space-y-1 shrink-0">
+                                    <div class="text-[11px] font-bold text-slate-400">Time</div>
+                                    <div class="custom-select-wrapper relative w-auto" data-target="quiz-time">
+                                        <select id="quiz-time" class="sr-only" aria-hidden="true" tabindex="-1">
+                                            <option value="2,8">2+8</option><option value="5,0">5+0</option><option value="15,0">15+0</option><option value="20,0" selected>20+0</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger w-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-7 py-1 text-xs text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                                            <span class="custom-select-label whitespace-nowrap">20+0</span>
+                                        </button>
+                                        <svg class="custom-select-chevron w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                        <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Mode -->
+                                <div class="flex flex-col items-center space-y-1 shrink-0">
+                                    <div class="text-[11px] font-bold text-slate-400">Mode</div>
+                                    <div class="custom-select-wrapper relative w-auto" data-target="quiz-mode">
+                                        <select id="quiz-mode" class="sr-only" aria-hidden="true" tabindex="-1">
+                                            <option value="entry">Entry</option><option value="mc">Multiple Choice</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger w-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-7 py-1 text-xs text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                                            <span class="custom-select-label whitespace-nowrap">Entry</span>
+                                        </button>
+                                        <svg class="custom-select-chevron w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                        <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 max-h-60 overflow-y-auto rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Type Checkboxes (All in One Row) -->
+                            <div class="space-y-1">
+                                <div class="text-[11px] font-bold text-slate-400">Type</div>
+                                <div class="flex items-center gap-3">
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" id="quiz-op" checked class="rounded accent-indigo-600"><span>Opening</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" id="quiz-ed" checked class="rounded accent-indigo-600"><span>Ending</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" id="quiz-in" checked class="rounded accent-indigo-600"><span>Insert</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" id="quiz-chanting" checked class="rounded accent-indigo-600"><span>Chanting</span></label>
+                                </div>
                             </div>
                         </div>
-                        <button id="quiz-start" class="h-9 flex-1 sm:flex-initial px-4 shrink-0 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm disabled:opacity-40 transition" disabled>Start</button>
                     </div>
+
+                    <!-- Start Button -->
+                    <button id="quiz-start" class="col-span-1 sm:w-32 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm disabled:opacity-40 transition flex items-center justify-center" disabled>Start</button>
                 </form>
             </div>
             <div id="quiz-active" class="hidden space-y-3 mt-3">

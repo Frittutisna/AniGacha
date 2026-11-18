@@ -264,7 +264,7 @@ html.dark .dark\:text-slate-400 {
   #quiz-setup-form{display:flex;align-items:flex-end;flex-wrap:nowrap;gap:.5rem;justify-content:center}
   .quiz-dropdowns-mobile{display:contents}
   .quiz-type-start-mobile{display:contents}
-  #quiz-setup-form label, #quiz-setup-form div.quiz-type-wrap{display:flex;flex-direction:column;align-items:center;flex:0 1 auto}
+  #quiz-setup-form > label, #quiz-setup-form div.quiz-type-wrap{display:flex;flex-direction:column;align-items:center;flex:0 1 auto}
   .quiz-select{width:auto !important}
   #quiz-type-checkboxes{display:flex;align-items:center;gap:.375rem;height:2.25rem;padding:0 .5rem}
   #quiz-type-checkboxes label{display:inline-flex;flex-direction:row;align-items:center;gap:.25rem;height:100%;margin:0;padding:0 .125rem}
