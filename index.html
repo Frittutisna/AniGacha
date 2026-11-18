@@ -570,7 +570,7 @@
                     <!-- Quiz Settings Dropdown Menu -->
                     <div id="quiz-settings-wrapper" class="relative col-span-1 sm:w-auto">
                         <button type="button" id="quiz-settings-trigger"
-                            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 py-2 text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            class="w-full h-10 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
                             <span id="quiz-settings-label" class="truncate font-semibold">Quiz Settings</span>
                         </button>
                         <svg id="quiz-settings-chevron" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -646,10 +646,10 @@
                     </div>
 
                     <!-- Start Button -->
-                    <button id="quiz-start" class="col-span-1 sm:w-32 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm disabled:opacity-40 transition flex items-center justify-center" disabled>Start</button>
+                    <button id="quiz-start" class="w-full sm:w-32 py-2 leading-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base disabled:opacity-40 transition flex items-center justify-center" disabled>Start</button>
                 </form>
             </div>
-            <div id="quiz-active" class="hidden space-y-3 mt-3">
+            <div id="quiz-active" class="hidden w-0 min-w-full space-y-3 mt-3">
                 <div class="grid grid-cols-4 gap-2 text-center text-sm">
                     <div class="rounded-lg bg-slate-100 dark:bg-slate-800 p-2"><b id="quiz-progress">1/20</b></div>
                     <div class="rounded-lg bg-slate-100 dark:bg-slate-800 p-2">Score: <b id="quiz-score">0</b></div>
@@ -663,8 +663,8 @@
                 </div>
                 <audio id="quiz-audio" preload="auto" class="hidden" controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture></audio>
                 <div id="quiz-input-area" class="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-stretch mb-0">
-                    <div id="quiz-entry-wrap" class="min-w-0 relative"><input id="quiz-answer" autocomplete="off" class="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 text-sm font-bold truncate"><div id="quiz-suggestions" class="hidden max-h-40 overflow-auto border rounded-lg mt-1 bg-white dark:bg-slate-900 absolute left-0 right-0 z-20 shadow-lg"></div><button id="quiz-submit" class="hidden">Submit</button></div>
-                    <div id="quiz-mc-wrap" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    <div id="quiz-entry-wrap" class="min-w-0 relative"><input id="quiz-answer" autocomplete="off" class="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 text-sm font-bold"><div id="quiz-answer-reveal" class="hidden w-full h-10 rounded-lg border px-3 text-sm font-bold flex items-center overflow-hidden"></div><div id="quiz-suggestions" class="hidden max-h-40 overflow-auto border rounded-lg mt-1 bg-white dark:bg-slate-900 absolute left-0 right-0 z-20 shadow-lg"></div><button id="quiz-submit" class="hidden">Submit</button></div>
+                    <div id="quiz-mc-wrap" class="hidden min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
                     <button id="quiz-skip" class="h-10 sm:order-first px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition">Skip</button>
                     <button id="quiz-end" class="h-10 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold transition">End</button>
                 </div>

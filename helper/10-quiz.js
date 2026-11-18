@@ -116,6 +116,26 @@ function aniQuizStart() {
     aniQuizNext();
 }
 function aniQuizClearTimers(){if(aniQuizTimer!==null)cancelAnimationFrame(aniQuizTimer);clearTimeout(aniQuizAudioTimer);aniQuizTimer=null;aniQuizAudioTimer=null;}
+function aniQuizSetSwipeText(el, text) {
+    el.innerHTML = "";
+    const span = document.createElement("span");
+    span.className = "inline-block whitespace-nowrap";
+    span.textContent = text;
+    el.appendChild(span);
+    requestAnimationFrame(() => {
+        const style = getComputedStyle(el);
+        const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+        const innerWidth = el.getBoundingClientRect().width - padX - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+        const textWidth = span.getBoundingClientRect().width;
+        const overflow = Math.ceil(textWidth - innerWidth);
+        if (overflow > 2) {
+            const dist = overflow + 8;
+            span.style.setProperty("--quiz-swipe-dist", `-${dist}px`);
+            span.style.setProperty("--quiz-swipe-dur", `${Math.max(2.8, dist / 75 + 1.4).toFixed(1)}s`);
+            span.classList.add("quiz-marquee-track");
+        }
+    });
+}
 function aniQuizNext() {
     aniQuizClearTimers();
     if(aniQuizIndex>=aniQuizRun.songs.length){aniQuizFinish();return;}
@@ -130,10 +150,13 @@ function aniQuizNext() {
     document.getElementById("quiz-suggestions").innerHTML="";
     document.getElementById("quiz-suggestions").classList.add("hidden");
     const answerInput = document.getElementById("quiz-answer");
+    const answerReveal = document.getElementById("quiz-answer-reveal");
     answerInput.value="";
     answerInput.removeAttribute("title");
     answerInput.disabled=false;
-    answerInput.className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 text-sm font-bold truncate";
+    answerInput.className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 text-sm font-bold";
+    answerReveal.classList.add("hidden");
+    answerReveal.innerHTML="";
     const isMc = s.mode === "mc";
     document.getElementById("quiz-entry-wrap").classList.toggle("hidden", isMc);
     document.getElementById("quiz-mc-wrap").classList.toggle("hidden", !isMc);
@@ -178,8 +201,8 @@ function aniQuizMakeChoices(){
     opts.forEach(v=>{
         const b=document.createElement("button");
         b.type="button";
-        b.className="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-sm font-semibold hover:border-indigo-500 text-left truncate transition";
-        b.textContent=v;
+        b.className="min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-sm font-semibold hover:border-indigo-500 text-left overflow-hidden transition";
+        aniQuizSetSwipeText(b,v);
         b.addEventListener("click",()=>{
             aniQuizSelectedMcBtn=b;
             aniQuizResolve(aniQuizNorm(v)===correctN);
@@ -195,6 +218,7 @@ function aniQuizResolve(correct){
     document.getElementById("quiz-score").textContent=aniQuizCorrect;
     document.getElementById("quiz-streak").textContent=aniQuizStreak;
     document.getElementById("quiz-best").textContent=aniQuizBestStreak;
+    aniQuizRenderMissions();
     const title=aniQuizTitle(aniQuizCurrent);
     const type=String(aniQuizCurrent.type||"").toUpperCase();
     const typeMatch=type.match(/(OPENING|ENDING|INSERT)\s*(\d*)/i);
@@ -202,10 +226,11 @@ function aniQuizResolve(correct){
     const fullMeta=`${title} (${shortType}): ${aniQuizCurrent.song||""} by ${aniQuizCurrent.artist_raw||""}`;
     
     const answerInput=document.getElementById("quiz-answer");
-    answerInput.value=fullMeta;
-    answerInput.removeAttribute("title");
+    const answerReveal=document.getElementById("quiz-answer-reveal");
     answerInput.disabled=true;
-    answerInput.className=`w-full h-10 rounded-lg border px-3 text-sm font-bold truncate ${correct ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' : 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'}`;
+    answerInput.classList.add("hidden");
+    answerReveal.className=`w-full h-10 rounded-lg border px-3 text-sm font-bold flex items-center overflow-hidden ${correct ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' : 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'}`;
+    aniQuizSetSwipeText(answerReveal, fullMeta);
 
     document.getElementById("quiz-suggestions").innerHTML="";
     document.getElementById("quiz-suggestions").classList.add("hidden");
@@ -215,11 +240,11 @@ function aniQuizResolve(correct){
         const isRightOption = aniQuizNorm(b.textContent) === correctNorm;
         const isChosenWrong = !correct && b === aniQuizSelectedMcBtn;
         if (isRightOption) {
-            b.className = "rounded-lg border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 p-3 text-sm font-bold text-left truncate transition";
+            b.className = "min-w-0 rounded-lg border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 p-3 text-sm font-bold text-left overflow-hidden transition";
         } else if (isChosenWrong) {
-            b.className = "rounded-lg border border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 p-3 text-sm font-bold text-left truncate transition";
+            b.className = "min-w-0 rounded-lg border border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 p-3 text-sm font-bold text-left overflow-hidden transition";
         } else {
-            b.className = "rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 opacity-50 p-3 text-sm font-semibold text-left truncate transition";
+            b.className = "min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 opacity-50 p-3 text-sm font-semibold text-left overflow-hidden transition";
         }
     });
     document.getElementById("quiz-skip").textContent="Skip";
@@ -262,19 +287,35 @@ async function aniQuizFinish(){
 }
 function aniQuizRenderMissions(){
     const wrap=document.getElementById("quiz-missions");if(!wrap)return;
-    const d=aniQuizDaily||{}, progress=d.progress||{};
+    const d=aniQuizDaily||{}, base=d.progress||{};
+    const inRun=Boolean(aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden"));
+    const runCompleted=inRun && aniQuizRun.answers.length===aniQuizRun.songs.length;
+    const s=aniQuizRun?.settings;
+    const liveProgress={
+        songsPlayed:(base.songsPlayed||0)+(inRun?aniQuizRun.answers.length:0),
+        correct:(base.correct||0)+(inRun?aniQuizCorrect:0),
+        bestStreak:Math.max(base.bestStreak||0,inRun?aniQuizBestStreak:0),
+        shortTimeQuiz:Boolean(base.shortTimeQuiz||(runCompleted&&(s.sound!==20||s.extra!==0))),
+        entryQuiz:Boolean(base.entryQuiz||(runCompleted&&s.mode==="entry")),
+        allOptionsQuiz:Boolean(base.allOptionsQuiz||(runCompleted&&s.cats.length===3&&s.chanting))
+    };
     wrap.innerHTML="";
     ANI_QUIZ_MISSIONS.forEach(m=>{
-        const done=Boolean(d.claimedMissions?.includes(m.id));
-        const ready=m.test(progress);
+        const done=Boolean(d.claimedMissions?.includes(m.id))||m.test(liveProgress);
         const card=document.createElement("div");card.className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 flex items-center justify-between gap-2";
         const label=document.createElement("div");label.className="mr-3";label.innerHTML=`<div class="font-semibold">${m.name}</div><div class="text-slate-900 dark:text-slate-100 font-semibold"><span>★</span> ${m.reward}</div>`;
         const status=document.createElement("span");status.className="shrink-0 self-stretch min-w-[4.75rem] flex items-center justify-center px-2.5 py-1 rounded text-sm font-bold "+(done?"bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300":"bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300");status.textContent=done?"Done":"Pending";
         card.append(label,status);wrap.append(card);
     });
-    const quizEarned=d.quizEarned||0, missionEarned=d.missionEarned||0;
+    let liveMissionEarned=d.missionEarned||0;
+    ANI_QUIZ_MISSIONS.forEach(m=>{
+        if(!d.claimedMissions?.includes(m.id) && m.test(liveProgress) && liveMissionEarned+m.reward<=120){
+            liveMissionEarned+=m.reward;
+        }
+    });
+    const quizEarned=d.quizEarned||0;
     document.getElementById("quiz-earned").textContent=`${quizEarned}/120`;
-    document.getElementById("quiz-mission-earned").textContent=`${missionEarned}/120`;
+    document.getElementById("quiz-mission-earned").textContent=`${liveMissionEarned}/120`;
 }
 document.addEventListener("keydown",e=>{
     if(e.key==="Enter" && aniQuizRevealing && document.activeElement?.id!=="quiz-answer"){

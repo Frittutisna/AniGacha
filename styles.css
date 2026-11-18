@@ -247,7 +247,7 @@ html.dark .dark\:text-slate-400 {
 .quiz-select:focus{border-color:#6366f1}
 .quiz-check{accent-color:#4f46e5;width:1rem;height:1rem;border-radius:.25rem}
 @media(max-width:639px){
-  #quiz-setup-form{display:flex;flex-direction:column;gap:.5rem}
+  #quiz-setup-form{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:.5rem}
   .quiz-dropdowns-mobile{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr);gap:.375rem;width:100%}
   .quiz-type-start-mobile{display:flex;align-items:flex-end;gap:.5rem;width:100%}
   .quiz-type-start-mobile .quiz-type-wrap{flex:0 0 auto;width:auto}
@@ -268,4 +268,17 @@ html.dark .dark\:text-slate-400 {
   .quiz-select{width:auto !important}
   #quiz-type-checkboxes{display:flex;align-items:center;gap:.375rem;height:2.25rem;padding:0 .5rem}
   #quiz-type-checkboxes label{display:inline-flex;flex-direction:row;align-items:center;gap:.25rem;height:100%;margin:0;padding:0 .125rem}
+}
+
+@keyframes quizTextSwipe {
+    0%, 15%   {transform: translateX(0)}
+    50%, 65%  {transform: translateX(var(--quiz-swipe-dist, 0px))}
+    100%      {transform: translateX(0)}
+}
+
+.quiz-marquee-track {
+    display     : inline-block;
+    white-space : nowrap;
+    will-change : transform;
+    animation   : quizTextSwipe var(--quiz-swipe-dur, 6s) ease-in-out 1 forwards;
 }

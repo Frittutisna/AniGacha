@@ -1,4 +1,4 @@
-# AniGacha v0.3.3-beta
+# AniGacha v0.3.4-beta
 
 ## Changelog
 1. Added the Quiz page for extra Stars
@@ -6,3 +6,4 @@
 3. Adjusted Star economy
 4. Fixed mission values not reflecting changes
 5. Fixed Quiz dropdowns and checkboxes
+6. Fixed long answers/options cutting off
