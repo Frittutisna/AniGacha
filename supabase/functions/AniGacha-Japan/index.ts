@@ -367,12 +367,32 @@ serve(async (req) => {
       )
     };
 
+    const emptyQuizDaily = () => ({
+      date: dailyBanners.jstDate,
+      quizEarned: 0,
+      missionEarned: 0,
+      claimedMissions: [],
+      completedQuizIds: [],
+      progress: { songsPlayed: 0, correct: 0, bestStreak: 0, allCategoriesQuiz: false, entryQuiz: false, shortTimeQuiz: false, allOptionsQuiz: false }
+    });
+    if (!save.quizDaily || save.quizDaily.date !== dailyBanners.jstDate) {
+      save.quizDaily = emptyQuizDaily();
+    } else {
+      save.quizDaily.quizEarned = Math.max(0, Math.min(90, Number(save.quizDaily.quizEarned) || 0));
+      save.quizDaily.missionEarned = Math.max(0, Math.min(90, Number(save.quizDaily.missionEarned) || 0));
+      if (!Array.isArray(save.quizDaily.claimedMissions)) save.quizDaily.claimedMissions = [];
+      if (!Array.isArray(save.quizDaily.completedQuizIds)) save.quizDaily.completedQuizIds = [];
+      if (!save.quizDaily.progress) save.quizDaily.progress = emptyQuizDaily().progress;
+      save.quizDaily.progress.shortTimeQuiz = save.quizDaily.progress.shortTimeQuiz === true;
+      save.quizDaily.progress.allOptionsQuiz = save.quizDaily.progress.allOptionsQuiz === true;
+    }
+
     if (action === "INIT") {
       const incomingDiscordName = typeof body.discordName === "string" ? body.discordName.trim().slice(0, 24) : "";
       if (!save.displayName && incomingDiscordName) {
         save.displayName = incomingDiscordName;
       }
-      if (!existing || (!existing.save_data?.displayName && save.displayName)) {
+      if (!existing || existing.save_data?.quizDaily?.date !== dailyBanners.jstDate || (!existing.save_data?.displayName && save.displayName)) {
         await adminClient.from("player_saves").upsert({
           user_id: userId,
           save_data: save,
@@ -380,6 +400,108 @@ serve(async (req) => {
         });
       }
       return new Response(JSON.stringify({ save, dailyBanners: bannerPayload }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    if (action === "QUIZ_COMPLETE") {
+      const quizId = typeof body.quizId === "string" ? body.quizId.slice(0, 100) : "";
+      if (!quizId) throw new Error("Missing quiz identifier");
+      const daily = save.quizDaily;
+      if (daily.completedQuizIds.includes(quizId)) throw new Error("This quiz has already been submitted");
+
+      const stats = body.missionStats || {};
+      const songsPlayed = Math.max(0, Math.min(100, Math.floor(Number(stats.songsPlayed) || 0)));
+      const correct = Math.max(0, Math.min(songsPlayed, Math.floor(Number(body.correct) || 0)));
+      const bestStreak = Math.max(0, Math.min(correct, Math.floor(Number(body.bestStreak) || 0)));
+      const settings = body.settings || {};
+      const categories = Array.isArray(settings.categories)
+        ? [...new Set(settings.categories.filter((v: string) => ["op", "ed", "in"].includes(v)))]
+        : [];
+      if (!categories.length || !["entry", "mc"].includes(settings.mode)) throw new Error("Invalid quiz settings");
+
+      const categoryM = categories.length === 3 ? 1 : categories.length === 2 ? 0.8 : 0.6;
+      const chantingM = settings.chanting === true ? 1 : 0.8;
+      const sound = Number(settings.sound);
+      const extra = Number(settings.extra);
+      const timeM = sound === 20 && extra === 0 ? 1
+        : sound === 15 && extra === 0 ? 1.2
+        : sound === 5 && extra === 0 ? 1.4
+        : sound === 2 && extra === 8 ? 1.4 : null;
+      if (timeM === null) throw new Error("Invalid quiz time control");
+      const modeM = settings.mode === "entry" ? 1 : 0.4;
+      const streakM = bestStreak >= 15 ? 1.6 : bestStreak >= 10 ? 1.4 : bestStreak >= 5 ? 1.2 : 1;
+      const multiplier = categoryM * chantingM * timeM * modeM * streakM;
+      const requestedReward = Math.max(0, Math.round(correct * multiplier));
+      const quizReward = Math.min(requestedReward, Math.max(0, 90 - daily.quizEarned));
+
+      daily.quizEarned += quizReward;
+      save.stars += quizReward;
+      daily.completedQuizIds.push(quizId);
+      const progress = daily.progress;
+      progress.songsPlayed += songsPlayed;
+      progress.correct += correct;
+      progress.bestStreak = Math.max(progress.bestStreak, bestStreak);
+      progress.allCategoriesQuiz = progress.allCategoriesQuiz || (stats.allCategoriesQuiz === true && stats.completed === true);
+      progress.entryQuiz = progress.entryQuiz || (stats.entryQuiz === true && stats.completed === true);
+      progress.shortTimeQuiz = progress.shortTimeQuiz || (stats.shortTimeQuiz === true && stats.completed === true);
+      progress.allOptionsQuiz = progress.allOptionsQuiz || (stats.allOptionsQuiz === true && stats.completed === true);
+
+      const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
+        played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
+        played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
+        correct10: { reward: 10, ready: p => p.correct >= 10 },
+        correct20: { reward: 10, ready: p => p.correct >= 20 },
+        streak5: { reward: 10, ready: p => p.bestStreak >= 5 },
+        streak10: { reward: 10, ready: p => p.bestStreak >= 10 },
+        shorttime: { reward: 10, ready: p => p.shortTimeQuiz === true },
+        entry: { reward: 10, ready: p => p.entryQuiz === true },
+        alloptions: { reward: 10, ready: p => p.allOptionsQuiz === true }
+      };
+      for (const [missionId, mission] of Object.entries(missions)) {
+        if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 90) {
+          daily.claimedMissions.push(missionId);
+          daily.missionEarned += mission.reward;
+          save.stars += mission.reward;
+        }
+      }
+
+      await adminClient.from("player_saves").upsert({
+        user_id: userId,
+        save_data: save,
+        updated_at: new Date().toISOString()
+      });
+      return new Response(JSON.stringify({ save, quizReward, requestedReward, multiplier, dailyBanners: bannerPayload }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    } else if (action === "QUIZ_CLAIM_MISSION") {
+      const missionId = String(body.missionId || "");
+      const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
+        played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
+        played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
+        correct10: { reward: 10, ready: p => p.correct >= 10 },
+        correct20: { reward: 10, ready: p => p.correct >= 20 },
+        streak5: { reward: 10, ready: p => p.bestStreak >= 5 },
+        streak10: { reward: 10, ready: p => p.bestStreak >= 10 },
+        shorttime: { reward: 10, ready: p => p.shortTimeQuiz === true },
+        entry: { reward: 10, ready: p => p.entryQuiz === true },
+        alloptions: { reward: 10, ready: p => p.allOptionsQuiz === true }
+      };
+      const mission = missions[missionId];
+      if (!mission) throw new Error("Unknown quiz mission");
+      const daily = save.quizDaily;
+      if (daily.claimedMissions.includes(missionId)) throw new Error("Mission already claimed");
+      if (!mission.ready(daily.progress)) throw new Error("Mission requirements not met");
+      if (daily.missionEarned + mission.reward > 90) throw new Error("Daily mission reward cap reached");
+      daily.claimedMissions.push(missionId);
+      daily.missionEarned += mission.reward;
+      save.stars += mission.reward;
+      await adminClient.from("player_saves").upsert({
+        user_id: userId,
+        save_data: save,
+        updated_at: new Date().toISOString()
+      });
+      return new Response(JSON.stringify({ save, missionReward: mission.reward, dailyBanners: bannerPayload }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }

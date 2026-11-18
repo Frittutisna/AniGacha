@@ -8,6 +8,7 @@ const helperFiles = [
     "helper/07-search-response.js",
     "helper/08-profile-modal.js",
     "helper/09-auth-share.js",
+    "helper/10-quiz.js",
 ];
 
 function loadHelperScripts(index = 0) {

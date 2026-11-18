@@ -344,6 +344,11 @@ function applySaveState(data) {
     updateHeaderProfileUI   ();
     updateStarsUI           ();
 
+    if (typeof aniQuizDaily !== "undefined") {
+        aniQuizDaily = data.quizDaily || null;
+        if (typeof aniQuizRenderMissions === "function") aniQuizRenderMissions();
+    }
+
     if (isSharedView) return;
 
     inventory       = data.inventory && typeof data.inventory === "object" ? data.inventory : {};

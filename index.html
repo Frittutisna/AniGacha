@@ -56,6 +56,9 @@
 
             <!-- Right Section: [★ Amount] [☆] [Theme] [Anime] [➜|] [Debug/Demo] -->
             <div class="flex items-center gap-1.5">
+                <button id="page-nav-btn" type="button" aria-label="Open Quiz" title="Quiz" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                    <svg id="page-nav-icon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                </button>
                 <div data-tooltip-title="Stars"
                     title="Currency used to summon on banners&#10;Earned from daily claims and selling unlocked cards"
                     class="h-8 px-2.5 flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm font-bold select-none cursor-help">
@@ -104,7 +107,7 @@
             </div>
         </div>
     </header>
-    <main class="max-w-7xl mx-auto px-3 pb-3 space-y-2.5">
+    <main id="main-page" class="max-w-7xl mx-auto px-3 pb-3 space-y-2.5">
         <div id="error-banner" class="hidden bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200 px-3 py-2.5 rounded-xl text-sm space-y-1">
             <p class="font-bold">Could not load local CSV files automatically.</p>
             <p class="text-xs text-rose-700 dark:text-rose-300" id="error-detail"></p>
@@ -552,6 +555,62 @@
                     &gt;&gt;
                 </button>
             </div>
+        </section>
+    
+</main>
+    <main id="quiz-page" class="hidden max-w-7xl mx-auto px-3 pb-3 space-y-2.5 pt-2.5">
+        <section id="quiz-section" class="w-full sm:w-fit sm:max-w-full mx-auto bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+            <div class="grid grid-cols-2 gap-3 w-full">
+                <div class="rounded-lg bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/30 p-3"><div class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Quiz Stars</div><div class="text-2xl sm:text-3xl font-black tabular-nums text-slate-900 dark:text-slate-100"><span>★</span> <span id="quiz-earned">0/90</span></div></div>
+                <div class="rounded-lg bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 p-3"><div class="text-xs font-semibold text-amber-700 dark:text-amber-300">Mission Stars</div><div class="text-2xl sm:text-3xl font-black tabular-nums text-slate-900 dark:text-slate-100"><span>★</span> <span id="quiz-mission-earned">0/90</span></div></div>
+            </div>
+            <div id="quiz-loading" class="hidden text-sm text-slate-500 mt-3">Loading Stats-Archive song database…</div>
+            <div id="quiz-setup" class="w-full mx-auto mt-3">
+                <form id="quiz-setup-form" onsubmit="return false;">
+                    <div class="quiz-dropdowns-mobile">
+                        <label class="quiz-row-mobile text-xs font-semibold text-center">Count<select id="quiz-count" class="quiz-select mt-1">
+                            <option>20</option><option>25</option><option>30</option><option>35</option><option>40</option><option>45</option><option>50</option><option>55</option><option>60</option><option>65</option><option>70</option><option>75</option><option>80</option><option>85</option><option>90</option><option>95</option><option>100</option>
+                        </select></label>
+                        <label class="quiz-row-mobile text-xs font-semibold text-center">Time<select id="quiz-time" class="quiz-select mt-1"><option value="2,8">2+8</option><option value="5,0">5+0</option><option value="15,0">15+0</option><option value="20,0" selected>20+0</option></select></label>
+                        <label class="quiz-row-mobile text-xs font-semibold text-center">Mode<select id="quiz-mode" class="quiz-select mt-1"><option value="entry">Entry</option><option value="mc">Multiple Choice</option></select></label>
+                    </div>
+                    <div class="quiz-type-start-mobile">
+                        <div class="quiz-type-wrap quiz-row-mobile text-xs font-semibold text-center">
+                            <div class="mb-1">Type</div>
+                            <div id="quiz-type-checkboxes" class="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-2">
+                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-op" checked class="quiz-check"> OP</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-ed" checked class="quiz-check"> ED</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-in" checked class="quiz-check"> IN</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="quiz-chanting" checked class="quiz-check"> Chant</label>
+                            </div>
+                        </div>
+                        <button id="quiz-start" class="h-9 flex-1 sm:flex-initial px-4 shrink-0 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm disabled:opacity-40 transition" disabled>Start</button>
+                    </div>
+                </form>
+            </div>
+            <div id="quiz-active" class="hidden space-y-3 mt-3">
+                <div class="grid grid-cols-4 gap-2 text-center text-sm">
+                    <div class="rounded-lg bg-slate-100 dark:bg-slate-800 p-2"><b id="quiz-progress">1/20</b></div>
+                    <div class="rounded-lg bg-slate-100 dark:bg-slate-800 p-2">Score: <b id="quiz-score">0</b></div>
+                    <div class="rounded-lg bg-slate-100 dark:bg-slate-800 p-2">Streak: <b id="quiz-streak">0</b></div>
+                    <div class="rounded-lg bg-slate-100 dark:bg-slate-800 p-2">Best: <b id="quiz-best">0</b></div>
+                </div>
+                <div id="quiz-timer-single" class="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden relative"><div id="quiz-time-bar" class="h-full bg-indigo-600" style="width:100%"></div></div>
+                <div id="quiz-timer-2-8" class="hidden grid grid-cols-5 gap-1.5 h-2">
+                    <div class="col-span-4 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><div id="quiz-time-bar-sound" class="h-full bg-indigo-600" style="width:100%"></div></div>
+                    <div class="col-span-1 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><div id="quiz-time-bar-extra" class="h-full bg-indigo-600" style="width:100%"></div></div>
+                </div>
+                <audio id="quiz-audio" preload="auto" class="hidden" controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture></audio>
+                <div id="quiz-input-area" class="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-stretch mb-0">
+                    <div id="quiz-entry-wrap" class="min-w-0 relative"><input id="quiz-answer" autocomplete="off" class="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 text-sm font-bold truncate"><div id="quiz-suggestions" class="hidden max-h-40 overflow-auto border rounded-lg mt-1 bg-white dark:bg-slate-900 absolute left-0 right-0 z-20 shadow-lg"></div><button id="quiz-submit" class="hidden">Submit</button></div>
+                    <div id="quiz-mc-wrap" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    <button id="quiz-skip" class="h-10 sm:order-first px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition">Skip</button>
+                    <button id="quiz-end" class="h-10 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold transition">End</button>
+                </div>
+                <button id="quiz-quit" class="hidden">End quiz</button>
+            </div>
+            <div id="quiz-result" class="hidden mt-3"></div>
+            <div class="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-2"><div id="quiz-missions" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs"></div></div>
         </section>
     </main>
 

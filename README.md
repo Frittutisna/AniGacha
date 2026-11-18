@@ -1,4 +1,4 @@
-# AniGacha v0.2.0-beta
+# AniGacha v0.3.0-beta
 
 ## Changelog
-1. Refactored script.js
+1. Added the Quiz page for extra Stars
