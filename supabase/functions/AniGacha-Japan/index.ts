@@ -448,12 +448,12 @@ serve(async (req) => {
       progress.allOptionsQuiz = progress.allOptionsQuiz || (stats.allOptionsQuiz === true && stats.completed === true);
 
       const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
-        played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
-        played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
-        correct10: { reward: 10, ready: p => p.correct >= 10 },
-        correct20: { reward: 10, ready: p => p.correct >= 20 },
-        streak5: { reward: 10, ready: p => p.bestStreak >= 5 },
-        streak10: { reward: 10, ready: p => p.bestStreak >= 10 },
+        played20: { reward: 15, ready: p => p.songsPlayed >= 20 },
+        played40: { reward: 15, ready: p => p.songsPlayed >= 40 },
+        correct10: { reward: 15, ready: p => p.correct >= 10 },
+        correct20: { reward: 15, ready: p => p.correct >= 20 },
+        streak5: { reward: 15, ready: p => p.bestStreak >= 5 },
+        streak10: { reward: 15, ready: p => p.bestStreak >= 10 },
         shorttime: { reward: 10, ready: p => p.shortTimeQuiz === true },
         entry: { reward: 10, ready: p => p.entryQuiz === true },
         alloptions: { reward: 10, ready: p => p.allOptionsQuiz === true }
