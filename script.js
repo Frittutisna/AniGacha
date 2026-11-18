@@ -662,11 +662,20 @@ function handleGuestGachaAction(payload) {
 
 let actionInFlight = false;
 let lockInFlight   = false;
+let sellInFlight   = false;
 
 function updateLockButtonsUI() {
     document.querySelectorAll(".lock-card-btn").forEach(btn => {
         btn.disabled = lockInFlight;
     });
+}
+
+function updateSellButtonsUI() {
+    document.querySelectorAll(".sell-card-btn").forEach(btn => {
+        const key = btn.getAttribute("data-sell-key");
+        btn.disabled = sellInFlight || (key ? lockedCards.has(key) : false);
+    });
+    updateSellAllUI();
 }
 
 async function handleGuestLinkAnilist(username) {
@@ -730,12 +739,36 @@ async function sendGachaAction(payload) {
 
         if (error || data?.error) {
             let serverMsg = data?.error;
-            if (!serverMsg && error?.context && typeof error.context.json === "function") {
-                const errBody = await error.context.json().catch(() => null);
-                serverMsg = errBody?.error;
+            let statusInfo = "";
+
+            if (!serverMsg && error?.context) {
+                // Case 1: Edge Function or Gateway returned an HTTP Response
+                if (typeof error.context.text === "function") {
+                    const status = error.context.status;
+                    if (status) statusInfo = `HTTP ${status}`;
+                    const rawText = await error.context.text().catch(() => "");
+                    if (rawText) {
+                        try {
+                            const parsed = JSON.parse(rawText);
+                            serverMsg = parsed?.error || parsed?.message || rawText;
+                        } catch {
+                            serverMsg = rawText.slice(0, 160);
+                        }
+                    }
+                // Case 2: Network/fetch error before reaching the server (e.g. Offline / Failed to fetch)
+                } else if (error.context.message) {
+                    serverMsg = error.context.message;
+                }
             }
-            console.error("Server action failed:", serverMsg || error);
-            alert(serverMsg || "Action failed. Please try again.");
+
+            const detail = serverMsg || error?.message || "Unknown error";
+            const prefix = [payload.action, statusInfo].filter(Boolean).join(" • ");
+            const fullMsg = `${prefix}: ${detail}`;
+
+            console.error("Server action failed:", fullMsg, error);
+            if (payload.action !== "INIT") {
+                alert(fullMsg);
+            }
             return null;
         }
 
@@ -1030,6 +1063,7 @@ function isCharacterSparkableInBanner(char, bannerKey) {
 }
 
 function enterSparkMode(bannerKey) {
+    hideResultsSection();
     activeSparkBanner = bannerKey;
 
     setSortControlState("CHARACTER", "POPULARITY", "DESC");
@@ -1121,34 +1155,50 @@ function updateSellAllUI() {
         }
     }
     document.getElementById("sell-all-amount").textContent = totalValue.toLocaleString();
-    document.getElementById("sell-all-btn").disabled = totalValue <= 0;
+    document.getElementById("sell-all-btn").disabled = sellInFlight || totalValue <= 0;
 }
 
 async function sellCharacter(uniqueKey) {
     const count = inventory[uniqueKey] || 0;
     const char = characterMap.get(uniqueKey);
-    if (!char || count <= 0 || lockedCards.has(uniqueKey)) return;
+    if (!char || count <= 0 || lockedCards.has(uniqueKey) || sellInFlight) return;
 
-    if (!currentUser) {
+    sellInFlight = true;
+    updateSellButtonsUI();
+
+    try {
+        if (!currentUser) {
+            await sendGachaAction({ action: "SELL", uniqueKey });
+            return;
+        }
+
+        // 1. Optimistic UI update (0ms response)
+        stars += char.rarity.sellValue * getSellMultiplier(count);
+        delete inventory[uniqueKey];
+        document.getElementById("unlocked-count").textContent = Object.keys(inventory).length.toLocaleString();
+        updateStarsUI();
+        renderInventory();
+
+        // 2. Sync authoritative state with server
         await sendGachaAction({ action: "SELL", uniqueKey });
-        return;
+    } finally {
+        sellInFlight = false;
+        updateSellButtonsUI();
     }
-
-    // 1. Optimistic UI update (0ms response)
-    stars += char.rarity.sellValue * getSellMultiplier(count);
-    delete inventory[uniqueKey];
-    document.getElementById("unlocked-count").textContent = Object.keys(inventory).length.toLocaleString();
-    updateStarsUI();
-    renderInventory();
-
-    // 2. Sync authoritative state with server
-    await sendGachaAction({ action: "SELL", uniqueKey });
 }
 
 async function sellAllUnlocked() {
-    await sendGachaAction({ action: "SELL_ALL" });
-    if (lastResults.length > 0 && !document.getElementById("results-section").classList.contains("hidden")) {
-        renderResults(lastResults, false, lastBannerType);
+    if (sellInFlight) return;
+
+    hideResultsSection();
+    sellInFlight = true;
+    updateSellButtonsUI();
+
+    try {
+        await sendGachaAction({ action: "SELL_ALL" });
+    } finally {
+        sellInFlight = false;
+        updateSellButtonsUI();
     }
 }
 
@@ -1484,7 +1534,7 @@ function createCardHTML(char, { duplicateCount = null, animateDelay = 0, extraCl
 
     const sellFooterHtml = showSellButton
         ? `<div class="px-1.5 pb-1.5">
-            <button type="button" data-sell-key="${escapeHTML(char.uniqueKey)}" ${isLocked ? "disabled" : ""}
+            <button type="button" data-sell-key="${escapeHTML(char.uniqueKey)}" ${isLocked || sellInFlight ? "disabled" : ""}
                 class="sell-card-btn w-full py-1 rounded text-[11px] font-bold ${sellBtnColors} disabled:opacity-40 disabled:cursor-not-allowed transition">
                 Sell: ★ ${sellTotal}
             </button>
@@ -1526,10 +1576,25 @@ function createCardHTML(char, { duplicateCount = null, animateDelay = 0, extraCl
     `;
 }
 
+function hideResultsSection() {
+    document.getElementById("results-section")?.classList.add("hidden");
+}
+
 function renderResults(results, animate = false, bannerType = lastBannerType) {
     const section        = document.getElementById("results-section");
     const grid           = document.getElementById("results-grid");
     const isThemedBanner = Boolean(THEMED_BANNERS[bannerType]) || bannerType === "LIST";
+
+    const sortBatchByRarity = (batch) =>
+        batch.slice().sort((a, b) =>
+            compareHighestRarity(a.char, b.char) || popularityTiebreaker(a.char, b.char)
+        );
+
+    const displayResults = results.length > 1
+        ? isThemedBanner
+            ? [results[0], ...sortBatchByRarity(results.slice(1, 5)), ...sortBatchByRarity(results.slice(5))]
+            : [results[0], ...sortBatchByRarity(results.slice(1))]
+        : results;
 
     // Mobile (<640px) hides separators completely, so 3 cards fit cleanly per row (3-3-3-1 layout).
     // Tablet (sm: 640px–1023px) shows 5 cards per row (1 separator on row 1, and 1 separator on row 2 if themed).
@@ -1541,7 +1606,7 @@ function renderResults(results, animate = false, bannerType = lastBannerType) {
     const separatorHTML = `<div aria-hidden="true" class="hidden sm:block w-px self-stretch bg-slate-300 dark:bg-slate-700 shrink-0"></div>`;
 
     section.classList.remove("hidden");
-    grid.innerHTML = results.map((res, idx) => {
+    grid.innerHTML = displayResults.map((res, idx) => {
         const cardHTML = createCardHTML(res.char, {
             duplicateCount: res.occurrenceCount > 1 ? res.occurrenceCount : null,
             animateDelay: animate ? idx * 60 : 0,
@@ -1823,6 +1888,7 @@ function renderInventory() {
 }
 
 function resetPageAndRender() {
+    hideResultsSection();
     currentPage = 1;
     renderInventory();
 }
@@ -2310,6 +2376,7 @@ document.getElementById("results-grid").addEventListener("click", (e) => {
 document.getElementById("inventory-grid").addEventListener("click", (e) => {
     const lockBtn = e.target.closest(".lock-card-btn");
     if (lockBtn && !lockBtn.disabled) {
+        hideResultsSection();
         const key = lockBtn.getAttribute("data-lock-key");
         if (key) toggleCardLock(key);
         return;
@@ -2317,6 +2384,7 @@ document.getElementById("inventory-grid").addEventListener("click", (e) => {
 
     const sparkBtn = e.target.closest(".spark-card-btn");
     if (sparkBtn && !sparkBtn.disabled) {
+        hideResultsSection();
         const key = sparkBtn.getAttribute("data-spark-key");
         if (key) sparkCharacter(key);
         return;
@@ -2324,12 +2392,13 @@ document.getElementById("inventory-grid").addEventListener("click", (e) => {
 
     const sellBtn = e.target.closest(".sell-card-btn");
     if (sellBtn && !sellBtn.disabled) {
+        hideResultsSection();
         const key = sellBtn.getAttribute("data-sell-key");
         if (key) sellCharacter(key);
     }
 });
 
-document.getElementById("clear-results")    .addEventListener("click",  () => {document.getElementById("results-section").classList.add("hidden")});
+document.getElementById("clear-results").addEventListener("click", hideResultsSection);
 
 const searchInput    = document.getElementById("search-input");
 const clearSearchBtn = document.getElementById("clear-search");
@@ -2351,6 +2420,7 @@ clearSearchBtn.addEventListener("click", () => {
 
 document.querySelectorAll(".first-page").forEach(btn => btn.addEventListener("click", () => {
     if (currentPage > 1) {
+        hideResultsSection();
         currentPage = 1;
         renderInventory();
     }
@@ -2358,6 +2428,7 @@ document.querySelectorAll(".first-page").forEach(btn => btn.addEventListener("cl
 
 document.querySelectorAll(".prev-page").forEach(btn => btn.addEventListener("click", () => {
     if (currentPage > 1) {
+        hideResultsSection();
         currentPage--;
         renderInventory();
     }
@@ -2365,6 +2436,7 @@ document.querySelectorAll(".prev-page").forEach(btn => btn.addEventListener("cli
 
 document.querySelectorAll(".next-page").forEach(btn => btn.addEventListener("click", () => {
     if (currentPage < totalPages) {
+        hideResultsSection();
         currentPage++;
         renderInventory();
     }
@@ -2372,12 +2444,14 @@ document.querySelectorAll(".next-page").forEach(btn => btn.addEventListener("cli
 
 document.querySelectorAll(".last-page").forEach(btn => btn.addEventListener("click", () => {
     if (currentPage < totalPages) {
+        hideResultsSection();
         currentPage = totalPages;
         renderInventory();
     }
 }));
 
 document.querySelectorAll(".page-input").forEach(input => input.addEventListener("change", (e) => {
+    hideResultsSection();
     const val = parseInt(e.target.value, 10);
     if (!Number.isNaN(val)) {
         currentPage = Math.min(Math.max(1, val), totalPages);
@@ -2898,12 +2972,16 @@ async function loadCloudSave(user) {
 
     await sendGachaAction({ action: "INIT", discordName });
 }
-sb.auth.onAuthStateChange((_event, session) => {
+sb.auth.onAuthStateChange((event, session) => {
     if (session?.user) {
+        const isSameUser = currentUser?.id === session.user.id;
+        currentUser = session.user;
+
+        // Ignore background token refreshes when returning to an already-loaded tab
+        if (event === "TOKEN_REFRESHED" && isSameUser) return;
+
         if (databaseReady) {
             loadCloudSave(session.user);
-        } else {
-            currentUser = session.user;
         }
     } else {
         currentUser = null;

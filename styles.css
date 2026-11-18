@@ -110,3 +110,132 @@ input[type="number"].photo-num-input {
 [title] {
     -webkit-touch-callout: none;
 }
+
+/* ==========================================================================
+   Gentler Paperback (Light) & Soft Charcoal (Dark) Theme Overrides
+   ========================================================================== */
+
+/* --- Light Mode: Warm Paperback --- */
+html:not(.dark) body.bg-slate-50,
+html:not(.dark) .bg-slate-50 {
+    background-color: #f4efe6 !important; /* Warm paperback page */
+}
+
+html:not(.dark) .bg-white:not(.font-black):not(.sell-card-btn) {
+    background-color: #faf6ee !important; /* Elevated warm cream card/modal */
+}
+
+html:not(.dark) .bg-white\/80 {
+    background-color: rgba(250, 246, 238, 0.88) !important; /* Sticky header */
+}
+
+html:not(.dark) .bg-white\/95 {
+    background-color: rgba(250, 246, 238, 0.96) !important; /* Tooltip */
+}
+
+html:not(.dark) .bg-slate-100 {
+    background-color: #ebe4d5 !important; /* Subtle wells & table header */
+}
+
+html:not(.dark) .bg-slate-200,
+html:not(.dark) .hover\:bg-slate-200:not(.sell-card-btn):hover {
+    background-color: #e0d7c5 !important; /* Secondary controls & hovers */
+}
+
+html:not(.dark) .border-slate-200 {
+    border-color: #e2dacb !important;
+}
+
+html:not(.dark) .border-slate-300:not(.font-black) {
+    border-color: #d0c6b3 !important;
+}
+
+html:not(.dark) .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #e2dacb !important;
+}
+
+/* Soften harsh slate-900 ink to warm sepia-charcoal (skipping SSR text) */
+html:not(.dark) .text-slate-900:not(.font-black) {
+    color: #2c2825 !important;
+}
+
+html:not(.dark) .text-slate-700 {
+    color: #46403a !important;
+}
+
+html:not(.dark) .text-slate-600 {
+    color: #5c544c !important;
+}
+
+html:not(.dark) .text-slate-500 {
+    color: #786f65 !important;
+}
+
+/* --- Dark Mode: Soft Dimmed Charcoal --- */
+html.dark body.dark\:bg-slate-950,
+html.dark .dark\:bg-slate-950 {
+    background-color: #181a1f !important; /* Lifted from near-black #020617 */
+}
+
+html.dark .dark\:bg-slate-950\/70 {
+    background-color: rgba(24, 26, 31, 0.75) !important;
+}
+
+html.dark .dark\:bg-slate-950\/75 {
+    background-color: rgba(18, 20, 24, 0.75) !important; /* Modal backdrop */
+}
+
+html.dark .dark\:bg-slate-900 {
+    background-color: #21242b !important; /* Elevated card/modal surface */
+}
+
+html.dark .dark\:bg-slate-900\/70 {
+    background-color: rgba(33, 36, 43, 0.75) !important;
+}
+
+html.dark .dark\:bg-slate-900\/80 {
+    background-color: rgba(33, 36, 43, 0.88) !important; /* Sticky header */
+}
+
+html.dark .dark\:bg-slate-900\/95 {
+    background-color: rgba(33, 36, 43, 0.96) !important; /* Tooltip */
+}
+
+html.dark .dark\:bg-slate-800,
+html.dark .dark\:hover\:bg-slate-800:hover {
+    background-color: #2b2f38 !important; /* Inputs & secondary buttons */
+}
+
+html.dark .dark\:hover\:bg-slate-700:hover {
+    background-color: #353a45 !important;
+}
+
+html.dark .dark\:border-slate-800 {
+    border-color: #303540 !important;
+}
+
+html.dark .dark\:border-slate-700 {
+    border-color: #3d4352 !important;
+}
+
+html.dark .dark\:divide-slate-800\/80 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(48, 53, 64, 0.85) !important;
+}
+
+/* Soften stark white text to off-white (skipping SSR badges/text) */
+html.dark .dark\:text-slate-100,
+html.dark .dark\:text-white:not(.font-black) {
+    color: #e4e6eb !important;
+}
+
+html.dark .dark\:text-slate-200 {
+    color: #cfd3dc !important;
+}
+
+html.dark .dark\:text-slate-300 {
+    color: #b4bac6 !important;
+}
+
+html.dark .dark\:text-slate-400 {
+    color: #8b92a1 !important;
+}
