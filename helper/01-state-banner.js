@@ -306,10 +306,8 @@ function updateHeaderProfileUI() {
     const placeholder       = document.getElementById("header-photo-placeholder");
     const usernameEl        = document.getElementById("header-username");
     const anilistWrapper    = document.getElementById("anilist-header-wrapper");
-    const modeIndicatorEl   = document.getElementById("mode-indicator");
 
     if (anilistWrapper)     anilistWrapper.classList.toggle("hidden", Boolean(viewerAnilistUsername));
-    if (modeIndicatorEl)    modeIndicatorEl.textContent = currentUser ? "Beta" : "Debug";
 
     frame.className         = `w-8 h-8 rounded-lg overflow-hidden ${getRarityBgClass(profilePhoto?.tier)} ${getRarityBorderClass(profilePhoto?.tier)} flex items-center justify-center shrink-0 group-hover:scale-105 transition`;
     usernameEl.textContent  = displayName || discordName;
