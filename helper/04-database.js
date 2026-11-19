@@ -218,9 +218,7 @@ async function initDatabase() {
         }).filter(Boolean);
 
         THEMED_BANNERS.TAG.allOptions = tagOptions;
-
         databaseReady = true;
-        document.getElementById("pool-count").textContent = chars.length.toLocaleString();
 
         if (isSharedView) {
             await loadSharedCollection(sharedUserId);

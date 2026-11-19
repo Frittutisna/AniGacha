@@ -349,14 +349,17 @@ function renderInventory() {
     const availableSpark    = isSparkMode ? sparkPoints[activeSparkBanner] : 0;
     const isAnilistLinked   = Boolean(anilistUsername);
 
-    document.getElementById("filter-list-section")  ?.classList.toggle("hidden", !isAnilistLinked);
-    document.getElementById("filter-status-row")    ?.classList.remove("hidden");
+    document.getElementById("filter-own-section")?.     classList.toggle("hidden", isSharedView);
+    document.getElementById("filter-list-section")?.    classList.toggle("hidden", !isAnilistLinked);
+    document.getElementById("filter-status-row")?.      classList.remove("hidden");
 
     let filtered = characterPool.filter(c => {
         const isOwned   = Boolean(inventory[c.uniqueKey]);
         const isLocked  = isOwned && lockedCards.has(c.uniqueKey);
 
-        if (selectedOwn.size > 0) {
+        if (isSharedView) {
+            if (!isOwned) return false;
+        } else if (selectedOwn.size > 0) {
             const ownMatch = (selectedOwn.has("OWNED") && isOwned) || (selectedOwn.has("UNOWNED") && !isOwned);
             if (!ownMatch) return false;
         }

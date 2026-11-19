@@ -981,6 +981,11 @@ document.getElementById("quiz-answer").addEventListener("input", e => {
 const pageNavBtn = document.getElementById("page-nav-btn");
 
 if (pageNavBtn) pageNavBtn.addEventListener("click", () => {
+    if (isSharedView && typeof exitSharedCollection === "function") {
+        exitSharedCollection();
+        return;
+    }
+
     const quizPage      = document.getElementById("quiz-page");
     const mainPage      = document.getElementById("main-page");
     const openingQuiz   = quizPage.classList.contains("hidden");

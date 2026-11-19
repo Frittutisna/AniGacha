@@ -384,7 +384,6 @@ async function sellCharacter(uniqueKey) {
 
         stars += char.rarity.sellValue * getSellMultiplier(count);
         delete inventory[uniqueKey];
-        document.getElementById("unlocked-count").textContent = Object.keys(inventory).length.toLocaleString();
 
         updateStarsUI   ();
         renderInventory ();

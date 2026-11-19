@@ -48,11 +48,72 @@ async function loadSharedCollection(targetUserId) {
         placeholder .classList.add      ("hidden");
     }
 
-    document.getElementById("unlocked-count").textContent = Object.keys(inventory).length.toLocaleString();
+    const navBtn    = document.getElementById("page-nav-btn");
+    const navIcon   = document.getElementById("page-nav-icon");
+
+    if (navBtn) {
+        navBtn.setAttribute("aria-label", "Home");
+        navBtn.title = "Home";
+    }
+
+    if (navIcon) navIcon.innerHTML = '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>';
     renderInventory();
 }
 
-document.getElementById("exit-shared-btn")?.addEventListener("click", () => {window.location.href = window.location.origin + window.location.pathname});
+async function exitSharedCollection() {
+    isSharedView = false;
+
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, "", cleanUrl);
+
+    document.getElementById("shared-view-banner")?.classList.add("hidden");
+    document.getElementById("filter-own-section")?.classList.remove("hidden");
+
+    const topSection = document.getElementById("gacha-top-section");
+
+    topSection?.classList.remove    ("hidden");
+    topSection?.classList.add       ("flex", "lg:grid");
+
+    const navBtn    = document.getElementById("page-nav-btn");
+    const navIcon   = document.getElementById("page-nav-icon");
+
+    if (navBtn) {
+        navBtn.setAttribute("aria-label", "Open Quiz");
+        navBtn.title = "Quiz";
+    }
+
+    if (navIcon) navIcon.innerHTML = '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
+    window.scrollTo({top: 0, behavior: "instant"});
+
+    if (currentUser) {
+        document.getElementById("share-collection-btn")?.classList.remove("hidden");
+        await sendGachaAction({action: "INIT", discordName});
+    } else {
+        applySaveState({
+            stars                       : 0,
+            inventory                   : {},
+            lockedCards                 : [],
+            sparkPoints                 : {STANDARD: 0, ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0, HOF: 0, LIST: 0},
+            totalPulls                  : 0,
+            hofPulls                    : 0,
+            listPulls                   : 0,
+            themedPulls                 : {ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0},
+            lastDailyStarsDate          : null,
+            lastFreeSummonDate          : null,
+            profilePhoto                : null,
+            displayName                 : null,
+            lastNameChangeJstYear       : null,
+            anilistUsername             : null,
+            anilistAnimeIds             : [],
+            linkedAnilistHistory        : [],
+            lastAnilistChangeJstYear    : null
+        });
+
+        if (databaseReady) applyDailyBanners(getClientDailyBanners());
+        hintBannerSwipe();
+    }
+}
+
 const shareModal = document.getElementById("share-modal");
 
 document.getElementById("share-collection-btn")?.addEventListener("click", async () => {

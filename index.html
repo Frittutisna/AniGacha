@@ -63,8 +63,8 @@
                     <span id="star-count">∞</span>
                 </div>
                 <button id="daily-stars-btn" type="button" data-tooltip-title="Daily Bonus"
-                    title="Claim your free 90 Stars for today (resets at 00:00 JST)" aria-label="Claim Daily Free 90 Stars"
-                    class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-600 dark:text-amber-300 text-sm font-bold transition">
+                    title="Claim your daily 90 Stars" aria-label="Claim daily free 90 Stars"
+                    class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-sm font-bold transition">
                     ☆
                 </button>
                 <button id="theme-toggle" data-tooltip-title="Appearance"
@@ -98,10 +98,6 @@
                         class="hidden -mt-0.5 text-xs sm:text-sm text-[#02A9FF] hover:underline font-semibold leading-tight truncate w-fit max-w-full"></a>
                 </div>
             </div>
-            <button id="exit-shared-btn" type="button"
-                class="shrink-0 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
-                My Collection
-            </button>
         </div>
         <div id="gacha-top-section" class="w-full flex flex-col lg:grid lg:grid-cols-12 gap-2.5 items-stretch">
             <section class="w-full lg:col-span-5 bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center">
@@ -163,7 +159,7 @@
                 <section id="banner-card-era" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="era-banner-pill" data-tooltip-title="Era Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this era&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this era&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
                             class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
                             <span class="text-amber-600 dark:text-amber-400">Era:</span> <span id="era-banner-title">Era</span>
                         </h2>
@@ -182,7 +178,7 @@
                 <section id="banner-card-franchise" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="franchise-banner-pill" data-tooltip-title="Franchise Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this franchise&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this franchise&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
                             class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
                             <span class="text-rose-600 dark:text-rose-400">Franchise:</span> <span id="franchise-banner-title">Franchise</span>
                         </h2>
@@ -201,7 +197,7 @@
                 <section id="banner-card-genre" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="genre-banner-pill" data-tooltip-title="Genre Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this genre&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this genre&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
                             class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
                             <span class="text-emerald-600 dark:text-emerald-400">Genre:</span> <span id="genre-banner-title">Genre</span>
                         </h2>
@@ -220,7 +216,7 @@
                 <section id="banner-card-source" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="source-banner-pill" data-tooltip-title="Source Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this source&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this source&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
                             class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
                             <span class="text-sky-600 dark:text-sky-400">Source:</span> <span id="source-banner-title">Source</span>
                         </h2>
@@ -239,7 +235,7 @@
                 <section id="banner-card-studio" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="studio-banner-pill" data-tooltip-title="Studio Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this studio&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this studio&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
                             class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
                             <span class="text-violet-600 dark:text-violet-400">Studio:</span> <span id="studio-banner-title">Studio</span>
                         </h2>
@@ -258,7 +254,7 @@
                 <section id="banner-card-tag" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="tag-banner-pill" data-tooltip-title="Tag Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this tag&#10;Auto-locks sparks and S+ summons&#10;Rotates daily, 00:00 JST&#10;Sparks stay within the same banner type"
+                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this tag&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
                             class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
                             <span class="text-teal-600 dark:text-teal-400">Tag:</span> <span id="tag-banner-title">Tag</span>
                         </h2>
@@ -336,9 +332,6 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                        Owned <span id="unlocked-count" class="text-slate-900 dark:text-white font-semibold">0</span>/<span id="pool-count">0</span>
-                    </p>
                 </div>
                 <div class="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-1.5 lg:ml-auto lg:justify-end">
                     <button type="button" id="spark-mode-indicator" title="Exit Spark"
@@ -702,7 +695,7 @@
                     <input id="profile-name-input" type="text" maxlength="24" placeholder="Display name"
                         class="col-span-2 w-full min-w-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs text-center font-semibold focus:outline-none focus:border-indigo-500"/>
                     <span id="name-changes-left" data-tooltip-title="Yearly Name Changes"
-                        title="Limited to 1 custom change per calendar year (resets Jan 1 at 00:00 JST)&#10;Free Bypass: Reverting to your Discord name or leaving it blank does not use your yearly change"
+                        title="Limited to 1 custom change per calendar year (resets Jan 1)&#10;Free Bypass: Reverting to your Discord name or leaving it blank does not use your yearly change"
                         class="text-slate-400 text-left font-bold tabular-nums cursor-help">1</span>
                     <span id="profile-anilist-icon" class="hidden text-slate-500 dark:text-slate-400 flex items-center justify-center" title="AniList">
                         <img src="anilist.svg" alt="AniList" class="w-3.5 h-3.5 opacity-60 dark:opacity-70 dark:invert" />
@@ -716,7 +709,7 @@
                         </svg>
                     </button>
                     <span id="anilist-changes-left" data-tooltip-title="Yearly AniList Changes"
-                        title="Limited to 1 change per calendar year (resets Jan 1 at 00:00 JST)&#10;Free Bypass: Reverting to a previously linked AniList username does not use your yearly change"
+                        title="Limited to 1 change per calendar year (resets Jan 1)&#10;Free Bypass: Reverting to a previously linked AniList username does not use your yearly change"
                         class="hidden text-slate-400 text-left font-bold tabular-nums cursor-help">1</span>
                     <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Horizontal Offset">↔</span>
                     <input id="photo-x" type="range" min="-100" max="100" step="1" value="0" class="photo-slider w-full min-w-0"/>

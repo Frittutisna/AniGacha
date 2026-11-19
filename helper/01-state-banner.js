@@ -366,9 +366,7 @@ function applySaveState(data) {
     if (data.themedPulls)                                   ALL_THEMED_KEYS.forEach(k => {THEMED_BANNERS[k].pulls = typeof data.themedPulls[k] === "number" ? data.themedPulls[k] : 0})
     if (activeSparkBanner === "LIST" && !anilistUsername)   exitSparkMode()
 
-    document.getElementById("unlocked-count").textContent = Object.keys(inventory).length.toLocaleString();
-    applyDailyBanners(lastDailyBannersPayload || getClientDailyBanners());
-
+    applyDailyBanners       (lastDailyBannersPayload || getClientDailyBanners());
     updateSparkButtonsUI    ();
     renderInventory         ();
 
@@ -471,7 +469,7 @@ function applyDailyBanners(dailyBanners) {
                 "First summon is guaranteed to be a B-tier or better",
                 banner.secondHoverLine.replace(/^The first/, "First"),
                 "Auto-locks sparks and S+ summons",
-                "Rotates daily, 00:00 JST",
+                "Rotates 00:00 JST",
                 "Sparks stay within the same banner type",
                 "",
                 ...otherLabels

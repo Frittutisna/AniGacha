@@ -133,8 +133,6 @@ function handleGuestGachaAction(payload) {
         }
     }
 
-    document.getElementById("unlocked-count").textContent = Object.keys(inventory).length.toLocaleString();
-
     updateStarsUI           ();
     updateSparkButtonsUI    ();
     renderInventory         ();
