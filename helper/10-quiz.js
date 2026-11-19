@@ -63,8 +63,8 @@ async function loadAniQuizData() {
             seen.add(key); return true;
         });
         document.getElementById("quiz-loading").classList.add("hidden");
-        document.getElementById("quiz-start").disabled=false;
         aniQuizRenderMissions();
+        aniQuizUpdateSettingsPreview();
     } catch(e) {
         loading.textContent="Quiz data could not be loaded: "+e.message;
         console.error(e);
@@ -110,7 +110,7 @@ function aniQuizDiffM(dMin, dMax) {
 function aniQuizMultiplier(settings,best) {
     const catM=settings.cats.length===3?1:settings.cats.length===2?.8:.6;
     const chantM=settings.chanting?1:.8;
-    const timeM=settings.sound===20?1:settings.sound===15?1.2:1.4;
+    const timeM=settings.sound===20?1:settings.sound===15?1.2:settings.sound===5?1.6:1.4;
     const modeM=settings.mode==="entry"?1:.4;
     const streakM=best>=15?1.6:best>=10?1.4:best>=5?1.2:1;
     const vintageM=aniQuizVintageM(settings.vintageMin, settings.vintageMax);
@@ -135,35 +135,88 @@ function aniQuizUpdateTimerBars(s, elapsed, total) {
         document.getElementById("quiz-time-bar").style.width = `${(remaining / total) * 100}%`;
     }
 }
-function aniQuizStart() {
-    const settings=aniQuizSettings();
-    if(!settings.cats.length){alert("Select at least one song category.");return;}
-    const pool=aniQuizSongs.filter(s=>{
-        const t=String(s.type||"").toLowerCase();
-        const category=t.includes("opening")?"op":t.includes("ending")?"ed":t.includes("insert")?"in":null;
-        if(!category || !settings.cats.includes(category)) return false;
-        const hasChanting = ["yes","true","1"].includes(String(s.chanting ?? "no").toLowerCase());
-        if(!settings.chanting && hasChanting) return false;
+function aniQuizGetFilteredPool(settings) {
+    if (!settings.cats.length) return [];
+    return aniQuizSongs.filter(s => {
+        const t = String(s.type || "").toLowerCase();
+        const category = t.includes("opening") ? "op" : t.includes("ending") ? "ed" : t.includes("insert") ? "in" : null;
+        if (!category || !settings.cats.includes(category)) return false;
+        const hasChanting = ["yes", "true", "1"].includes(String(s.chanting ?? "no").toLowerCase());
+        if (!settings.chanting && hasChanting) return false;
 
-        if(settings.vintageMin !== null || settings.vintageMax !== null) {
+        if (settings.vintageMin !== null || settings.vintageMax !== null) {
             const yearMatch = String(s.vintage || "").match(/\b(19\d{2}|20\d{2})\b/);
-            if(!yearMatch) return false;
+            if (!yearMatch) return false;
             const year = Number(yearMatch[1]);
-            if(settings.vintageMin !== null && year < settings.vintageMin) return false;
-            if(settings.vintageMax !== null && year >= settings.vintageMax) return false;
+            if (settings.vintageMin !== null && year < settings.vintageMin) return false;
+            if (settings.vintageMax !== null && year >= settings.vintageMax) return false;
         }
 
-        if(settings.diffMin !== null || settings.diffMax !== null) {
+        if (settings.diffMin !== null || settings.diffMax !== null) {
             const diff = parseFloat(s.difficulty);
-            if(!Number.isFinite(diff)) return false;
-            if(settings.diffMin !== null && diff < settings.diffMin) return false;
-            if(settings.diffMax !== null && diff >= settings.diffMax) return false;
+            if (!Number.isFinite(diff)) return false;
+            if (settings.diffMin !== null && diff < settings.diffMin) return false;
+            if (settings.diffMax !== null && diff >= settings.diffMax) return false;
         }
 
         return true;
     });
-    if(pool.length<settings.count){alert(`Only ${pool.length} songs match these settings. Broaden your filters or select more categories.`);return;}
-    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+}
+
+function aniQuizUpdateSettingsPreview() {
+    const settings = aniQuizSettings();
+    const { value, parts } = aniQuizMultiplier(settings, 0);
+
+    const fmtLeg = (n) => `×${Number(n.toFixed(2))}`;
+    const setLeg = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmtLeg(val);
+    };
+
+    setLeg("quiz-leg-time", parts.timeM);
+    setLeg("quiz-leg-mode", parts.modeM);
+    setLeg("quiz-leg-vintage", parts.vintageM);
+    setLeg("quiz-leg-diff", parts.diffM);
+    setLeg("quiz-leg-type", parts.catM);
+    setLeg("quiz-leg-chant", parts.chantM);
+
+    const multEl = document.getElementById("quiz-mult-preview");
+    if (multEl) {
+        const rounded = Math.round(value * 100) / 100;
+        multEl.textContent = `×${rounded}`;
+        const multColor = rounded > 1
+            ? "text-indigo-600 dark:text-indigo-400"
+            : rounded < 1
+                ? "text-rose-600 dark:text-rose-400"
+                : "text-slate-700 dark:text-slate-200";
+        multEl.className = `font-bold tabular-nums ${multColor}`;
+    }
+
+    if (!aniQuizSongs.length) return;
+
+    const poolCount = aniQuizGetFilteredPool(settings).length;
+    const isValid = poolCount >= 100 && poolCount >= settings.count;
+
+    const poolEl = document.getElementById("quiz-pool-count");
+    if (poolEl) {
+        poolEl.textContent = poolCount.toLocaleString();
+        const songColor = poolCount >= 100
+            ? "text-indigo-600 dark:text-indigo-400"
+            : "text-rose-600 dark:text-rose-400";
+        poolEl.className = `font-bold tabular-nums ${songColor}`;
+    }
+
+    const startBtn = document.getElementById("quiz-start");
+    if (startBtn) startBtn.disabled = !isValid;
+}
+
+function aniQuizStart() {
+    const settings = aniQuizSettings();
+    if (!settings.cats.length) { alert("Select at least one song category."); return; }
+    const pool = aniQuizGetFilteredPool(settings);
+    if (pool.length < 100) { alert(`Only ${pool.length} songs match these settings. At least 100 valid songs are required.`); return; }
+    if (pool.length < settings.count) { alert(`Only ${pool.length} songs match these settings. Broaden your filters or select more categories.`); return; }
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     aniQuizRun={settings, songs:pool.slice(0,settings.count), answers:[], id:crypto.randomUUID?.()||String(Date.now())+"-"+Math.random()};
     aniQuizIndex=0;aniQuizCorrect=0;aniQuizStreak=0;aniQuizBestStreak=0;aniQuizChantingCorrect=0;
     document.getElementById("quiz-setup").classList.add("hidden");
@@ -412,6 +465,11 @@ if(quizAudio){
         aniQuizAudioPlaying=false;
     });
 }
+document.querySelectorAll("#quiz-setup-form select, #quiz-setup-form input").forEach(el => {
+    el.addEventListener("change", () => {
+        if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview();
+    });
+});
 document.getElementById("quiz-start").addEventListener("click",aniQuizStart);
 document.getElementById("quiz-submit").addEventListener("click",()=>aniQuizResolve(aniQuizAccepted(aniQuizCurrent).includes(aniQuizNorm(document.getElementById("quiz-answer").value))));
 document.getElementById("quiz-answer").addEventListener("keydown",e=>{

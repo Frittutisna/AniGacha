@@ -294,6 +294,7 @@ function initQuizSettingsDropdown() {
 
             syncCustomSelectUI(minSel.closest(".custom-select-wrapper"));
             syncCustomSelectUI(maxSel.closest(".custom-select-wrapper"));
+            if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview();
         };
 
         minSel.addEventListener("change", () => syncBounds("min"));

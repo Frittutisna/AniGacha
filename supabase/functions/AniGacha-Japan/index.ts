@@ -99,6 +99,64 @@ async function getGameData(adminClient: any): Promise<CachedGameData> {
   return dataLoadPromise;
 }
 
+type QuizSongMeta = [category: "op" | "ed" | "in", chanting: boolean, year: number | null, diff: number | null];
+let cachedQuizSongs: QuizSongMeta[] | null = null;
+let quizSongsLoadPromise: Promise<QuizSongMeta[]> | null = null;
+
+async function getQuizSongsMeta(): Promise<QuizSongMeta[]> {
+  if (cachedQuizSongs) return cachedQuizSongs;
+  if (quizSongsLoadPromise) return quizSongsLoadPromise;
+
+  quizSongsLoadPromise = (async () => {
+    const treeRes = await fetch("https://api.github.com/repos/Frittutisna/Stats-Archive/git/trees/main?recursive=1");
+    if (!treeRes.ok) {
+      quizSongsLoadPromise = null;
+      throw new Error("Failed to load song database");
+    }
+    const tree = await treeRes.json();
+    const paths: string[] = (tree.tree || []).map((x: any) => x.path);
+    const timestampDirs = [...new Set(paths.map(p => p.match(/^(\d{10,})\/jsons\/search\.json$/)?.[1]).filter(Boolean))].sort();
+
+    const base = "https://raw.githubusercontent.com/Frittutisna/Stats-Archive/main/";
+    const seen = new Set<string>();
+    const songs: QuizSongMeta[] = [];
+
+    for (let i = 0; i < timestampDirs.length; i += 5) {
+      const batch = await Promise.all(timestampDirs.slice(i, i + 5).map(async ts => {
+        const r = await fetch(`${base}${ts}/jsons/search.json`);
+        if (!r.ok) return [];
+        const d = await r.json();
+        return Array.isArray(d) ? d : [];
+      }));
+
+      for (const list of batch) {
+        for (const s of list) {
+          if (!s?.video_url || (!s?.romaji && !s?.english)) continue;
+          const key = String(s.video_url).trim();
+          if (key.toLowerCase().split("?")[0].endsWith(".webm") || seen.has(key)) continue;
+          seen.add(key);
+
+          const t = String(s.type || "").toLowerCase();
+          const category = t.includes("opening") ? "op" : t.includes("ending") ? "ed" : t.includes("insert") ? "in" : null;
+          if (!category) continue;
+
+          const chanting = ["yes", "true", "1"].includes(String(s.chanting ?? "no").toLowerCase());
+          const yearMatch = String(s.vintage || "").match(/\b(19\d{2}|20\d{2})\b/);
+          const year = yearMatch ? Number(yearMatch[1]) : null;
+          const diff = parseFloat(s.difficulty);
+
+          songs.push([category, chanting, year, Number.isFinite(diff) ? diff : null]);
+        }
+      }
+    }
+
+    cachedQuizSongs = songs;
+    return songs;
+  })();
+
+  return quizSongsLoadPromise;
+}
+
 async function fetchAnilistUserAnimeIds(username: string): Promise<{ canonicalName: string; animeIds: string[] }> {
   const query = `
     query ($userName: String) {
@@ -428,7 +486,7 @@ serve(async (req) => {
       const extra = Number(settings.extra);
       const timeM = sound === 20 && extra === 0 ? 1
         : sound === 15 && extra === 0 ? 1.2
-        : sound === 5 && extra === 0 ? 1.4
+        : sound === 5 && extra === 0 ? 1.6
         : sound === 2 && extra === 8 ? 1.4 : null;
       if (timeM === null) throw new Error("Invalid quiz time control");
       const VINTAGE_CHECKPOINTS = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
@@ -448,6 +506,27 @@ serve(async (req) => {
         throw new Error("Invalid difficulty settings");
       }
       if (dMin !== null && dMax !== null && dMin >= dMax) throw new Error("Invalid difficulty range");
+
+      const quizSongs = await getQuizSongsMeta();
+      let validSongCount = 0;
+      for (const [cat, hasChanting, year, diff] of quizSongs) {
+        if (!categories.includes(cat)) continue;
+        if (settings.chanting !== true && hasChanting) continue;
+        if (vMin !== null || vMax !== null) {
+          if (year === null) continue;
+          if (vMin !== null && year < vMin) continue;
+          if (vMax !== null && year >= vMax) continue;
+        }
+        if (dMin !== null || dMax !== null) {
+          if (diff === null) continue;
+          if (dMin !== null && diff < dMin) continue;
+          if (dMax !== null && diff >= dMax) continue;
+        }
+        validSongCount++;
+      }
+      if (validSongCount < 100) {
+        throw new Error("Quiz settings must match at least 100 valid songs");
+      }
 
       const vStart = vMin === null ? 0 : VINTAGE_CHECKPOINTS.indexOf(vMin) + 1;
       const vEnd = vMax === null ? VINTAGE_CHECKPOINTS.length + 1 : VINTAGE_CHECKPOINTS.indexOf(vMax) + 1;

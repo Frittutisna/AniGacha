@@ -1,4 +1,4 @@
-# AniGacha v0.3.6-beta
+# AniGacha v0.3.7-beta
 
 ## Changelog
 1. Added the Quiz page for extra Stars
@@ -9,3 +9,4 @@
 6. Fixed long answers/options cutting off
 7. Added 3 new missions
 8. Added Vintage and Difficulty to Quiz Settings
+9. Added multiplier and song count indicators to Quiz Settings
