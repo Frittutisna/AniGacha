@@ -91,8 +91,6 @@ document.getElementById("inventory-grid").addEventListener("click", (e) => {
     }
 });
 
-document.getElementById("clear-results").addEventListener("click", hideResultsSection);
-
 const searchInput       = document.getElementById("search-input");
 const clearSearchBtn    = document.getElementById("clear-search");
 let searchDebounceId    = null;
