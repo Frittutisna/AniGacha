@@ -75,8 +75,8 @@ async function loadCloudSave(user) {
 
     document.getElementById("header-logged-out")    .classList.add      ("hidden");
     document.getElementById("header-logged-in")     .classList.remove   ("hidden");
-    document.getElementById("share-collection-btn") .classList.remove   ("hidden");
 
+    if (!isSharedView) document.getElementById("share-collection-btn").classList.remove("hidden");
     await sendGachaAction({action: "INIT", discordName});
 }
 

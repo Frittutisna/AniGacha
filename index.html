@@ -82,18 +82,11 @@
                     title="Switch between Romaji (JP) and English (EN)">
                     JP
                 </button>
-                <button id="share-collection-btn" type="button" data-tooltip-title="Share"
-                    title="Copy the link to share your collection with others" aria-label="Share"
-                    class="hidden w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 border border-indigo-600 hover:border-indigo-500 text-white transition">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
-                    </svg>
-                </button>
             </div>
         </div>
     </header>
-    <main id="main-page" class="max-w-7xl mx-auto px-3 pb-3 space-y-2.5">
-        <div id="shared-view-banner" class="hidden bg-white dark:bg-slate-900 border border-indigo-500/40 rounded-xl p-2 flex items-center justify-between gap-2.5">
+    <main id="main-page" class="max-w-7xl mx-auto px-3 pb-3 pt-2.5 space-y-2.5">
+        <div id="shared-view-banner" class="hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2 flex items-center justify-between gap-2.5">
             <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <span id="shared-photo-frame" class="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center shrink-0">
                     <img id="shared-photo-img" src="" alt="Shared Profile" class="hidden w-full h-full object-cover object-top pointer-events-none" />
@@ -331,9 +324,18 @@
         <section class="border-t border-slate-200 dark:border-slate-800 pt-1.5 space-y-1.5">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1.5">
                 <div class="text-center lg:text-left lg:shrink-0 lg:mr-3">
-                    <h3 data-tooltip-title="Character Collection"
-                        title="Format: [L][Rarity][Level]&#10;[L]: = Character is from an anime on your AniList&#10;[Level]: Duplicate count: Level 1 (2 copies), Level 2 (3-5), Level 3 (6+)&#10;Auto-locks sparks and S+ summons"
-                        class="text-lg font-bold whitespace-nowrap cursor-help inline-block">Character Collection</h3>
+                    <div class="inline-flex items-center justify-center lg:justify-start gap-1.5">
+                        <h3 data-tooltip-title="Character Collection"
+                            title="Format: [L][Rarity][Level]&#10;[L]: = Character is from an anime on your AniList&#10;[Level]: Duplicate count: Level 1 (2 copies), Level 2 (3-5), Level 3 (6+)&#10;Auto-locks sparks and S+ summons"
+                            class="text-lg font-bold whitespace-nowrap cursor-help">Character Collection</h3>
+                        <button id="share-collection-btn" type="button" data-tooltip-title="Share"
+                            title="Copy the link to share your collection with others" aria-label="Share"
+                            class="hidden w-6 h-6 flex items-center justify-center rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                            </svg>
+                        </button>
+                    </div>
                     <p class="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         Owned <span id="unlocked-count" class="text-slate-900 dark:text-white font-semibold">0</span>/<span id="pool-count">0</span>
                     </p>
