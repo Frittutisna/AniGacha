@@ -298,6 +298,7 @@ function exitSparkMode() {
     document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
     document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
 
+    if (!isSharedView) document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"})
     currentPage = 1;
     renderInventory();
 }
