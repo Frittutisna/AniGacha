@@ -822,10 +822,10 @@ function aniQuizRenderMissions() {
         const card          = document.createElement("div");
         card.className      = "rounded-lg border border-slate-200 dark:border-slate-700 p-2 flex items-center justify-between gap-2";
         const label         = document.createElement("div");
-        label.className     = "mr-3";
-        label.innerHTML     = `<div class="font-semibold">${m.name}</div><div class="text-slate-900 dark:text-slate-100 font-semibold"><span>★</span> ${m.reward}</div>`;
+        label.className     = "mr-3 flex flex-col justify-center gap-0.5";
+        label.innerHTML     = `<div class="font-semibold leading-tight">${m.name}</div><div class="text-slate-900 dark:text-slate-100 font-semibold leading-tight flex items-center gap-1"><span class="leading-none">★</span><span>${m.reward}</span></div>`;
         const status        = document.createElement("span");
-        status.className    = "shrink-0 self-stretch min-w-[4.75rem] flex items-center justify-center px-2.5 py-1 rounded text-sm font-bold " + (done ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300");
+        status.className    = "shrink-0 self-stretch min-w-[4.75rem] flex items-center justify-center px-2.5 py-1 rounded text-sm leading-none font-bold " + (done ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300");
         status.textContent  = done ? "Done" : (m.progress ? m.progress(liveProgress) : "Pending");
 
         card.append(label, status);
