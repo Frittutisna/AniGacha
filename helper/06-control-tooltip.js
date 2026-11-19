@@ -58,25 +58,27 @@ function syncCustomSelectUI(wrapper) {
     labelEl.className = "custom-select-label inline-grid whitespace-nowrap";
     labelEl.innerHTML = `<span class="col-start-1 row-start-1">${escapeHTML(activeText)}</span>${sizersHtml}`;
 
-    menu.innerHTML = Array.from(select.options).map(opt => {
-        const isSelected = opt.value === select.value;
+    menu.innerHTML = Array.from(select.options)
+        .filter(opt => !opt.disabled)
+        .map(opt => {
+            const isSelected = opt.value === select.value;
 
-        const activeClasses = isSelected
-            ? "bg-indigo-600/15 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold"
-            : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800";
+            const activeClasses = isSelected
+                ? "bg-indigo-600/15 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold"
+                : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800";
 
-        const checkHtml = isSelected
-            ? `<svg class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`
-            : `<span class="w-3.5 h-3.5 shrink-0"></span>`;
+            const checkHtml = isSelected
+                ? `<svg class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`
+                : `<span class="w-3.5 h-3.5 shrink-0"></span>`;
 
-        return `
-            <button type="button" data-option-value="${escapeHTML(opt.value)}"
-                class="w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between gap-3 whitespace-nowrap transition ${activeClasses}">
-                <span>${escapeHTML(opt.textContent)}</span>
-                ${checkHtml}
-            </button>
-        `;
-    }).join("");
+            return `
+                <button type="button" data-option-value="${escapeHTML(opt.value)}"
+                    class="w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between gap-3 whitespace-nowrap transition ${activeClasses}">
+                    <span>${escapeHTML(opt.textContent)}</span>
+                    ${checkHtml}
+                </button>
+            `;
+        }).join("");
 }
 
 function setCustomSelectValue(selectId, value) {
@@ -268,6 +270,38 @@ function initQuizSettingsDropdown() {
         if (!e.target.closest(".custom-select-wrapper")) closeAllCustomSelects();
         e.stopPropagation();
     });
+
+    function bindRangeSelects(minId, maxId) {
+        const minSel = document.getElementById(minId);
+        const maxSel = document.getElementById(maxId);
+        if (!minSel || !maxSel) return;
+
+        const syncBounds = (changed) => {
+            const minVal = minSel.value ? Number(minSel.value) : null;
+            const maxVal = maxSel.value ? Number(maxSel.value) : null;
+
+            if (minVal !== null && maxVal !== null && minVal >= maxVal) {
+                if (changed === "min") maxSel.value = "";
+                else minSel.value = "";
+            }
+
+            Array.from(maxSel.options).forEach(opt => {
+                opt.disabled = Boolean(opt.value && minVal !== null && Number(opt.value) <= minVal);
+            });
+            Array.from(minSel.options).forEach(opt => {
+                opt.disabled = Boolean(opt.value && maxVal !== null && Number(opt.value) >= maxVal);
+            });
+
+            syncCustomSelectUI(minSel.closest(".custom-select-wrapper"));
+            syncCustomSelectUI(maxSel.closest(".custom-select-wrapper"));
+        };
+
+        minSel.addEventListener("change", () => syncBounds("min"));
+        maxSel.addEventListener("change", () => syncBounds("max"));
+    }
+
+    bindRangeSelects("quiz-vintage-min", "quiz-vintage-max");
+    bindRangeSelects("quiz-diff-min", "quiz-diff-max");
 }
 
 initQuizSettingsDropdown();

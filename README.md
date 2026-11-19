@@ -1,4 +1,4 @@
-# AniGacha v0.3.5-beta
+# AniGacha v0.3.6-beta
 
 ## Changelog
 1. Added the Quiz page for extra Stars
@@ -8,3 +8,4 @@
 5. Fixed Quiz dropdowns and checkboxes
 6. Fixed long answers/options cutting off
 7. Added 3 new missions
+8. Added Vintage and Difficulty to Quiz Settings

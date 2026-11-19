@@ -69,10 +69,42 @@ async function loadAniQuizData() {
         console.error(e);
     }
 }
+const VINTAGE_CHECKPOINTS = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
+const DIFF_CHECKPOINTS = [20, 25, 30, 35];
+const DIFF_SPAN_MODS = [0.4, 0.2, 0, -0.2, -0.4];
+
 function aniQuizSettings() {
     const cats=["op","ed","in"].filter(k=>document.getElementById("quiz-"+k).checked);
     const [sound,extra]=document.getElementById("quiz-time").value.split(",").map(Number);
-    return {cats,chanting:document.getElementById("quiz-chanting").checked,sound,extra,mode:document.getElementById("quiz-mode").value,count:Number(document.getElementById("quiz-count").value)};
+    const vMinRaw = document.getElementById("quiz-vintage-min")?.value;
+    const vMaxRaw = document.getElementById("quiz-vintage-max")?.value;
+    const dMinRaw = document.getElementById("quiz-diff-min")?.value;
+    const dMaxRaw = document.getElementById("quiz-diff-max")?.value;
+    return {
+        cats,
+        chanting: document.getElementById("quiz-chanting").checked,
+        sound,
+        extra,
+        mode: document.getElementById("quiz-mode").value,
+        count: Number(document.getElementById("quiz-count").value),
+        vintageMin: vMinRaw ? Number(vMinRaw) : null,
+        vintageMax: vMaxRaw ? Number(vMaxRaw) : null,
+        diffMin: dMinRaw ? Number(dMinRaw) : null,
+        diffMax: dMaxRaw ? Number(dMaxRaw) : null
+    };
+}
+function aniQuizVintageM(vMin, vMax) {
+    const startIdx = vMin === null ? 0 : VINTAGE_CHECKPOINTS.indexOf(vMin) + 1;
+    const endIdx = vMax === null ? VINTAGE_CHECKPOINTS.length + 1 : VINTAGE_CHECKPOINTS.indexOf(vMax) + 1;
+    const excludedSpans = 11 - (endIdx - startIdx);
+    return Math.max(0.5, Number((1 - excludedSpans * 0.05).toFixed(2)));
+}
+function aniQuizDiffM(dMin, dMax) {
+    const startIdx = dMin === null ? 0 : DIFF_CHECKPOINTS.indexOf(dMin) + 1;
+    const endIdx = dMax === null ? DIFF_CHECKPOINTS.length + 1 : DIFF_CHECKPOINTS.indexOf(dMax) + 1;
+    let mod = 0;
+    for (let i = startIdx; i < endIdx; i++) mod += DIFF_SPAN_MODS[i];
+    return Math.max(0.2, Number((1 + mod).toFixed(2)));
 }
 function aniQuizMultiplier(settings,best) {
     const catM=settings.cats.length===3?1:settings.cats.length===2?.8:.6;
@@ -80,7 +112,9 @@ function aniQuizMultiplier(settings,best) {
     const timeM=settings.sound===20?1:settings.sound===15?1.2:1.4;
     const modeM=settings.mode==="entry"?1:.4;
     const streakM=best>=15?1.6:best>=10?1.4:best>=5?1.2:1;
-    return {value:catM*chantM*timeM*modeM*streakM, parts:{catM,chantM,timeM,modeM,streakM}};
+    const vintageM=aniQuizVintageM(settings.vintageMin, settings.vintageMax);
+    const diffM=aniQuizDiffM(settings.diffMin, settings.diffMax);
+    return {value:catM*chantM*timeM*modeM*streakM*vintageM*diffM, parts:{catM,chantM,timeM,modeM,streakM,vintageM,diffM}};
 }
 function aniQuizUpdateTimerBars(s, elapsed, total) {
     const isTwoEight = s.sound === 2 && s.extra === 8;
@@ -108,9 +142,26 @@ function aniQuizStart() {
         const category=t.includes("opening")?"op":t.includes("ending")?"ed":t.includes("insert")?"in":null;
         if(!category || !settings.cats.includes(category)) return false;
         const hasChanting = ["yes","true","1"].includes(String(s.chanting ?? "no").toLowerCase());
-        return settings.chanting || !hasChanting;
+        if(!settings.chanting && hasChanting) return false;
+
+        if(settings.vintageMin !== null || settings.vintageMax !== null) {
+            const yearMatch = String(s.vintage || "").match(/\b(19\d{2}|20\d{2})\b/);
+            if(!yearMatch) return false;
+            const year = Number(yearMatch[1]);
+            if(settings.vintageMin !== null && year < settings.vintageMin) return false;
+            if(settings.vintageMax !== null && year >= settings.vintageMax) return false;
+        }
+
+        if(settings.diffMin !== null || settings.diffMax !== null) {
+            const diff = parseFloat(s.difficulty);
+            if(!Number.isFinite(diff)) return false;
+            if(settings.diffMin !== null && diff < settings.diffMin) return false;
+            if(settings.diffMax !== null && diff >= settings.diffMax) return false;
+        }
+
+        return true;
     });
-    if(pool.length<settings.count){alert(`Only ${pool.length} songs match these settings. Select more categories or change chanting.`);return;}
+    if(pool.length<settings.count){alert(`Only ${pool.length} songs match these settings. Broaden your filters or select more categories.`);return;}
     for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
     aniQuizRun={settings, songs:pool.slice(0,settings.count), answers:[], id:crypto.randomUUID?.()||String(Date.now())+"-"+Math.random()};
     aniQuizIndex=0;aniQuizCorrect=0;aniQuizStreak=0;aniQuizBestStreak=0;aniQuizChantingCorrect=0;
@@ -285,10 +336,11 @@ async function aniQuizFinish(){
     const s=aniQuizRun.settings, m=aniQuizMultiplier(s,aniQuizBestStreak);
     const completed=aniQuizRun.answers.length===aniQuizRun.songs.length;
     const bestRoundPct=aniQuizRun.songs.length>0 ? Math.floor((aniQuizCorrect/aniQuizRun.songs.length)*100) : 0;
-    const missionStats={songsPlayed:aniQuizRun.answers.length,roundSongs:aniQuizRun.songs.length,correct:aniQuizCorrect,bestStreak:aniQuizBestStreak,chantingCorrect:aniQuizChantingCorrect,bestRoundPct,allCategoriesQuiz:s.cats.length===3,entryQuiz:s.mode==="entry",shortTimeQuiz:(s.sound!==20||s.extra!==0),allOptionsQuiz:s.cats.length===3&&s.chanting,completed};
+    const allOptionsEnabled = s.cats.length===3 && s.chanting && s.vintageMin===null && s.vintageMax===null && s.diffMin===null && s.diffMax===null;
+    const missionStats={songsPlayed:aniQuizRun.answers.length,roundSongs:aniQuizRun.songs.length,correct:aniQuizCorrect,bestStreak:aniQuizBestStreak,chantingCorrect:aniQuizChantingCorrect,bestRoundPct,allCategoriesQuiz:s.cats.length===3,entryQuiz:s.mode==="entry",shortTimeQuiz:(s.sound!==20||s.extra!==0),allOptionsQuiz:allOptionsEnabled,completed};
     let reward=0, missionState=null;
     if(typeof currentUser!=="undefined"&&currentUser){
-        const result=await sendGachaAction({action:"QUIZ_COMPLETE",quizId:aniQuizRun.id,correct:aniQuizCorrect,settings:{categories:s.cats,chanting:s.chanting,sound:s.sound,extra:s.extra,mode:s.mode},bestStreak:aniQuizBestStreak,missionStats});
+        const result=await sendGachaAction({action:"QUIZ_COMPLETE",quizId:aniQuizRun.id,correct:aniQuizCorrect,settings:{categories:s.cats,chanting:s.chanting,sound:s.sound,extra:s.extra,mode:s.mode,vintageMin:s.vintageMin,vintageMax:s.vintageMax,diffMin:s.diffMin,diffMax:s.diffMax},bestStreak:aniQuizBestStreak,missionStats});
         if(result){reward=result.quizReward||0;missionState=result.save?.quizDaily||null;}
     }
     aniQuizCurrentReward=reward;
@@ -310,7 +362,7 @@ function aniQuizRenderMissions(){
         bestRoundPct:Math.max(base.bestRoundPct||0,runPct),
         shortTimeQuiz:Boolean(base.shortTimeQuiz||(runCompleted&&(s.sound!==20||s.extra!==0))),
         entryQuiz:Boolean(base.entryQuiz||(runCompleted&&s.mode==="entry")),
-        allOptionsQuiz:Boolean(base.allOptionsQuiz||(runCompleted&&s.cats.length===3&&s.chanting))
+        allOptionsQuiz:Boolean(base.allOptionsQuiz||(runCompleted&&s.cats.length===3&&s.chanting&&s.vintageMin===null&&s.vintageMax===null&&s.diffMin===null&&s.diffMax===null))
     };
     wrap.innerHTML="";
     ANI_QUIZ_MISSIONS.forEach(m=>{

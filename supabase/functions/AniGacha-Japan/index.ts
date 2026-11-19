@@ -431,9 +431,37 @@ serve(async (req) => {
         : sound === 5 && extra === 0 ? 1.4
         : sound === 2 && extra === 8 ? 1.4 : null;
       if (timeM === null) throw new Error("Invalid quiz time control");
+      const VINTAGE_CHECKPOINTS = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
+      const DIFF_CHECKPOINTS = [20, 25, 30, 35];
+      const DIFF_SPAN_MODS = [0.4, 0.2, 0, -0.2, -0.4];
+
+      const vMin = settings.vintageMin === null || settings.vintageMin === undefined ? null : Number(settings.vintageMin);
+      const vMax = settings.vintageMax === null || settings.vintageMax === undefined ? null : Number(settings.vintageMax);
+      if ((vMin !== null && !VINTAGE_CHECKPOINTS.includes(vMin)) || (vMax !== null && !VINTAGE_CHECKPOINTS.includes(vMax))) {
+        throw new Error("Invalid vintage settings");
+      }
+      if (vMin !== null && vMax !== null && vMin >= vMax) throw new Error("Invalid vintage range");
+
+      const dMin = settings.diffMin === null || settings.diffMin === undefined ? null : Number(settings.diffMin);
+      const dMax = settings.diffMax === null || settings.diffMax === undefined ? null : Number(settings.diffMax);
+      if ((dMin !== null && !DIFF_CHECKPOINTS.includes(dMin)) || (dMax !== null && !DIFF_CHECKPOINTS.includes(dMax))) {
+        throw new Error("Invalid difficulty settings");
+      }
+      if (dMin !== null && dMax !== null && dMin >= dMax) throw new Error("Invalid difficulty range");
+
+      const vStart = vMin === null ? 0 : VINTAGE_CHECKPOINTS.indexOf(vMin) + 1;
+      const vEnd = vMax === null ? VINTAGE_CHECKPOINTS.length + 1 : VINTAGE_CHECKPOINTS.indexOf(vMax) + 1;
+      const vintageM = Math.max(0.5, Number((1 - (11 - (vEnd - vStart)) * 0.05).toFixed(2)));
+
+      const dStart = dMin === null ? 0 : DIFF_CHECKPOINTS.indexOf(dMin) + 1;
+      const dEnd = dMax === null ? DIFF_CHECKPOINTS.length + 1 : DIFF_CHECKPOINTS.indexOf(dMax) + 1;
+      let diffMod = 0;
+      for (let i = dStart; i < dEnd; i++) diffMod += DIFF_SPAN_MODS[i];
+      const diffM = Math.max(0.2, Number((1 + diffMod).toFixed(2)));
+
       const modeM = settings.mode === "entry" ? 1 : 0.4;
       const streakM = bestStreak >= 15 ? 1.6 : bestStreak >= 10 ? 1.4 : bestStreak >= 5 ? 1.2 : 1;
-      const multiplier = categoryM * chantingM * timeM * modeM * streakM;
+      const multiplier = categoryM * chantingM * timeM * modeM * streakM * vintageM * diffM;
       const requestedReward = Math.max(0, Math.round(correct * multiplier));
       const quizReward = Math.min(requestedReward, Math.max(0, 120 - daily.quizEarned));
 
