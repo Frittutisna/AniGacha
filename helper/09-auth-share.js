@@ -16,9 +16,12 @@ async function loadSharedCollection(targetUserId) {
     rebuildAnilistEligibleKeys();
 
     const topSection = document.getElementById("gacha-top-section");
-    topSection.classList.add("hidden");
-    topSection.classList.remove("flex", "lg:grid");
-    document.getElementById("sell-all-btn").classList.add("hidden");
+
+    topSection.classList.add    ("hidden");
+    topSection.classList.remove ("flex", "lg:grid");
+
+    document.getElementById("sell-all-btn").        classList.add("hidden");
+    document.getElementById("filter-own-section")?. classList.add("hidden");
 
     const sharedBanner = document.getElementById("shared-view-banner");
     sharedBanner.classList.remove("hidden");
@@ -87,6 +90,8 @@ async function exitSharedCollection() {
 
     if (currentUser) {
         document.getElementById("share-collection-btn")?.classList.remove("hidden");
+        document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"});
+
         await sendGachaAction({action: "INIT", discordName});
     } else {
         applySaveState({

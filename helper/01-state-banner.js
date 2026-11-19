@@ -349,7 +349,9 @@ function applySaveState(data) {
 
     if (isSharedView) return;
 
-    inventory       = data.inventory && typeof data.inventory === "object" ? data.inventory : {};
+    inventory = data.inventory && typeof data.inventory === "object" ? data.inventory : {};
+    document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"});
+
     lockedCards     = new Set(Array.isArray(data.lockedCards) ? data.lockedCards : []);
     totalPulls      = typeof data.totalPulls === "number" ? data.totalPulls : 0;
     hofPulls        = typeof data.hofPulls === "number" ? data.hofPulls : 0;

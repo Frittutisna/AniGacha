@@ -294,7 +294,7 @@ function enterSparkMode(bannerKey) {
 function exitSparkMode() {
     activeSparkBanner = null;
 
-    document.getElementById("filter-own-section")   .classList.remove   ("hidden");
+    document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
     document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
     document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
 
