@@ -286,6 +286,18 @@ function enterSparkMode(bannerKey) {
     document.getElementById("inventory-grid").scrollIntoView({behavior: "smooth", block: "nearest"});
 }
 
+function exitSparkMode() {
+    activeSparkBanner = null;
+
+    document.getElementById("sell-all-btn")         .classList.remove   ("hidden");
+    document.getElementById("filter-own-section")   .classList.remove   ("hidden");
+    document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
+    document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
+
+    currentPage = 1;
+    renderInventory();
+}
+
 function updateSellAllUI() {
     let totalValue = 0;
 
