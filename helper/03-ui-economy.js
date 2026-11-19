@@ -1,4 +1,4 @@
-function getItemsPerPage() {return window.innerWidth < 640 ? 25 : 50}
+function getItemsPerPage() {return window.innerWidth < 640 ? 20 : 50}
 
 function escapeHTML(str) {return String(str)
     .replace(/&/g, "&amp;")
@@ -274,7 +274,6 @@ function enterSparkMode(bannerKey) {
     clearFilterCheckboxes   (["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
 
     document.getElementById("sell-all-btn")         .classList.add("hidden");
-    document.getElementById("filter-own-section")   .classList.add("hidden");
     document.getElementById("filter-lock-section")  .classList.add("hidden");
 
     const indicator     = document.getElementById("spark-mode-indicator");
@@ -287,16 +286,23 @@ function enterSparkMode(bannerKey) {
     document.getElementById("inventory-grid").scrollIntoView({behavior: "smooth", block: "nearest"});
 }
 
-function exitSparkMode() {
-    activeSparkBanner = null;
+function updateSellAllUI() {
+    let totalValue = 0;
 
-    document.getElementById("sell-all-btn")         .classList.remove   ("hidden");
-    document.getElementById("filter-own-section")   .classList.remove   ("hidden");
-    document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
-    document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
+    for (const [key, ownedCount] of Object.entries(inventory)) {
+        if (ownedCount > 0 && !lockedCards.has(key)) {
+            const char = characterMap.get(key);
+            if (char) totalValue += char.rarity.sellValue * getSellMultiplier(ownedCount);
+        }
+    }
 
-    currentPage = 1;
-    renderInventory();
+    const sellAllBtn = document.getElementById("sell-all-btn");
+    const shouldHide = isSharedView || activeSparkBanner !== null || totalValue <= 0;
+
+    document.getElementById("sell-all-amount").textContent  = totalValue.toLocaleString();
+    sellAllBtn.disabled                                     = sellInFlight || totalValue <= 0;
+
+    sellAllBtn.classList.toggle("hidden", shouldHide);
 }
 
 async function sparkCharacter(uniqueKey) {

@@ -14,6 +14,7 @@ langToggleBtn.addEventListener("click", () => {
     langToggleBtn.textContent = titleLang;
     if (lastResults.length > 0 && !document.getElementById("results-section").classList.contains("hidden")) renderResults(lastResults, false, lastBannerType);
     renderInventory();
+    if (typeof aniQuizRefreshMcLanguage === "function") aniQuizRefreshMcLanguage();
 });
 
 const SORT_FIELDS_BY_ENTITY = {
@@ -239,8 +240,11 @@ function initSortFilterDropdown() {
 
         closeAnilistModal();
 
-        document.getElementById("share-modal")?.classList.add("hidden");
-        document.getElementById("photo-modal")?.classList.add("hidden");
+        document.getElementById("share-modal")?.    classList.add("hidden");
+        document.getElementById("photo-modal")?.    classList.add("hidden");
+        document.getElementById("quiz-end-modal")?. classList.add("hidden");
+        document.getElementById("logout-modal")?.   classList.add("hidden");
+        document.getElementById("sell-all-modal")?. classList.add("hidden");
     }});
 }
 

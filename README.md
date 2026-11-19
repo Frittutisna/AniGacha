@@ -1,4 +1,4 @@
-# AniGacha v0.3.7-beta
+# AniGacha v0.3.8-beta
 
 ## Changelog
 1. Added the Quiz page for extra Stars

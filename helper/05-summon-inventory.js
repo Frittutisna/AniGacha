@@ -146,8 +146,8 @@ function renderResults(results, animate = false, bannerType = lastBannerType) {
         : results;
 
     const cardWidthClass = isThemedBanner
-        ? "w-[calc((100%-1rem)/3)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.625rem)/10)]"
-        : "w-[calc((100%-1rem)/3)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.0625rem)/10)]";
+        ? "w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.625rem)/10)]"
+        : "w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.0625rem)/10)]";
 
     const separatorHTML = `<div aria-hidden="true" class="hidden sm:block w-px self-stretch bg-slate-300 dark:bg-slate-700 shrink-0"></div>`;
     section.classList.remove("hidden");
@@ -348,21 +348,21 @@ function renderInventory() {
     const isAnilistLinked   = Boolean(anilistUsername);
 
     document.getElementById("filter-list-section")  ?.classList.toggle("hidden", !isAnilistLinked);
-    document.getElementById("filter-status-row")    ?.classList.toggle("hidden", isSparkMode && !isAnilistLinked);
+    document.getElementById("filter-status-row")    ?.classList.remove("hidden");
 
     let filtered = characterPool.filter(c => {
         const isOwned   = Boolean(inventory[c.uniqueKey]);
         const isLocked  = isOwned && lockedCards.has(c.uniqueKey);
 
+        if (selectedOwn.size > 0) {
+            const ownMatch = (selectedOwn.has("OWNED") && isOwned) || (selectedOwn.has("UNOWNED") && !isOwned);
+            if (!ownMatch) return false;
+        }
+
         if (isSparkMode) {
             if (!isCharacterSparkableInBanner(c, activeSparkBanner))    return false;
             if (availableSpark < c.rarity.sparkCost)                    return false;
         } else {
-            if (selectedOwn.size > 0) {
-                const ownMatch = (selectedOwn.has("OWNED") && isOwned) || (selectedOwn.has("UNOWNED") && !isOwned);
-                if (!ownMatch) return false;
-            }
-
             if (selectedLock.size > 0) {
                 const lockMatch = (selectedLock.has("LOCKED") && isLocked) || (selectedLock.has("UNLOCKED") && isOwned && !isLocked);
                 if (!lockMatch) return false;

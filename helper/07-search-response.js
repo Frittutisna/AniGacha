@@ -27,8 +27,27 @@ document.getElementById("spark-studio").            addEventListener("click", ()
 document.getElementById("spark-tag").               addEventListener("click", () => enterSparkMode  ("TAG"));
 document.getElementById("spark-hof").               addEventListener("click", () => enterSparkMode  ("HOF"));
 document.getElementById("spark-list")?.             addEventListener("click", () => enterSparkMode  ("LIST"));
-document.getElementById("sell-all-btn").            addEventListener("click",  sellAllUnlocked);
 document.getElementById("spark-mode-indicator").    addEventListener("click",  exitSparkMode);
+
+const sellAllModal      = document.getElementById("sell-all-modal");
+const closeSellAllModal = () => sellAllModal?.classList.add("hidden");
+
+document.getElementById("sell-all-btn").addEventListener("click", () => {
+    if (document.getElementById("sell-all-btn").disabled) return;
+    document.getElementById("sell-all-modal-amount").textContent = document.getElementById("sell-all-amount").textContent;
+
+    sellAllModal?.classList.remove("hidden");
+    document.getElementById("sell-all-confirm")?.focus();
+});
+
+document.getElementById("sell-all-cancel")?.addEventListener("click", closeSellAllModal);
+
+sellAllModal?.addEventListener("click", (e) => {if (e.target === sellAllModal) closeSellAllModal()});
+
+document.getElementById("sell-all-confirm")?.addEventListener("click", () => {
+    closeSellAllModal   ();
+    sellAllUnlocked     ();
+});
 
 document.getElementById("results-grid").addEventListener("click", (e) => {
     const lockBtn = e.target.closest(".lock-card-btn");
@@ -184,7 +203,24 @@ document.getElementById("login-btn").addEventListener("click", async () => {awai
     options     : {redirectTo: window.location.origin + window.location.pathname}
 })});
 
-document.getElementById("logout-btn").addEventListener("click", async () => {if (currentUser) await sb.auth.signOut()});
+const logoutModal       = document.getElementById("logout-modal");
+const closeLogoutModal  = () => logoutModal?.classList.add("hidden");
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+    if (!currentUser) return;
+
+    logoutModal?.classList.remove("hidden");
+    document.getElementById("logout-confirm")?.focus();
+});
+
+document.getElementById("logout-cancel")?.addEventListener("click", closeLogoutModal);
+
+logoutModal?.addEventListener("click", (e) => {if (e.target === logoutModal) closeLogoutModal()});
+
+document.getElementById("logout-confirm")?.addEventListener("click", async () => {
+    closeLogoutModal();
+    if (currentUser) await sb.auth.signOut();
+});
 
 document.getElementById("daily-stars-btn").addEventListener("click", async () => {
     if (!currentUser) return;

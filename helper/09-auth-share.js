@@ -91,6 +91,8 @@ sb.auth.onAuthStateChange((event, session) => {
         currentUser         = null;
         activeDailyJstDate  = null;
 
+        if (typeof aniQuizAbortToHome === "function") aniQuizAbortToHome();
+
         document.getElementById("header-logged-in")     .classList.add      ("hidden");
         document.getElementById("header-logged-out")    .classList.remove   ("hidden");
         document.getElementById("share-collection-btn") .classList.add      ("hidden");

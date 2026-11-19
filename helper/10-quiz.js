@@ -53,7 +53,31 @@ async function loadAniQuizData() {
         }
         const nr=await fetch(base+namePaths[namePaths.length-1]);
         if (!nr.ok) throw new Error("Could not load the newest anime title list.");
-        aniQuizNames=await nr.json();
+        const rawNames = await nr.json();
+        const pooledTitles = [];
+        const seenNormTitles = new Set();
+        const addPooledTitle = (t) => {
+            const trimmed = String(t || "").trim();
+            const norm = aniQuizNorm(trimmed);
+            if (!trimmed || !norm || seenNormTitles.has(norm)) return;
+            seenNormTitles.add(norm);
+            pooledTitles.push(trimmed);
+        };
+
+        for (const entry of (Array.isArray(rawNames) ? rawNames : [])) {
+            for (const part of String(entry || "").split(" || ")) {
+                addPooledTitle(part);
+            }
+        }
+        for (const s of all) {
+            addPooledTitle(s?.romaji);
+            addPooledTitle(s?.english);
+            if (Array.isArray(s?.alts)) {
+                for (const alt of s.alts) addPooledTitle(alt);
+            }
+        }
+        aniQuizNames = pooledTitles;
+
         const seen=new Set();
         aniQuizSongs=all.filter(s=>{
             if (!s?.video_url || !s?.romaji && !s?.english) return false;
@@ -293,28 +317,85 @@ function aniQuizStringSimilarity(a,b){
     const x=grams(s1),y=grams(s2);let common=0;x.forEach(g=>{if(y.has(g))common++;});
     return 2*common/(x.size+y.size);
 }
+function aniQuizChoiceLabel(choice) {
+    const lang = typeof titleLang !== "undefined" ? titleLang : "JP";
+    return lang === "JP" ? (choice.jp || choice.en || "") : (choice.en || choice.jp || "");
+}
+function aniQuizRefreshMcLanguage() {
+    document.querySelectorAll("#quiz-mc-wrap button").forEach(b => {
+        const label = aniQuizChoiceLabel({ jp: b.dataset.jp, en: b.dataset.en });
+        if (label) aniQuizSetSwipeText(b, label);
+    });
+}
 function aniQuizMakeChoices(){
-    const correct=aniQuizTitle(aniQuizCurrent), correctN=aniQuizNorm(correct);
-    const candidates=[];
-    for(const raw of aniQuizNames){
-        const parts=String(raw||"").split(" || ");
-        const title=parts[(typeof titleLang!=="undefined"&&titleLang==="JP")?0:1]||parts[0];
-        if(title && aniQuizNorm(title)!==correctN && !aniQuizAccepted(aniQuizCurrent).includes(aniQuizNorm(title)))
-            candidates.push({title,score:aniQuizStringSimilarity(correct,title)});
+    const correctChoice = {
+        jp: aniQuizCurrent.romaji || aniQuizCurrent.english || "",
+        en: aniQuizCurrent.english || aniQuizCurrent.romaji || "",
+        isCorrect: true
+    };
+    const correctDisplay = aniQuizChoiceLabel(correctChoice);
+    const acceptedSet = new Set(aniQuizAccepted(aniQuizCurrent));
+    const seenCandidates = new Set();
+    const candidates = [];
+
+    for (const s of aniQuizSongs) {
+        const jp = s.romaji || s.english || "";
+        const en = s.english || s.romaji || "";
+        const display = aniQuizChoiceLabel({ jp, en });
+        const normDisplay = aniQuizNorm(display);
+        if (!display || acceptedSet.has(aniQuizNorm(jp)) || acceptedSet.has(aniQuizNorm(en)) || seenCandidates.has(normDisplay)) continue;
+        seenCandidates.add(normDisplay);
+        candidates.push({ jp, en, isCorrect: false, score: aniQuizStringSimilarity(correctDisplay, display) });
     }
-    candidates.sort((a,b)=>b.score-a.score);
-    const opts=candidates.slice(0,3).map(x=>x.title);
-    opts.push(correct);
+
+    candidates.sort((a, b) => b.score - a.score);
+    const pool = candidates.slice(0, 50);
+    const opts = [];
+
+    if (pool.length > 0) {
+        // 1. Always pick the closest overall match first (e.g. "A-Channel")
+        opts.push(pool.shift());
+
+        // 2. Pick remaining distractors that match the answer AND cluster with already-picked distractors
+        const clusterWeight = 0.45;
+        while (opts.length < 3 && pool.length > 0) {
+            let bestIdx = 0;
+            let bestScore = -Infinity;
+
+            for (let i = 0; i < pool.length; i++) {
+                const cand = pool[i];
+                const candText = aniQuizChoiceLabel(cand);
+                const avgSimToChosen = opts.reduce(
+                    (sum, chosen) => sum + aniQuizStringSimilarity(candText, aniQuizChoiceLabel(chosen)),
+                    0
+                ) / opts.length;
+
+                const combinedScore = cand.score + clusterWeight * avgSimToChosen;
+                if (combinedScore > bestScore) {
+                    bestScore = combinedScore;
+                    bestIdx = i;
+                }
+            }
+
+            opts.push(pool.splice(bestIdx, 1)[0]);
+        }
+    }
+
+    opts.push(correctChoice);
     for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+
     const wrap=document.getElementById("quiz-mc-wrap");wrap.innerHTML="";
-    opts.forEach(v=>{
+    opts.forEach(opt=>{
         const b=document.createElement("button");
         b.type="button";
+        b.dataset.jp = opt.jp;
+        b.dataset.en = opt.en;
+        b.dataset.correct = opt.isCorrect ? "1" : "0";
         b.className="min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-sm font-semibold hover:border-indigo-500 text-left overflow-hidden transition";
-        aniQuizSetSwipeText(b,v);
+        aniQuizSetSwipeText(b, aniQuizChoiceLabel(opt));
         b.addEventListener("click",()=>{
             aniQuizSelectedMcBtn=b;
-            aniQuizResolve(aniQuizNorm(v)===correctN);
+            aniQuizResolve(opt.isCorrect);
         });
         wrap.appendChild(b);
     });
@@ -348,10 +429,9 @@ function aniQuizResolve(correct){
 
     document.getElementById("quiz-suggestions").innerHTML="";
     document.getElementById("quiz-suggestions").classList.add("hidden");
-    const correctNorm = aniQuizNorm(title);
     document.querySelectorAll("#quiz-mc-wrap button").forEach(b=>{
         b.disabled=true;
-        const isRightOption = aniQuizNorm(b.textContent) === correctNorm;
+        const isRightOption = b.dataset.correct === "1";
         const isChosenWrong = !correct && b === aniQuizSelectedMcBtn;
         if (isRightOption) {
             b.className = "min-w-0 rounded-lg border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 p-3 text-sm font-bold text-left overflow-hidden transition";
@@ -400,6 +480,49 @@ async function aniQuizFinish(){
     aniQuizCurrentReward=reward;
     if(missionState)aniQuizDaily=missionState;
     aniQuizRenderMissions();
+}
+function aniQuizAbortToHome() {
+    aniQuizClearTimers();
+    const audio = document.getElementById("quiz-audio");
+    if (audio) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+    }
+    aniQuizRun = null;
+    aniQuizCurrent = null;
+    aniQuizIndex = 0;
+    aniQuizCorrect = 0;
+    aniQuizStreak = 0;
+    aniQuizBestStreak = 0;
+    aniQuizChantingCorrect = 0;
+    aniQuizAnswered = false;
+    aniQuizRevealing = false;
+    aniQuizAudioPlaying = false;
+    aniQuizSelectedMcBtn = null;
+
+    document.getElementById("quiz-end-modal")?.classList.add("hidden");
+    document.getElementById("quiz-active")?.classList.add("hidden");
+    document.getElementById("quiz-result")?.classList.add("hidden");
+    document.getElementById("quiz-setup")?.classList.remove("hidden");
+
+    const quizPage = document.getElementById("quiz-page");
+    const mainPage = document.getElementById("main-page");
+    const navBtn = document.getElementById("page-nav-btn");
+    const navIcon = document.getElementById("page-nav-icon");
+
+    if (quizPage && !quizPage.classList.contains("hidden")) {
+        quizPage.classList.add("hidden");
+        mainPage?.classList.remove("hidden");
+        if (navBtn) {
+            navBtn.setAttribute("aria-label", "Quiz");
+            navBtn.title = "Quiz";
+        }
+        if (navIcon) {
+            navIcon.innerHTML = '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
+        }
+        window.scrollTo({ top: 0, behavior: "instant" });
+    }
 }
 function aniQuizRenderMissions(){
     const wrap=document.getElementById("quiz-missions");if(!wrap)return;
@@ -485,7 +608,27 @@ document.getElementById("quiz-answer").addEventListener("keydown",e=>{
     }
 });
 document.getElementById("quiz-skip").addEventListener("click",()=>{if(aniQuizRevealing)aniQuizAdvanceReveal();else aniQuizResolve(false);});
-document.getElementById("quiz-end").addEventListener("click",()=>{if(confirm("End this quiz? Your completed answers will still count.")){aniQuizClearTimers();document.getElementById("quiz-audio").pause();aniQuizIndex=aniQuizRun.songs.length;aniQuizFinish();}});
+const quizEndModal = document.getElementById("quiz-end-modal");
+const closeQuizEndModal = () => quizEndModal?.classList.add("hidden");
+
+document.getElementById("quiz-end").addEventListener("click", () => {
+    quizEndModal?.classList.remove("hidden");
+    document.getElementById("quiz-end-confirm")?.focus();
+});
+
+document.getElementById("quiz-end-cancel")?.addEventListener("click", closeQuizEndModal);
+
+quizEndModal?.addEventListener("click", (e) => {
+    if (e.target === quizEndModal) closeQuizEndModal();
+});
+
+document.getElementById("quiz-end-confirm")?.addEventListener("click", () => {
+    closeQuizEndModal();
+    aniQuizClearTimers();
+    document.getElementById("quiz-audio").pause();
+    aniQuizIndex = aniQuizRun.songs.length;
+    aniQuizFinish();
+});
 let aniQuizSuggestionIndex=-1;
 document.getElementById("quiz-answer").addEventListener("keydown",e=>{
     const wrap=document.getElementById("quiz-suggestions"), items=[...wrap.querySelectorAll("button")];
@@ -501,9 +644,7 @@ document.getElementById("quiz-answer").addEventListener("input",e=>{
     const wrap=document.getElementById("quiz-suggestions"), q=aniQuizNorm(e.target.value);
     wrap.innerHTML="";aniQuizSuggestionIndex=-1;
     if(!q){wrap.classList.add("hidden");return;}
-    const lang=(typeof titleLang!=="undefined"&&titleLang==="JP")?0:1;
-    const found=aniQuizNames.map(v=>String(v||"").split(" || ")[lang]||String(v||"").split(" || ")[0])
-        .filter((v,i,a)=>v&&aniQuizNorm(v).includes(q)&&a.indexOf(v)===i).slice(0,6);
+    const found=aniQuizNames.filter(v=>aniQuizNorm(v).includes(q)).slice(0,6);
     found.forEach(v=>{const b=document.createElement("button");b.type="button";b.className="block w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 truncate";b.textContent=v;b.addEventListener("click",()=>{e.target.value=v;wrap.classList.add("hidden");aniQuizSuggestionIndex=-1;});wrap.append(b);});
     wrap.classList.toggle("hidden",!found.length);
 });
