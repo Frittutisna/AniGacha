@@ -173,6 +173,8 @@ sb.auth.onAuthStateChange((event, session) => {
         document.getElementById("results-section").classList.add("hidden");
         if (activeSparkBanner) exitSparkMode();
 
+        document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = false});
+
         applySaveState({
             stars                       : 0,
             inventory                   : {},

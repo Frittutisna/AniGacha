@@ -115,11 +115,11 @@ function createCardHTML(char, {
             </span>
             ${lockBadgeHtml}
             </div>
-            <div class="px-1.5 py-1 flex-1 flex flex-col justify-center text-center gap-0.5">
+            <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5">
             <div class="font-bold text-xs leading-tight line-clamp-1">
                 ${safeName}
             </div>
-            <div class="text-[10px] opacity-85 leading-tight line-clamp-1">
+            <div class="text-[10px] leading-tight line-clamp-1">
                 ${safeAnime}
             </div>
             </div>

@@ -22,14 +22,6 @@
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white transition-colors">
     <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-3 py-1.5 flex items-center justify-center gap-1.5">
-            <div id="anilist-header-wrapper" class="relative shrink-0">
-                <button id="anilist-header-btn" type="button" aria-label="Link AniList Account"
-                    data-tooltip-title="Link AniList"
-                    title="Link your account to:&#10;1. Unlock the List banner, and&#10;2. Summon characters from your list"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#02A9FF] hover:bg-[#0295e0] active:scale-95 shadow-sm shadow-[#02A9FF]/25 transition">
-                    <img src="anilist.svg" alt="AniList" class="w-4 h-4 invert" />
-                </button>
-            </div>
             <div id="header-logged-out" class="relative flex items-center shrink-0">
                 <button id="login-btn" type="button" aria-label="Login with Discord"
                     data-tooltip-title="Login with Discord"
@@ -43,13 +35,21 @@
             <div id="header-logged-in" class="hidden flex items-center gap-1.5">
                 <button id="profile-btn" type="button" data-tooltip-title="Profile"
                     title="Edit your display name, icon, framing, or AniList account"
-                    class="flex items-center gap-1.5 group text-left">
+                    class="flex items-center gap-1 sm:gap-1.5 group text-left">
+                    <span id="header-username" class="hidden sm:inline text-xl sm:text-3xl font-bold tracking-tight max-w-[130px] sm:max-w-[200px] truncate select-none group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition">Account</span>
                     <span id="profile-photo-frame"
                         class="w-8 h-8 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
                         <img id="header-photo-img" src="" alt="Profile" class="hidden w-full h-full object-cover object-top pointer-events-none" />
                         <span id="header-photo-placeholder" class="text-[10px] font-bold text-slate-500 dark:text-slate-400">?</span>
                     </span>
-                    <span id="header-username" class="hidden sm:inline text-xl sm:text-2xl font-bold tracking-tight max-w-[130px] sm:max-w-[200px] truncate select-none group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition">Account</span>
+                </button>
+            </div>
+            <div id="anilist-header-wrapper" class="relative shrink-0">
+                <button id="anilist-header-btn" type="button" aria-label="Link AniList Account"
+                    data-tooltip-title="Link AniList"
+                    title="Link your account to:&#10;1. Unlock the List banner, and&#10;2. Summon characters from your list"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#02A9FF] hover:bg-[#0295e0] active:scale-95 shadow-sm shadow-[#02A9FF]/25 transition">
+                    <img src="anilist.svg" alt="AniList" class="w-4 h-4 invert" />
                 </button>
             </div>
             <div class="flex items-center gap-1.5">
@@ -85,7 +85,7 @@
             </div>
         </div>
     </header>
-    <main id="main-page" class="max-w-7xl mx-auto px-3 pb-3 pt-2.5 space-y-2.5">
+    <main id="main-page" class="max-w-7xl mx-auto px-3 pb-3 space-y-2.5">
         <div id="shared-view-banner" class="hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2 flex items-center justify-between gap-2.5">
             <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <span id="shared-photo-frame" class="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center shrink-0">
@@ -408,7 +408,7 @@
                                 <div id="filter-own-section" class="space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Ownership</div>
                                     <div id="filter-own-group" class="space-y-1">
-                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="OWNED" checked class="rounded accent-indigo-600"><span>Owned</span></label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="OWNED" class="rounded accent-indigo-600"><span>Owned</span></label>
                                         <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="UNOWNED" class="rounded accent-indigo-600"><span>Unowned</span></label>
                                     </div>
                                 </div>
