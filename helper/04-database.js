@@ -242,8 +242,6 @@ async function initDatabase() {
         }
     } catch (err) {
         console.error(err);
-
-        document.getElementById("error-banner").classList.remove("hidden");
         document.getElementById("error-detail").textContent = err.message;
     }
 }
