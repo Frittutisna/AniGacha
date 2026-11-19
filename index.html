@@ -22,7 +22,6 @@
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white transition-colors">
     <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-3 py-1.5 flex items-center justify-center gap-1.5">
-            <!-- Left Section: [AniList] [Photo] Username or Discord Login -->
             <div id="anilist-header-wrapper" class="relative shrink-0">
                 <button id="anilist-header-btn" type="button" aria-label="Link AniList Account"
                     data-tooltip-title="Link AniList"
@@ -53,8 +52,6 @@
                     <span id="header-username" class="hidden sm:inline text-xl sm:text-2xl font-bold tracking-tight max-w-[130px] sm:max-w-[200px] truncate select-none group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition">Account</span>
                 </button>
             </div>
-
-            <!-- Right Section: [★ Amount] [☆] [Theme] [Anime] [➜|] [Debug/Demo] -->
             <div class="flex items-center gap-1.5">
                 <button id="page-nav-btn" type="button" aria-label="Open Quiz" title="Quiz" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
                     <svg id="page-nav-icon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -115,8 +112,6 @@
                 Make sure the CSV files (<code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">anime.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">char.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">era.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">franchise.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">genre.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">source.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">studio.csv</code>, <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">tag.csv</code>) are in the dataset folder, and run a local server (e.g., <code class="bg-rose-200 dark:bg-rose-900 px-1 py-0.5 rounded">python -m http.server 8000</code>).
             </p>
         </div>
-
-        <!-- Shared Collection View Header (shown only when ?share=<user_id> is active) -->
         <div id="shared-view-banner" class="hidden bg-white dark:bg-slate-900 border border-indigo-500/40 rounded-xl p-2 flex items-center justify-between gap-2.5">
             <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <span id="shared-photo-frame" class="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center shrink-0">
@@ -134,7 +129,6 @@
                 My Collection
             </button>
         </div>
-
         <div id="gacha-top-section" class="w-full flex flex-col lg:grid lg:grid-cols-12 gap-2.5 items-stretch">
             <section class="w-full lg:col-span-5 bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center">
                 <div class="w-full h-full overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 flex items-center">
@@ -172,8 +166,6 @@
                     </table>
                 </div>
             </section>
-
-            <!-- NEW -->
             <div id="banner-carousel" class="w-full lg:col-span-7 flex lg:grid lg:grid-cols-2 gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar">
                 <section class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
@@ -183,7 +175,6 @@
                             <span class="text-indigo-600 dark:text-indigo-400">Standard:</span> All-Star
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -195,7 +186,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-era" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="era-banner-pill" data-tooltip-title="Era Banner"
@@ -204,7 +194,6 @@
                             <span class="text-amber-600 dark:text-amber-400">Era:</span> <span id="era-banner-title">Era</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-era-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -216,7 +205,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-franchise" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="franchise-banner-pill" data-tooltip-title="Franchise Banner"
@@ -225,7 +213,6 @@
                             <span class="text-rose-600 dark:text-rose-400">Franchise:</span> <span id="franchise-banner-title">Franchise</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-franchise-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -237,7 +224,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-genre" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="genre-banner-pill" data-tooltip-title="Genre Banner"
@@ -246,7 +232,6 @@
                             <span class="text-emerald-600 dark:text-emerald-400">Genre:</span> <span id="genre-banner-title">Genre</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-genre-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -258,7 +243,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-source" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="source-banner-pill" data-tooltip-title="Source Banner"
@@ -267,7 +251,6 @@
                             <span class="text-sky-600 dark:text-sky-400">Source:</span> <span id="source-banner-title">Source</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-source-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -279,7 +262,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-studio" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="studio-banner-pill" data-tooltip-title="Studio Banner"
@@ -288,7 +270,6 @@
                             <span class="text-violet-600 dark:text-violet-400">Studio:</span> <span id="studio-banner-title">Studio</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-studio-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -300,7 +281,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-tag" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="tag-banner-pill" data-tooltip-title="Tag Banner"
@@ -309,7 +289,6 @@
                             <span class="text-teal-600 dark:text-teal-400">Tag:</span> <span id="tag-banner-title">Tag</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-tag-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -321,7 +300,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-hof" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="hof-banner-pill" data-tooltip-title="Premium: Hall-of-Fame"
@@ -330,7 +308,6 @@
                             <span class="text-purple-600 dark:text-purple-400">Premium:</span> <span id="hof-banner-title">Hall-of-Fame</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-hof-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -342,7 +319,6 @@
                         </button>
                     </div>
                 </section>
-
                 <section id="banner-card-list" class="hidden w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
                     <div class="flex items-center justify-center">
                         <h2 id="list-banner-pill" data-tooltip-title="AniList Banner"
@@ -351,7 +327,6 @@
                             <span class="text-sky-500 dark:text-sky-400">List:</span> <span id="list-banner-title">AniList</span>
                         </h2>
                     </div>
-
                     <div class="grid grid-cols-2 gap-1.5">
                         <button id="pull-list-10" disabled
                             class="w-full py-1.5 rounded-lg font-bold text-sm bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
@@ -365,7 +340,6 @@
                 </section>
             </div>
         </div>
-
         <section id="results-section" class="hidden border-t border-slate-200 dark:border-slate-800 pt-2.5 space-y-2">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-bold">Summon Results</h3>
@@ -373,10 +347,8 @@
             </div>
             <div id="results-grid" class="flex flex-wrap items-stretch gap-2"></div>
         </section>
-
         <section class="border-t border-slate-200 dark:border-slate-800 pt-1.5 space-y-1.5">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1.5">
-                <!-- Stacked & horizontally centered on mobile/tablet, left-aligned with right spacing on desktop -->
                 <div class="text-center lg:text-left lg:shrink-0 lg:mr-3">
                     <h3 data-tooltip-title="Character Collection"
                         title="Format: [L][Rarity][Level]&#10;[L]: = Character is from an anime on your AniList&#10;[Level]: Duplicate count: Level 1 (2 copies), Level 2 (3-5), Level 3 (6+)&#10;Auto-locks sparks and S+ summons"
@@ -385,23 +357,16 @@
                         Owned <span id="unlocked-count" class="text-slate-900 dark:text-white font-semibold">0</span>/<span id="pool-count">0</span>
                     </p>
                 </div>
-
-                <!-- 2-col structured grid on mobile, inline flex row right-aligned on desktop -->
                 <div class="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-1.5 lg:ml-auto lg:justify-end">
-                    <!-- Spark Mode indicator button (click to exit Spark Mode) -->
                     <button type="button" id="spark-mode-indicator" title="Exit Spark"
                         class="hidden col-span-1 sm:order-1 w-full sm:w-auto shrink-0 px-2.5 py-1.5 sm:py-1 rounded-lg text-base sm:text-sm font-semibold bg-amber-500/15 hover:bg-amber-500/25 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/40 truncate whitespace-nowrap transition">
                         <span id="spark-mode-label">Standard Spark</span>
                     </button>
-
-                    <!-- Sell All unlocked cards button -->
                     <button type="button" id="sell-all-btn" disabled data-tooltip-title="Sell All"
                         title="Sell all unlocked characters for Stars"
                         class="hidden col-span-1 sm:order-1 w-full sm:w-auto shrink-0 px-2.5 py-1.5 sm:py-1 rounded-lg border border-transparent text-base sm:text-sm font-semibold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate whitespace-nowrap transition">
                         Sell All: ★ <span id="sell-all-amount">0</span>
                     </button>
-
-                    <!-- Merged Sort & Filter dropdown -->
                     <div id="sort-filter-wrapper" class="relative col-span-2 sm:order-2 w-full sm:w-auto shrink-0">
                         <button type="button" id="sort-filter-trigger"
                             class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 py-1.5 sm:py-1 text-base sm:text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
@@ -410,13 +375,10 @@
                         <svg id="sort-filter-chevron" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
-
                         <div id="sort-filter-menu" class="hidden absolute right-0 w-max max-w-[calc(100vw-1.5rem)] mt-1 z-40 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-2.5 space-y-2.5 text-xs">
-                            <!-- Sort Row: [Character/Anime] [Rarity/Popularity/Level/Name/Date] [▼/▲] -->
                             <div class="space-y-1">
                                 <div class="text-[11px] font-bold text-slate-400">Sort</div>
                                 <div class="flex items-center gap-1.5">
-                                    <!-- Custom Select 1: Character / Anime -->
                                     <div class="custom-select-wrapper relative w-auto shrink-0" data-target="sort-entity">
                                         <select id="sort-entity" class="sr-only" aria-hidden="true" tabindex="-1">
                                             <option value="CHARACTER">Character</option>
@@ -430,8 +392,6 @@
                                         </svg>
                                         <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
                                     </div>
-
-                                    <!-- Custom Select 2: Rarity / Popularity / Level / Name / Date (width fits content) -->
                                     <div class="custom-select-wrapper relative w-auto shrink-0" data-target="sort-field">
                                         <select id="sort-field" class="sr-only" aria-hidden="true" tabindex="-1">
                                             <option value="RARITY">Rarity</option>
@@ -448,16 +408,12 @@
                                         </svg>
                                         <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
                                     </div>
-
-                                    <!-- Direction Button -->
                                     <button type="button" id="sort-dir-btn" data-dir="DESC" title="Sort Direction"
                                         class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 font-bold text-xs shrink-0 transition">
                                         ▼
                                     </button>
                                 </div>
                             </div>
-
-                            <!-- Rarity Checkboxes (3x3) -->
                             <div class="space-y-1">
                                 <div class="text-[11px] font-bold text-slate-400">Rarity</div>
                                 <div id="filter-rarity-group" class="grid grid-cols-3 w-fit gap-x-3 gap-y-1">
@@ -472,8 +428,6 @@
                                     <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="F" class="rounded accent-indigo-600"><span>F</span></label>
                                 </div>
                             </div>
-
-                            <!-- Ownership, Lock & AniList Status Checkboxes (same row) -->
                             <div id="filter-status-row" class="flex items-start gap-4">
                                 <div id="filter-own-section" class="space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Ownership</div>
@@ -499,8 +453,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Search bar -->
                     <div class="relative col-span-2 sm:order-6 sm:w-80">
                         <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 10.5a7.5 7.5 0 0013.15 6.15z" />
@@ -556,8 +508,7 @@
                 </button>
             </div>
         </section>
-    
-</main>
+    </main>
     <main id="quiz-page" class="hidden max-w-7xl mx-auto px-3 pb-3 space-y-2.5 pt-2.5">
         <section id="quiz-section" class="w-full sm:w-fit sm:max-w-full mx-auto bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
             <div class="grid grid-cols-2 gap-3 w-full">
@@ -567,7 +518,6 @@
             <div id="quiz-loading" class="hidden text-sm text-slate-500 mt-3">Loading Stats-Archive song database…</div>
             <div id="quiz-setup" class="w-full mx-auto mt-3">
                 <form id="quiz-setup-form" onsubmit="return false;" class="grid grid-cols-2 sm:flex sm:items-center sm:justify-center gap-2">
-                    <!-- Quiz Settings Dropdown Menu -->
                     <div id="quiz-settings-wrapper" class="relative col-span-1 sm:w-auto">
                         <button type="button" id="quiz-settings-trigger"
                             class="w-full h-10 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
@@ -576,11 +526,8 @@
                         <svg id="quiz-settings-chevron" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
-
                         <div id="quiz-settings-menu" class="hidden absolute left-0 sm:left-auto sm:right-0 w-max max-w-[calc(100vw-2rem)] mt-1 z-40 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-3 space-y-3 text-xs">
-                            <!-- Row 1: [Count][Time][Mode] (1:1:2) -->
                             <div class="grid grid-cols-4 gap-2">
-                                <!-- Count (1) -->
                                 <div class="col-span-1 flex flex-col items-center space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Count</div>
                                     <div class="custom-select-wrapper relative w-full" data-target="quiz-count">
@@ -596,8 +543,6 @@
                                         <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
                                     </div>
                                 </div>
-
-                                <!-- Time (1) -->
                                 <div class="col-span-1 flex flex-col items-center space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Time</div>
                                     <div class="custom-select-wrapper relative w-full" data-target="quiz-time">
@@ -613,8 +558,6 @@
                                         <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
                                     </div>
                                 </div>
-
-                                <!-- Mode (2) -->
                                 <div class="col-span-2 flex flex-col items-center space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Mode</div>
                                     <div class="custom-select-wrapper relative w-full" data-target="quiz-mode">
@@ -631,10 +574,7 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Row 2: [Vintage][Vintage][Difficulty][Difficulty] (1:1:1:1) -->
                             <div class="grid grid-cols-4 gap-2">
-                                <!-- Vintage (2 cols = 1:1) -->
                                 <div class="col-span-2 flex flex-col items-center space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Vintage</div>
                                     <div class="grid grid-cols-2 gap-2 w-full">
@@ -662,8 +602,6 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Difficulty (2 cols = 1:1) -->
                                 <div class="col-span-2 flex flex-col items-center space-y-1">
                                     <div class="text-[11px] font-bold text-slate-400">Difficulty</div>
                                     <div class="grid grid-cols-2 gap-2 w-full">
@@ -692,8 +630,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Type Checkboxes (All in One Row) -->
                             <div class="flex flex-col items-center space-y-1">
                                 <div class="text-[11px] font-bold text-slate-400">Type</div>
                                 <div class="flex items-center justify-center gap-3">
@@ -703,10 +639,7 @@
                                     <label class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" id="quiz-chanting" checked class="rounded accent-indigo-600"><span>Chanting</span></label>
                                 </div>
                             </div>
-
-                            <!-- Multiplier Breakdown & Pool Count -->
                             <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2 text-[11px]">
-                                <!-- 3 rows x 2 columns -->
                                 <div class="grid grid-cols-2 gap-x-4 gap-y-0.5">
                                     <div class="flex items-center justify-between gap-2">
                                         <span>Time</span>
@@ -733,8 +666,6 @@
                                         <span id="quiz-leg-chant" class="tabular-nums">×1</span>
                                     </div>
                                 </div>
-
-                                <!-- 1 row x 2 columns (same border-t separator style) -->
                                 <div class="pt-2 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-x-4 text-xs">
                                     <div class="flex items-center justify-between gap-2">
                                         <span class="font-bold text-slate-500 dark:text-slate-300">Multiplier</span>
@@ -748,8 +679,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Start Button -->
                     <button id="quiz-start" class="w-full sm:w-32 py-2 leading-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base disabled:opacity-40 transition flex items-center justify-center" disabled>Start</button>
                 </form>
             </div>
@@ -778,28 +707,20 @@
             <div class="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-2"><div id="quiz-missions" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs"></div></div>
         </section>
     </main>
-
-    <!-- Profile Photo Editor Modal (click outside backdrop to close) -->
     <div id="photo-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3">
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-md p-4 space-y-3 shadow-xl">
-            <!-- Live Preview (locked to exact height of the slider rows) & 4-Column Control Grid -->
             <div class="grid grid-cols-[auto_1fr] items-stretch gap-3 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-lg p-3">
                 <div id="photo-preview-frame" class="h-0 min-h-full aspect-square rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 flex items-center justify-center">
                     <img id="photo-preview-img" src="" alt="Preview" class="hidden w-full h-full object-cover object-top pointer-events-none"/>
                     <span id="photo-preview-placeholder" class="text-xs font-bold text-slate-400">None</span>
                 </div>
-
-                <!-- 4 Columns: Icon, Slider/Name Input, Number Input, Unit/Remaining -->
                 <div class="min-w-0 grid grid-cols-[16px_1fr_36px_12px] items-center gap-x-1.5 gap-y-1.5 text-xs">
-                    <!-- Row 1: Display Name -->
                     <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Display Name">✎</span>
                     <input id="profile-name-input" type="text" maxlength="24" placeholder="Display name"
                         class="col-span-2 w-full min-w-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs text-center font-semibold focus:outline-none focus:border-indigo-500"/>
                     <span id="name-changes-left" data-tooltip-title="Yearly Name Changes"
                         title="Limited to 1 custom change per calendar year (resets Jan 1 at 00:00 JST)&#10;Free Bypass: Reverting to your Discord name or leaving it blank does not use your yearly change"
                         class="text-slate-400 text-left font-bold tabular-nums cursor-help">1</span>
-
-                    <!-- Row 2: AniList Username (shown only once linked) -->
                     <span id="profile-anilist-icon" class="hidden text-slate-500 dark:text-slate-400 flex items-center justify-center" title="AniList">
                         <img src="anilist.svg" alt="AniList" class="w-3.5 h-3.5 opacity-60 dark:opacity-70 dark:invert" />
                     </span>
@@ -814,29 +735,21 @@
                     <span id="anilist-changes-left" data-tooltip-title="Yearly AniList Changes"
                         title="Limited to 1 change per calendar year (resets Jan 1 at 00:00 JST)&#10;Free Bypass: Reverting to a previously linked AniList username does not use your yearly change"
                         class="hidden text-slate-400 text-left font-bold tabular-nums cursor-help">1</span>
-
-                    <!-- Row 3: X -->
                     <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Horizontal Offset">↔</span>
                     <input id="photo-x" type="range" min="-100" max="100" step="1" value="0" class="photo-slider w-full min-w-0"/>
                     <input id="photo-x-input" type="number" min="-100" max="100" step="1" value="0"
                         class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
                     <span class="text-slate-400 text-left">%</span>
-
-                    <!-- Row 4: Y -->
                     <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Vertical Offset">↕</span>
                     <input id="photo-y" type="range" min="-100" max="100" step="1" value="0" class="photo-slider w-full min-w-0"/>
                     <input id="photo-y-input" type="number" min="-100" max="100" step="1" value="0"
                         class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
                     <span class="text-slate-400 text-left">%</span>
-
-                    <!-- Row 5: Zoom -->
                     <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Zoom">⊕</span>
                     <input id="photo-zoom" type="range" min="1" max="3" step="0.05" value="1.2" class="photo-slider w-full min-w-0"/>
                     <input id="photo-zoom-input" type="number" min="1" max="3" step="0.05" value="1.2"
                         class="photo-num-input w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-center tabular-nums font-semibold focus:outline-none focus:border-indigo-500"/>
                     <span class="text-slate-400 text-left">x</span>
-
-                    <!-- Row 6: Rotate -->
                     <span class="text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold" title="Rotate">↻</span>
                     <input id="photo-rotate" type="range" min="-180" max="180" step="1" value="0" class="photo-slider w-full min-w-0"/>
                     <input id="photo-rotate-input" type="number" min="-180" max="180" step="1" value="0"
@@ -844,14 +757,11 @@
                     <span class="text-slate-400 text-left">°</span>
                 </div>
             </div>
-
-            <!-- Owned Character Picker -->
             <div class="space-y-1.5">
                 <input id="photo-char-search" type="text" placeholder="Search owned characters..."
                     class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500"/>
                 <div id="photo-char-grid" class="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 border border-slate-200 dark:border-slate-800 rounded-lg"></div>
             </div>
-
             <div class="flex items-center justify-end gap-2 pt-1">
                 <button id="reset-photo-transform" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
                     Reset
@@ -862,8 +772,6 @@
             </div>
         </div>
     </div>
-
-    <!-- AniList Link Modal (click outside backdrop to close) -->
     <div id="anilist-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
         <form id="anilist-modal-form" class="w-fit min-w-[18rem] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl space-y-3">
             <div class="flex items-center justify-between gap-3">
@@ -881,7 +789,6 @@
                     Link
                 </button>
             </div>
-
             <div>
                 <input id="anilist-modal-input" type="text" placeholder="AniList Username" autocomplete="off"
                     class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-base sm:text-sm focus:outline-none focus:border-[#02A9FF]" />
@@ -889,8 +796,6 @@
             </div>
         </form>
     </div>
-
-    <!-- Share Collection Modal (click outside backdrop to close) -->
     <div id="share-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="w-fit max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl">
             <div class="flex items-center gap-2.5">
@@ -906,8 +811,6 @@
             </div>
         </div>
     </div>
-
-    <!-- End Quiz Confirmation Modal (click outside backdrop to close) -->
     <div id="quiz-end-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="w-fit max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl space-y-3">
             <div class="flex items-start gap-2.5">
@@ -933,8 +836,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Logout Confirmation Modal (click outside backdrop to close) -->
     <div id="logout-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="w-fit max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl space-y-3">
             <div class="flex items-start gap-2.5">
@@ -960,8 +861,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Sell All Confirmation Modal (click outside backdrop to close) -->
     <div id="sell-all-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="w-fit max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xl space-y-3">
             <div class="flex items-start gap-2.5">
@@ -987,8 +886,6 @@
             </div>
         </div>
     </div>
-
-   <!-- Global Custom Hover Tooltip -->
     <div id="global-tooltip" role="tooltip"
         class="pointer-events-none fixed left-0 top-0 z-[60] opacity-0 transition-opacity duration-150 w-max max-w-[calc(100vw-1rem)] p-2.5 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-xl text-left">
         <div id="global-tooltip-header" class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
@@ -999,7 +896,6 @@
             <div id="global-tooltip-list" class="flex flex-wrap gap-1"></div>
         </div>
     </div>
-
     <script type="module" src="script.js"></script>
 </body>
 </html>
