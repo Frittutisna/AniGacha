@@ -274,6 +274,7 @@ function initQuizSettingsDropdown() {
     function bindRangeSelects(minId, maxId) {
         const minSel = document.getElementById(minId);
         const maxSel = document.getElementById(maxId);
+
         if (!minSel || !maxSel) return;
 
         const syncBounds = (changed) => {
@@ -281,19 +282,16 @@ function initQuizSettingsDropdown() {
             const maxVal = maxSel.value ? Number(maxSel.value) : null;
 
             if (minVal !== null && maxVal !== null && minVal >= maxVal) {
-                if (changed === "min") maxSel.value = "";
-                else minSel.value = "";
+                if (changed === "min")  maxSel.value = "";
+                else                    minSel.value = "";
             }
 
-            Array.from(maxSel.options).forEach(opt => {
-                opt.disabled = Boolean(opt.value && minVal !== null && Number(opt.value) <= minVal);
-            });
-            Array.from(minSel.options).forEach(opt => {
-                opt.disabled = Boolean(opt.value && maxVal !== null && Number(opt.value) >= maxVal);
-            });
+            Array.from(maxSel.options).forEach(opt => {opt.disabled = Boolean(opt.value && minVal !== null && Number(opt.value) <= minVal)});
+            Array.from(minSel.options).forEach(opt => {opt.disabled = Boolean(opt.value && maxVal !== null && Number(opt.value) >= maxVal)});
 
             syncCustomSelectUI(minSel.closest(".custom-select-wrapper"));
             syncCustomSelectUI(maxSel.closest(".custom-select-wrapper"));
+
             if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview();
         };
 
@@ -301,8 +299,8 @@ function initQuizSettingsDropdown() {
         maxSel.addEventListener("change", () => syncBounds("max"));
     }
 
-    bindRangeSelects("quiz-vintage-min", "quiz-vintage-max");
-    bindRangeSelects("quiz-diff-min", "quiz-diff-max");
+    bindRangeSelects("quiz-vintage-min",    "quiz-vintage-max");
+    bindRangeSelects("quiz-diff-min",       "quiz-diff-max");
 }
 
 initQuizSettingsDropdown();
@@ -388,10 +386,9 @@ function initGlobalTooltips() {
             listWrapEl.classList.remove("hidden");
         }
 
-        const rect = el.getBoundingClientRect();
-        const tipW = tooltipEl.offsetWidth;
-        const tipH = tooltipEl.offsetHeight;
-
+        const rect  = el.getBoundingClientRect();
+        const tipW  = tooltipEl.offsetWidth;
+        const tipH  = tooltipEl.offsetHeight;
         let left    = rect.left + rect.width / 2 - tipW / 2;
         left        = Math.max(margin, Math.min(left, window.innerWidth - tipW - margin));
 
