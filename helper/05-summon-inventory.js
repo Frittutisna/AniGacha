@@ -146,8 +146,8 @@ function renderResults(results, animate = false, bannerType = lastBannerType) {
         : results;
 
     const cardWidthClass = isThemedBanner
-        ? "w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.625rem)/10)]"
-        : "w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.0625rem)/10)]";
+        ? "w-[calc((100%-1rem)/3)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.625rem)/10)]"
+        : "w-[calc((100%-1rem)/3)] sm:w-[calc((100%-3.0625rem)/5)] lg:w-[calc((100%-5.0625rem)/10)]";
 
     const separatorHTML = `<div aria-hidden="true" class="hidden sm:block w-px self-stretch bg-slate-300 dark:bg-slate-700 shrink-0"></div>`;
     section.classList.remove("hidden");
@@ -159,7 +159,9 @@ function renderResults(results, animate = false, bannerType = lastBannerType) {
             extraClass      : `${cardWidthClass} shrink-0`
         });
 
-        const needsSeparatorAfter = idx === 0 || (isThemedBanner && idx === 4);
+        if (idx === 0) return `<div class="w-full flex justify-center sm:contents">${cardHTML}</div>${separatorHTML}`;
+
+        const needsSeparatorAfter = isThemedBanner && idx === 4;
         return needsSeparatorAfter ? `${cardHTML}${separatorHTML}` : cardHTML;
     }).join("");
 }

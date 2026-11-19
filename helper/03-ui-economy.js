@@ -1,4 +1,4 @@
-function getItemsPerPage() {return window.innerWidth < 640 ? 20 : 50}
+function getItemsPerPage() {return window.innerWidth < 640 ? 30 : 50}
 
 function escapeHTML(str) {return String(str)
     .replace(/&/g, "&amp;")
@@ -273,8 +273,13 @@ function enterSparkMode(bannerKey) {
     setSortControlState     ("CHARACTER", "POPULARITY", "DESC");
     clearFilterCheckboxes   (["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
 
-    document.getElementById("sell-all-btn")         .classList.add("hidden");
-    document.getElementById("filter-lock-section")  .classList.add("hidden");
+    document.getElementById("sell-all-btn")         .classList.add      ("hidden");
+    document.getElementById("filter-lock-section")  .classList.add      ("hidden");
+
+    const sortWrapper = document.getElementById("sort-filter-wrapper");
+
+    sortWrapper?.classList.remove   ("col-span-2");
+    sortWrapper?.classList.add      ("col-span-1");
 
     const indicator     = document.getElementById("spark-mode-indicator");
     const label         = document.getElementById("spark-mode-label");
@@ -289,7 +294,6 @@ function enterSparkMode(bannerKey) {
 function exitSparkMode() {
     activeSparkBanner = null;
 
-    document.getElementById("sell-all-btn")         .classList.remove   ("hidden");
     document.getElementById("filter-own-section")   .classList.remove   ("hidden");
     document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
     document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
@@ -308,13 +312,17 @@ function updateSellAllUI() {
         }
     }
 
-    const sellAllBtn = document.getElementById("sell-all-btn");
-    const shouldHide = isSharedView || activeSparkBanner !== null || totalValue <= 0;
+    const sellAllBtn    = document.getElementById("sell-all-btn");
+    const sortWrapper   = document.getElementById("sort-filter-wrapper");
+    const shouldHide    = isSharedView || activeSparkBanner !== null || totalValue <= 0;
+    const isFullWidth   = shouldHide && activeSparkBanner === null;
 
     document.getElementById("sell-all-amount").textContent  = totalValue.toLocaleString();
     sellAllBtn.disabled                                     = sellInFlight || totalValue <= 0;
 
-    sellAllBtn.classList.toggle("hidden", shouldHide);
+    sellAllBtn.     classList.toggle("hidden",      shouldHide);
+    sortWrapper?.   classList.toggle("col-span-2",  isFullWidth);
+    sortWrapper?.   classList.toggle("col-span-1",  !isFullWidth);
 }
 
 async function sparkCharacter(uniqueKey) {
@@ -357,20 +365,6 @@ async function toggleCardLock(uniqueKey) {
         lockInFlight = false;
         updateLockButtonsUI();
     }
-}
-
-function updateSellAllUI() {
-    let totalValue = 0;
-
-    for (const [key, ownedCount] of Object.entries(inventory)) {
-        if (ownedCount > 0 && !lockedCards.has(key)) {
-            const char = characterMap.get(key);
-            if (char) totalValue += char.rarity.sellValue * getSellMultiplier(ownedCount);
-        }
-    }
-
-    document.getElementById("sell-all-amount").textContent  = totalValue.toLocaleString();
-    document.getElementById("sell-all-btn").disabled        = sellInFlight || totalValue <= 0;
 }
 
 async function sellCharacter(uniqueKey) {
