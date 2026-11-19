@@ -25,7 +25,7 @@ const HOF_RARITIES = RARITIES.map(r => {
   return { ...r, spawn };
 });
 
-const COSTS: Record<string, number> = {
+const COSTS = {
   STANDARD: 80, ERA: 100, FRANCHISE: 100, GENRE: 100,
   SOURCE: 100, STUDIO: 100, TAG: 100, HOF: 120, LIST: 140
 };
@@ -33,22 +33,14 @@ const COSTS: Record<string, number> = {
 const GUARANTEED_B_PLUS = new Set(["SSR", "SR", "S", "A", "B"]);
 const GUARANTEED_A_PLUS = new Set(["SSR", "SR", "S", "A"]);
 const AUTO_LOCK_TIERS   = new Set(["SSR", "SR", "S"]);
-const THEMED_KEYS       = ["ERA", "FRANCHISE", "GENRE", "SOURCE", "STUDIO", "TAG"] as const;
+const THEMED_KEYS       = ["ERA", "FRANCHISE", "GENRE", "SOURCE", "STUDIO", "TAG"];
 const rarityInfoMap     = new Map(RARITIES.map(r => [r.tier, r]));
 
 // Cached in memory across requests
-interface CachedGameData {
-  charList: Array<[string, string, string | null]>;
-  charMap: Map<string, { uniqueKey: string; tier: string; animeId: string | null }>;
-  animeToCharKeys: Map<string, string[]>;
-  globalBuckets: Record<string, string[]>;
-  themedOptions: Record<string, Array<{ title: string; idxs: number[] }>>;
-}
+let cachedData = null;
+let dataLoadPromise = null;
 
-let cachedData: CachedGameData | null = null;
-let dataLoadPromise: Promise<CachedGameData> | null = null;
-
-async function getGameData(adminClient: any): Promise<CachedGameData> {
+async function getGameData(adminClient) {
   if (cachedData) return cachedData;
   if (dataLoadPromise) return dataLoadPromise;
 
@@ -63,10 +55,10 @@ async function getGameData(adminClient: any): Promise<CachedGameData> {
     }
 
     const parsed = JSON.parse(await blob.text());
-    const charList = parsed.chars as Array<[string, string, string | null]>;
-    const charMap = new Map<string, { uniqueKey: string; tier: string; animeId: string | null }>();
-    const animeToCharKeys = new Map<string, string[]>();
-    const globalBuckets: Record<string, string[]> = {};
+    const charList = parsed.chars;
+    const charMap = new Map();
+    const animeToCharKeys = new Map();
+    const globalBuckets = {};
     RARITIES.forEach(r => globalBuckets[r.tier] = []);
 
     for (const [uniqueKey, tier, animeId = null] of charList) {
@@ -99,11 +91,10 @@ async function getGameData(adminClient: any): Promise<CachedGameData> {
   return dataLoadPromise;
 }
 
-type QuizSongMeta = [category: "op" | "ed" | "in", chanting: boolean, year: number | null, diff: number | null];
-let cachedQuizSongs: QuizSongMeta[] | null = null;
-let quizSongsLoadPromise: Promise<QuizSongMeta[]> | null = null;
+let cachedQuizSongs = null;
+let quizSongsLoadPromise = null;
 
-async function getQuizSongsMeta(): Promise<QuizSongMeta[]> {
+async function getQuizSongsMeta() {
   if (cachedQuizSongs) return cachedQuizSongs;
   if (quizSongsLoadPromise) return quizSongsLoadPromise;
 
@@ -114,12 +105,12 @@ async function getQuizSongsMeta(): Promise<QuizSongMeta[]> {
       throw new Error("Failed to load song database");
     }
     const tree = await treeRes.json();
-    const paths: string[] = (tree.tree || []).map((x: any) => x.path);
+    const paths = (tree.tree || []).map(x => x.path);
     const timestampDirs = [...new Set(paths.map(p => p.match(/^(\d{10,})\/jsons\/search\.json$/)?.[1]).filter(Boolean))].sort();
 
     const base = "https://raw.githubusercontent.com/Frittutisna/Stats-Archive/main/";
-    const seen = new Set<string>();
-    const songs: QuizSongMeta[] = [];
+    const seen = new Set();
+    const songs = [];
 
     for (let i = 0; i < timestampDirs.length; i += 5) {
       const batch = await Promise.all(timestampDirs.slice(i, i + 5).map(async ts => {
@@ -157,7 +148,7 @@ async function getQuizSongsMeta(): Promise<QuizSongMeta[]> {
   return quizSongsLoadPromise;
 }
 
-async function fetchAnilistUserAnimeIds(username: string): Promise<{ canonicalName: string; animeIds: string[] }> {
+async function fetchAnilistUserAnimeIds(username) {
   const query = `
     query ($userName: String) {
       MediaListCollection(userName: $userName, type: ANIME, status_in: [CURRENT, COMPLETED]) {
@@ -184,7 +175,7 @@ async function fetchAnilistUserAnimeIds(username: string): Promise<{ canonicalNa
 
   const collection = json.data.MediaListCollection;
   const canonicalName = collection.user?.name || username;
-  const ids = new Set<string>();
+  const ids = new Set();
   for (const list of collection.lists || []) {
     for (const entry of list.entries || []) {
       if (entry?.mediaId) ids.add(String(entry.mediaId));
@@ -194,8 +185,8 @@ async function fetchAnilistUserAnimeIds(username: string): Promise<{ canonicalNa
   return { canonicalName, animeIds: Array.from(ids) };
 }
 
-function getKeysForAnimeIds(animeIds: string[], gameData: CachedGameData): string[] {
-  const keys: string[] = [];
+function getKeysForAnimeIds(animeIds, gameData) {
+  const keys = [];
   for (const id of animeIds) {
     const matched = gameData.animeToCharKeys.get(String(id));
     if (matched) keys.push(...matched);
@@ -203,7 +194,7 @@ function getKeysForAnimeIds(animeIds: string[], gameData: CachedGameData): strin
   return keys;
 }
 
-function getJSTDateString(): string {
+function getJSTDateString() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
@@ -212,7 +203,7 @@ function getJSTDateString(): string {
   }).format(new Date());
 }
 
-function hashSeed(str: string): number {
+function hashSeed(str) {
   let h = 1779033703 ^ str.length;
   for (let i = 0; i < str.length; i++) {
     h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
@@ -221,7 +212,7 @@ function hashSeed(str: string): number {
   return (h >>> 0);
 }
 
-function mulberry32(seed: number) {
+function mulberry32(seed) {
   return function () {
     let t = (seed += 0x6D2B79F5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -230,7 +221,7 @@ function mulberry32(seed: number) {
   };
 }
 
-function getDailyThemedBanners(gameData: CachedGameData) {
+function getDailyThemedBanners(gameData) {
   const jstDate = getJSTDateString();
   const rng = mulberry32(hashSeed(`anigacha-daily-${jstDate}`));
 
@@ -241,7 +232,7 @@ function getDailyThemedBanners(gameData: CachedGameData) {
   }
   const activeCategories = shuffledCats.slice(0, 2);
 
-  const activeEntries: Record<string, { title: string; keys: string[] }> = {};
+  const activeEntries = {};
   for (const cat of activeCategories) {
     const options = gameData.themedOptions[cat];
     const chosen = options[Math.floor(rng() * options.length)];
@@ -254,8 +245,8 @@ function getDailyThemedBanners(gameData: CachedGameData) {
   return { jstDate, activeCategories, activeEntries };
 }
 
-function buildTierMapFromKeys(keys: string[], gameData: CachedGameData): Record<string, string[]> {
-  const tierMap: Record<string, string[]> = {};
+function buildTierMapFromKeys(keys, gameData) {
+  const tierMap = {};
   RARITIES.forEach(r => tierMap[r.tier] = []);
   for (const k of keys) {
     const c = gameData.charMap.get(k);
@@ -274,7 +265,7 @@ function buildTierMapFromKeys(keys: string[], gameData: CachedGameData): Record<
   return tierMap;
 }
 
-function selectRarityTier(guaranteeTier: string | null, customRarities = RARITIES): string {
+function selectRarityTier(guaranteeTier, customRarities = RARITIES) {
   const allowed = guaranteeTier === "A" ? GUARANTEED_A_PLUS : (guaranteeTier === "B" ? GUARANTEED_B_PLUS : null);
 
   if (allowed) {
@@ -287,7 +278,7 @@ function selectRarityTier(guaranteeTier: string | null, customRarities = RARITIE
       cumulative += r.spawn;
       if (rand < cumulative) return r.tier;
     }
-    return guaranteeTier!;
+    return guaranteeTier;
   }
 
   const rand = Math.random();
@@ -300,7 +291,7 @@ function selectRarityTier(guaranteeTier: string | null, customRarities = RARITIE
   return selected;
 }
 
-function getSellMultiplier(count: number) {
+function getSellMultiplier(count) {
   if (count >= 6) return 4;
   if (count >= 3) return 3;
   if (count === 2) return 2;
@@ -325,8 +316,8 @@ serve(async (req) => {
       }
 
       const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        Deno.env.get("SUPABASE_URL"),
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
       );
 
       const { data: row, error } = await adminClient
@@ -363,8 +354,8 @@ serve(async (req) => {
     }
 
     const authClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      Deno.env.get("SUPABASE_URL"),
+      Deno.env.get("SUPABASE_ANON_KEY"),
       { global: { headers: { Authorization: authHeader } } }
     );
 
@@ -376,8 +367,8 @@ serve(async (req) => {
     }
 
     const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_URL"),
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
     );
 
     // Fetch gameData (cached in RAM after first call) and player save in parallel
@@ -476,7 +467,7 @@ serve(async (req) => {
       const bestStreak = Math.max(0, Math.min(correct, Math.floor(Number(body.bestStreak) || 0)));
       const settings = body.settings || {};
       const categories = Array.isArray(settings.categories)
-        ? [...new Set(settings.categories.filter((v: string) => ["op", "ed", "in"].includes(v)))]
+        ? [...new Set(settings.categories.filter(v => ["op", "ed", "in"].includes(v)))]
         : [];
       if (!categories.length || !["entry", "mc"].includes(settings.mode)) throw new Error("Invalid quiz settings");
 
@@ -561,7 +552,7 @@ serve(async (req) => {
       progress.shortTimeQuiz = progress.shortTimeQuiz || (stats.shortTimeQuiz === true && stats.completed === true);
       progress.allOptionsQuiz = progress.allOptionsQuiz || (stats.allOptionsQuiz === true && stats.completed === true);
 
-      const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
+      const missions = {
         played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
         played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
         correct10: { reward: 10, ready: p => p.correct >= 10 },
@@ -593,7 +584,7 @@ serve(async (req) => {
       });
     } else if (action === "QUIZ_CLAIM_MISSION") {
       const missionId = String(body.missionId || "");
-      const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
+      const missions = {
         played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
         played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
         correct10: { reward: 10, ready: p => p.correct >= 10 },
@@ -626,16 +617,16 @@ serve(async (req) => {
       });
     }
 
-    const lockedSet = new Set<string>(save.lockedCards || []);
-    const playerAnilistAnimeSet = new Set<string>(save.anilistAnimeIds.map(String));
-    let rolledResults: Array<{ uniqueKey: string; occurrenceCount: number }> = [];
+    const lockedSet = new Set(save.lockedCards || []);
+    const playerAnilistAnimeSet = new Set(save.anilistAnimeIds.map(String));
+    let rolledResults = [];
 
     if (action === "LINK_ANILIST") {
       const rawAnilist = typeof body.anilistUsername === "string" ? body.anilistUsername.trim().slice(0, 32) : "";
       if (!rawAnilist) throw new Error("AniList username is required");
 
       const currentJstYear = dailyBanners.jstDate.slice(0, 4);
-      const historySet = new Set<string>(save.linkedAnilistHistory.map((s: string) => s.toLowerCase()));
+      const historySet = new Set(save.linkedAnilistHistory.map(s => s.toLowerCase()));
       const isSameCurrent = save.anilistUsername && rawAnilist.toLowerCase() === save.anilistUsername.toLowerCase();
       const isPreviouslyLinked = historySet.has(rawAnilist.toLowerCase());
 
@@ -656,15 +647,15 @@ serve(async (req) => {
       save.anilistUsername = null;
       save.anilistAnimeIds = [];
     } else if (action === "SUMMON") {
-      const bannerType: string = body.bannerType || "STANDARD";
-      const isThemed = THEMED_KEYS.includes(bannerType as any);
+      const bannerType = body.bannerType || "STANDARD";
+      const isThemed = THEMED_KEYS.includes(bannerType);
       const isListBanner = bannerType === "LIST";
 
       if (isThemed) {
         const availableCategories = save.anilistUsername
           ? dailyBanners.activeCategories.slice(0, 1)
           : dailyBanners.activeCategories;
-        if (!availableCategories.includes(bannerType as any)) {
+        if (!availableCategories.includes(bannerType)) {
           throw new Error("That themed banner is not active today");
         }
       }
@@ -683,7 +674,7 @@ serve(async (req) => {
       const isHOF = bannerType === "HOF";
       const customRarities = isHOF ? HOF_RARITIES : RARITIES;
 
-      let categoryTierMap: Record<string, string[]> | null = null;
+      let categoryTierMap = null;
 
       if (isThemed) {
         categoryTierMap = buildTierMapFromKeys(dailyBanners.activeEntries[bannerType].keys, gameData);
@@ -699,7 +690,7 @@ serve(async (req) => {
         const guaranteeTier = i === 0 ? (isHOF ? "A" : "B") : null;
         const isCategorySlot = Boolean(categoryTierMap && i < 5);
         const tier = selectRarityTier(guaranteeTier, customRarities);
-        const pool = isCategorySlot ? categoryTierMap![tier] : gameData.globalBuckets[tier];
+        const pool = isCategorySlot ? categoryTierMap[tier] : gameData.globalBuckets[tier];
         const chosenKey = pool[Math.floor(Math.random() * pool.length)];
 
         const count = (save.inventory[chosenKey] || 0) + 1;
@@ -718,31 +709,31 @@ serve(async (req) => {
         rolledResults.push({ uniqueKey: chosenKey, occurrenceCount: count });
       }
     } else if (action === "SELL") {
-      const key: string = body.uniqueKey;
+      const key = body.uniqueKey;
       const count = save.inventory[key] || 0;
       const char = gameData.charMap.get(key);
       if (!char || count <= 0 || lockedSet.has(key)) throw new Error("Cannot sell card");
 
-      save.stars += rarityInfoMap.get(char.tier)!.sellValue * getSellMultiplier(count);
+      save.stars += rarityInfoMap.get(char.tier).sellValue * getSellMultiplier(count);
       delete save.inventory[key];
     } else if (action === "SELL_ALL") {
-      for (const [key, count] of Object.entries<number>(save.inventory)) {
+      for (const [key, count] of Object.entries(save.inventory)) {
         if (count > 0 && !lockedSet.has(key)) {
           const char = gameData.charMap.get(key);
           if (char) {
-            save.stars += rarityInfoMap.get(char.tier)!.sellValue * getSellMultiplier(count);
+            save.stars += rarityInfoMap.get(char.tier).sellValue * getSellMultiplier(count);
             delete save.inventory[key];
           }
         }
       }
     } else if (action === "SPARK") {
       const { bannerType, uniqueKey } = body;
-      const isThemed = THEMED_KEYS.includes(bannerType as any);
+      const isThemed = THEMED_KEYS.includes(bannerType);
       if (isThemed) {
         const availableCategories = save.anilistUsername
           ? dailyBanners.activeCategories.slice(0, 1)
           : dailyBanners.activeCategories;
-        if (!availableCategories.includes(bannerType as any)) throw new Error("Banner not active today");
+        if (!availableCategories.includes(bannerType)) throw new Error("Banner not active today");
         if (!dailyBanners.activeEntries[bannerType].keys.includes(uniqueKey)) throw new Error("Character not in banner");
       } else if (bannerType === "LIST") {
         if (!save.anilistUsername) throw new Error("AniList account not linked");
@@ -753,14 +744,14 @@ serve(async (req) => {
       }
 
       const char = gameData.charMap.get(uniqueKey);
-      const cost = char ? rarityInfoMap.get(char.tier)!.sparkCost : Infinity;
+      const cost = char ? rarityInfoMap.get(char.tier).sparkCost : Infinity;
       if (!char || (save.sparkPoints[bannerType] || 0) < cost) throw new Error("Not enough spark points");
 
       save.sparkPoints[bannerType] -= cost;
       save.inventory[uniqueKey] = (save.inventory[uniqueKey] || 0) + 1;
       lockedSet.add(uniqueKey);
     } else if (action === "TOGGLE_LOCK") {
-      const key: string = body.uniqueKey;
+      const key = body.uniqueKey;
       if (save.inventory[key]) {
         if (lockedSet.has(key)) lockedSet.delete(key);
         else lockedSet.add(key);
@@ -791,7 +782,7 @@ serve(async (req) => {
       if (typeof body.anilistUsername === "string" && body.anilistUsername.trim() !== "") {
         const rawAnilist = body.anilistUsername.trim().slice(0, 32);
         if (rawAnilist !== save.anilistUsername) {
-          const historySet = new Set<string>(save.linkedAnilistHistory.map((s: string) => s.toLowerCase()));
+          const historySet = new Set(save.linkedAnilistHistory.map(s => s.toLowerCase()));
           const isSameCaseVariant = save.anilistUsername && rawAnilist.toLowerCase() === save.anilistUsername.toLowerCase();
           const isPreviouslyLinked = historySet.has(rawAnilist.toLowerCase());
 
@@ -812,12 +803,12 @@ serve(async (req) => {
       }
 
       if (body.photo && body.photo.uniqueKey) {
-        const key: string = body.photo.uniqueKey;
+        const key = body.photo.uniqueKey;
         const char = gameData.charMap.get(key);
         if (!char || !(save.inventory[key] > 0)) {
           throw new Error("You must own this character to set them as your photo");
         }
-        const clamp = (n: unknown, min: number, max: number, fallback: number) =>
+        const clamp = (n, min, max, fallback) =>
           typeof n === "number" && Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback;
 
         save.profilePhoto = {
@@ -842,7 +833,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ save, rolledResults, dailyBanners: bannerPayload }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
-  } catch (err: any) {
+  } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

@@ -428,13 +428,13 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
-[functions.gacha-action]
+[functions.AniGacha-Japan]
 enabled = true
 verify_jwt = false
-import_map = "./functions/gacha-action/deno.json"
+import_map = "./functions/AniGacha-Japan/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/gacha-action/index.ts"
+entrypoint = "./functions/AniGacha-Japan/index.js"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/gacha-action/*.html" ]
+# static_files = [ "./functions/AniGacha-Japan/*.html" ]
