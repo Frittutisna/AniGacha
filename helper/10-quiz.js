@@ -5,15 +5,19 @@ let aniQuizIndex = 0, aniQuizCorrect = 0, aniQuizStreak = 0, aniQuizBestStreak =
 let aniQuizCurrent = null, aniQuizTimer = null, aniQuizAudioTimer = null;
 let aniQuizAnswered = false, aniQuizRevealing = false, aniQuizRun = null, aniQuizDaily = null;
 let aniQuizCurrentReward = 0;
+let aniQuizChantingCorrect = 0;
 let aniQuizAudioPlaying = false;
 let aniQuizSelectedMcBtn = null;
 const ANI_QUIZ_MISSIONS = [
-    {id:"played20", name:"Play 20 songs", reward:15, test:s=>s.songsPlayed>=20},
-    {id:"played40", name:"Play 40 songs", reward:15, test:s=>s.songsPlayed>=40},
-    {id:"correct10", name:"Get 10 correct answers", reward:15, test:s=>s.correct>=10},
-    {id:"correct20", name:"Get 20 correct answers", reward:15, test:s=>s.correct>=20},
-    {id:"streak5", name:"Reach a 5-song streak", reward:15, test:s=>s.bestStreak>=5},
-    {id:"streak10", name:"Reach a 10-song streak", reward:15, test:s=>s.bestStreak>=10},
+    {id:"played20", name:"Play 20 songs", reward:10, test:s=>s.songsPlayed>=20, progress:s=>`${Math.min(s.songsPlayed,20)}/20`},
+    {id:"played40", name:"Play 40 songs", reward:10, test:s=>s.songsPlayed>=40, progress:s=>`${Math.min(s.songsPlayed,40)}/40`},
+    {id:"correct10", name:"Get 10 correct answers", reward:10, test:s=>s.correct>=10, progress:s=>`${Math.min(s.correct,10)}/10`},
+    {id:"correct20", name:"Get 20 correct answers", reward:10, test:s=>s.correct>=20, progress:s=>`${Math.min(s.correct,20)}/20`},
+    {id:"streak5", name:"Get a 5-song streak", reward:10, test:s=>s.bestStreak>=5, progress:s=>`${Math.min(s.bestStreak,5)}/5`},
+    {id:"streak10", name:"Get a 10-song streak", reward:10, test:s=>s.bestStreak>=10, progress:s=>`${Math.min(s.bestStreak,10)}/10`},
+    {id:"acc25", name:"Get at least 25% in a round", reward:10, test:s=>s.bestRoundPct>=25, progress:s=>`${Math.min(s.bestRoundPct,25)}/25`},
+    {id:"acc50", name:"Get at least 50% in a round", reward:10, test:s=>s.bestRoundPct>=50, progress:s=>`${Math.min(s.bestRoundPct,50)}/50`},
+    {id:"chanting", name:"Get a chanting song right", reward:10, test:s=>s.chantingCorrect>=1, progress:s=>`${Math.min(s.chantingCorrect,1)}/1`},
     {id:"shorttime", name:"Complete a quiz below 20+0", reward:10, test:s=>s.shortTimeQuiz},
     {id:"entry", name:"Complete a quiz in Entry mode", reward:10, test:s=>s.entryQuiz},
     {id:"alloptions", name:"Complete a quiz with all options enabled", reward:10, test:s=>s.allOptionsQuiz}
@@ -109,7 +113,7 @@ function aniQuizStart() {
     if(pool.length<settings.count){alert(`Only ${pool.length} songs match these settings. Select more categories or change chanting.`);return;}
     for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
     aniQuizRun={settings, songs:pool.slice(0,settings.count), answers:[], id:crypto.randomUUID?.()||String(Date.now())+"-"+Math.random()};
-    aniQuizIndex=0;aniQuizCorrect=0;aniQuizStreak=0;aniQuizBestStreak=0;
+    aniQuizIndex=0;aniQuizCorrect=0;aniQuizStreak=0;aniQuizBestStreak=0;aniQuizChantingCorrect=0;
     document.getElementById("quiz-setup").classList.add("hidden");
     document.getElementById("quiz-result").classList.add("hidden");
     document.getElementById("quiz-active").classList.remove("hidden");
@@ -213,7 +217,12 @@ function aniQuizMakeChoices(){
 function aniQuizResolve(correct){
     if(aniQuizAnswered)return;
     aniQuizAnswered=true;aniQuizRevealing=true;aniQuizClearTimers();
-    if(correct){aniQuizCorrect++;aniQuizStreak++;aniQuizBestStreak=Math.max(aniQuizBestStreak,aniQuizStreak);}else aniQuizStreak=0;
+    if(correct){
+        aniQuizCorrect++;
+        aniQuizStreak++;
+        aniQuizBestStreak=Math.max(aniQuizBestStreak,aniQuizStreak);
+        if(["yes","true","1"].includes(String(aniQuizCurrent?.chanting ?? "no").toLowerCase())) aniQuizChantingCorrect++;
+    }else aniQuizStreak=0;
     aniQuizRun.answers.push({song:aniQuizCurrent,correct});
     document.getElementById("quiz-score").textContent=aniQuizCorrect;
     document.getElementById("quiz-streak").textContent=aniQuizStreak;
@@ -275,7 +284,8 @@ async function aniQuizFinish(){
 
     const s=aniQuizRun.settings, m=aniQuizMultiplier(s,aniQuizBestStreak);
     const completed=aniQuizRun.answers.length===aniQuizRun.songs.length;
-    const missionStats={songsPlayed:aniQuizRun.answers.length,correct:aniQuizCorrect,bestStreak:aniQuizBestStreak,allCategoriesQuiz:s.cats.length===3,entryQuiz:s.mode==="entry",shortTimeQuiz:(s.sound!==20||s.extra!==0),allOptionsQuiz:s.cats.length===3&&s.chanting,completed};
+    const bestRoundPct=aniQuizRun.songs.length>0 ? Math.floor((aniQuizCorrect/aniQuizRun.songs.length)*100) : 0;
+    const missionStats={songsPlayed:aniQuizRun.answers.length,roundSongs:aniQuizRun.songs.length,correct:aniQuizCorrect,bestStreak:aniQuizBestStreak,chantingCorrect:aniQuizChantingCorrect,bestRoundPct,allCategoriesQuiz:s.cats.length===3,entryQuiz:s.mode==="entry",shortTimeQuiz:(s.sound!==20||s.extra!==0),allOptionsQuiz:s.cats.length===3&&s.chanting,completed};
     let reward=0, missionState=null;
     if(typeof currentUser!=="undefined"&&currentUser){
         const result=await sendGachaAction({action:"QUIZ_COMPLETE",quizId:aniQuizRun.id,correct:aniQuizCorrect,settings:{categories:s.cats,chanting:s.chanting,sound:s.sound,extra:s.extra,mode:s.mode},bestStreak:aniQuizBestStreak,missionStats});
@@ -291,10 +301,13 @@ function aniQuizRenderMissions(){
     const inRun=Boolean(aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden"));
     const runCompleted=inRun && aniQuizRun.answers.length===aniQuizRun.songs.length;
     const s=aniQuizRun?.settings;
+    const runPct=(inRun&&aniQuizRun.songs.length>0)?Math.floor((aniQuizCorrect/aniQuizRun.songs.length)*100):0;
     const liveProgress={
         songsPlayed:(base.songsPlayed||0)+(inRun?aniQuizRun.answers.length:0),
         correct:(base.correct||0)+(inRun?aniQuizCorrect:0),
         bestStreak:Math.max(base.bestStreak||0,inRun?aniQuizBestStreak:0),
+        chantingCorrect:(base.chantingCorrect||0)+(inRun?aniQuizChantingCorrect:0),
+        bestRoundPct:Math.max(base.bestRoundPct||0,runPct),
         shortTimeQuiz:Boolean(base.shortTimeQuiz||(runCompleted&&(s.sound!==20||s.extra!==0))),
         entryQuiz:Boolean(base.entryQuiz||(runCompleted&&s.mode==="entry")),
         allOptionsQuiz:Boolean(base.allOptionsQuiz||(runCompleted&&s.cats.length===3&&s.chanting))
@@ -304,7 +317,7 @@ function aniQuizRenderMissions(){
         const done=Boolean(d.claimedMissions?.includes(m.id))||m.test(liveProgress);
         const card=document.createElement("div");card.className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 flex items-center justify-between gap-2";
         const label=document.createElement("div");label.className="mr-3";label.innerHTML=`<div class="font-semibold">${m.name}</div><div class="text-slate-900 dark:text-slate-100 font-semibold"><span>★</span> ${m.reward}</div>`;
-        const status=document.createElement("span");status.className="shrink-0 self-stretch min-w-[4.75rem] flex items-center justify-center px-2.5 py-1 rounded text-sm font-bold "+(done?"bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300":"bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300");status.textContent=done?"Done":"Pending";
+        const status=document.createElement("span");status.className="shrink-0 self-stretch min-w-[4.75rem] flex items-center justify-center px-2.5 py-1 rounded text-sm font-bold "+(done?"bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300":"bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300");status.textContent=done?"Done":(m.progress?m.progress(liveProgress):"Pending");
         card.append(label,status);wrap.append(card);
     });
     let liveMissionEarned=d.missionEarned||0;

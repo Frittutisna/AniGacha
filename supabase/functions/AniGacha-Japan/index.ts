@@ -373,7 +373,7 @@ serve(async (req) => {
       missionEarned: 0,
       claimedMissions: [],
       completedQuizIds: [],
-      progress: { songsPlayed: 0, correct: 0, bestStreak: 0, allCategoriesQuiz: false, entryQuiz: false, shortTimeQuiz: false, allOptionsQuiz: false }
+      progress: { songsPlayed: 0, correct: 0, bestStreak: 0, chantingCorrect: 0, bestRoundPct: 0, allCategoriesQuiz: false, entryQuiz: false, shortTimeQuiz: false, allOptionsQuiz: false }
     });
     if (!save.quizDaily || save.quizDaily.date !== dailyBanners.jstDate) {
       save.quizDaily = emptyQuizDaily();
@@ -383,6 +383,8 @@ serve(async (req) => {
       if (!Array.isArray(save.quizDaily.claimedMissions)) save.quizDaily.claimedMissions = [];
       if (!Array.isArray(save.quizDaily.completedQuizIds)) save.quizDaily.completedQuizIds = [];
       if (!save.quizDaily.progress) save.quizDaily.progress = emptyQuizDaily().progress;
+      save.quizDaily.progress.chantingCorrect = Math.max(0, Math.floor(Number(save.quizDaily.progress.chantingCorrect) || 0));
+      save.quizDaily.progress.bestRoundPct = Math.max(0, Math.min(100, Math.floor(Number(save.quizDaily.progress.bestRoundPct) || 0)));
       save.quizDaily.progress.shortTimeQuiz = save.quizDaily.progress.shortTimeQuiz === true;
       save.quizDaily.progress.allOptionsQuiz = save.quizDaily.progress.allOptionsQuiz === true;
     }
@@ -438,22 +440,30 @@ serve(async (req) => {
       daily.quizEarned += quizReward;
       save.stars += quizReward;
       daily.completedQuizIds.push(quizId);
+      const chantingCorrect = Math.max(0, Math.min(correct, Math.floor(Number(stats.chantingCorrect) || 0)));
+      const roundSongs = Math.max(songsPlayed, Math.min(100, Math.floor(Number(stats.roundSongs) || songsPlayed)));
+      const roundPct = roundSongs >= 20 ? Math.floor((correct / roundSongs) * 100) : 0;
       const progress = daily.progress;
       progress.songsPlayed += songsPlayed;
       progress.correct += correct;
       progress.bestStreak = Math.max(progress.bestStreak, bestStreak);
+      progress.chantingCorrect += chantingCorrect;
+      progress.bestRoundPct = Math.max(progress.bestRoundPct || 0, roundPct);
       progress.allCategoriesQuiz = progress.allCategoriesQuiz || (stats.allCategoriesQuiz === true && stats.completed === true);
       progress.entryQuiz = progress.entryQuiz || (stats.entryQuiz === true && stats.completed === true);
       progress.shortTimeQuiz = progress.shortTimeQuiz || (stats.shortTimeQuiz === true && stats.completed === true);
       progress.allOptionsQuiz = progress.allOptionsQuiz || (stats.allOptionsQuiz === true && stats.completed === true);
 
       const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
-        played20: { reward: 15, ready: p => p.songsPlayed >= 20 },
-        played40: { reward: 15, ready: p => p.songsPlayed >= 40 },
-        correct10: { reward: 15, ready: p => p.correct >= 10 },
-        correct20: { reward: 15, ready: p => p.correct >= 20 },
-        streak5: { reward: 15, ready: p => p.bestStreak >= 5 },
-        streak10: { reward: 15, ready: p => p.bestStreak >= 10 },
+        played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
+        played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
+        correct10: { reward: 10, ready: p => p.correct >= 10 },
+        correct20: { reward: 10, ready: p => p.correct >= 20 },
+        streak5: { reward: 10, ready: p => p.bestStreak >= 5 },
+        streak10: { reward: 10, ready: p => p.bestStreak >= 10 },
+        acc25: { reward: 10, ready: p => (p.bestRoundPct || 0) >= 25 },
+        acc50: { reward: 10, ready: p => (p.bestRoundPct || 0) >= 50 },
+        chanting: { reward: 10, ready: p => p.chantingCorrect >= 1 },
         shorttime: { reward: 10, ready: p => p.shortTimeQuiz === true },
         entry: { reward: 10, ready: p => p.entryQuiz === true },
         alloptions: { reward: 10, ready: p => p.allOptionsQuiz === true }
@@ -477,12 +487,15 @@ serve(async (req) => {
     } else if (action === "QUIZ_CLAIM_MISSION") {
       const missionId = String(body.missionId || "");
       const missions: Record<string, { reward: number; ready: (p: any) => boolean }> = {
-        played20: { reward: 15, ready: p => p.songsPlayed >= 20 },
-        played40: { reward: 15, ready: p => p.songsPlayed >= 40 },
-        correct10: { reward: 15, ready: p => p.correct >= 10 },
-        correct20: { reward: 15, ready: p => p.correct >= 20 },
-        streak5: { reward: 15, ready: p => p.bestStreak >= 5 },
-        streak10: { reward: 15, ready: p => p.bestStreak >= 10 },
+        played20: { reward: 10, ready: p => p.songsPlayed >= 20 },
+        played40: { reward: 10, ready: p => p.songsPlayed >= 40 },
+        correct10: { reward: 10, ready: p => p.correct >= 10 },
+        correct20: { reward: 10, ready: p => p.correct >= 20 },
+        streak5: { reward: 10, ready: p => p.bestStreak >= 5 },
+        streak10: { reward: 10, ready: p => p.bestStreak >= 10 },
+        acc25: { reward: 10, ready: p => (p.bestRoundPct || 0) >= 25 },
+        acc50: { reward: 10, ready: p => (p.bestRoundPct || 0) >= 50 },
+        chanting: { reward: 10, ready: p => p.chantingCorrect >= 1 },
         shorttime: { reward: 10, ready: p => p.shortTimeQuiz === true },
         entry: { reward: 10, ready: p => p.entryQuiz === true },
         alloptions: { reward: 10, ready: p => p.allOptionsQuiz === true }
