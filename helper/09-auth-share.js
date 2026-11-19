@@ -71,11 +71,11 @@ async function loadCloudSave(user) {
     currentUser = user;
     discordName = user.user_metadata?.full_name || user.user_metadata?.name || "Account";
 
-    document.getElementById("header-username")      .textContent = displayName || discordName;
+    document.getElementById("header-username").textContent = displayName || discordName;
+
     document.getElementById("header-logged-out")    .classList.add      ("hidden");
     document.getElementById("header-logged-in")     .classList.remove   ("hidden");
     document.getElementById("share-collection-btn") .classList.remove   ("hidden");
-    document.getElementById("logout-btn")           .classList.remove   ("hidden");
 
     await sendGachaAction({action: "INIT", discordName});
 }
@@ -96,7 +96,6 @@ sb.auth.onAuthStateChange((event, session) => {
         document.getElementById("header-logged-in")     .classList.add      ("hidden");
         document.getElementById("header-logged-out")    .classList.remove   ("hidden");
         document.getElementById("share-collection-btn") .classList.add      ("hidden");
-        document.getElementById("logout-btn")           .classList.add      ("hidden");
         document.getElementById("photo-modal")          .classList.add      ("hidden");
 
         if (isSharedView) {

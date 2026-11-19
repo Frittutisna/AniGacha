@@ -239,11 +239,16 @@ function initSortFilterDropdown() {
         chevron?.   classList.remove    ("rotate-180");
 
         closeAnilistModal();
+        const logoutModalEl = document.getElementById("logout-modal");
+
+        if (logoutModalEl && !logoutModalEl.classList.contains("hidden")) {
+            logoutModalEl.classList.add("hidden");
+            return;
+        }
 
         document.getElementById("share-modal")?.    classList.add("hidden");
         document.getElementById("photo-modal")?.    classList.add("hidden");
         document.getElementById("quiz-end-modal")?. classList.add("hidden");
-        document.getElementById("logout-modal")?.   classList.add("hidden");
         document.getElementById("sell-all-modal")?. classList.add("hidden");
     }});
 }

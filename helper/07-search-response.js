@@ -219,6 +219,7 @@ logoutModal?.addEventListener("click", (e) => {if (e.target === logoutModal) clo
 
 document.getElementById("logout-confirm")?.addEventListener("click", async () => {
     closeLogoutModal();
+    document.getElementById("photo-modal")?.classList.add("hidden");
     if (currentUser) await sb.auth.signOut();
 });
 
