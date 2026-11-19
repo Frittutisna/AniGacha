@@ -58,6 +58,7 @@ async function loadAniQuizData() {
         aniQuizSongs=all.filter(s=>{
             if (!s?.video_url || !s?.romaji && !s?.english) return false;
             const key=String(s.video_url).trim();
+            if (key.toLowerCase().split("?")[0].endsWith(".webm")) return false;
             if(seen.has(key)) return false;
             seen.add(key); return true;
         });
