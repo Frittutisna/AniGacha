@@ -962,19 +962,26 @@ document.getElementById("quiz-answer").addEventListener("keydown", e => {if (e.k
 
 document.getElementById("quiz-skip").addEventListener("click", () => { if (aniQuizRevealing) aniQuizAdvanceReveal(); else aniQuizResolve(false); });
 
+let aniQuizEndToHome    = false;
 const quizEndModal      = document.getElementById("quiz-end-modal");
-const closeQuizEndModal = () => quizEndModal?.classList.add("hidden");
+
+const closeQuizEndModal = () => {
+    aniQuizEndToHome = false;
+    quizEndModal?.classList.add("hidden");
+};
 
 document.getElementById("quiz-end").addEventListener("click", () => {
+    aniQuizEndToHome = false;
     quizEndModal?.classList.remove("hidden");
     document.getElementById("quiz-end-confirm")?.focus();
 });
 
 document.getElementById("quiz-end-cancel")?.addEventListener("click", closeQuizEndModal);
-
 quizEndModal?.addEventListener("click", (e) => {if (e.target === quizEndModal) closeQuizEndModal()});
 
 document.getElementById("quiz-end-confirm")?.addEventListener("click", () => {
+    const goHome = aniQuizEndToHome;
+
     closeQuizEndModal   ();
     aniQuizClearTimers  ();
 
@@ -982,6 +989,7 @@ document.getElementById("quiz-end-confirm")?.addEventListener("click", () => {
     aniQuizIndex = aniQuizRun.songs.length;
 
     aniQuizFinish();
+    if (goHome && pageNavBtn) pageNavBtn.click();
 });
 
 let aniQuizSuggestionIndex = -1;
@@ -1049,12 +1057,11 @@ if (pageNavBtn) pageNavBtn.addEventListener("click", () => {
     const mainPage      = document.getElementById("main-page");
     const openingQuiz   = quizPage.classList.contains("hidden");
 
-    if (!openingQuiz && aniQuizRun && aniQuizIndex < aniQuizRun.songs.length && !aniQuizAnswered) {
-        aniQuizClearTimers();
-        document.getElementById("quiz-audio").pause();
-
-        aniQuizIndex = aniQuizRun.songs.length;
-        aniQuizFinish();
+    if (!openingQuiz && aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden")) {
+        aniQuizEndToHome = true;
+        quizEndModal?.classList.remove("hidden");
+        document.getElementById("quiz-end-confirm")?.focus();
+        return;
     }
 
     quizPage.classList.toggle("hidden", !openingQuiz);
