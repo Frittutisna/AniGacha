@@ -1,4 +1,4 @@
-# AniGacha v0.6.1-beta
+# AniGacha v0.6.2.2-beta
 
 ## Changelog
 1. Pooled themed banner sparks

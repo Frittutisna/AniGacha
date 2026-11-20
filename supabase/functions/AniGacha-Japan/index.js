@@ -379,7 +379,7 @@ serve(async (req) => {
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
         );
 
-        const [gameData, { data: existing }] = await Promise.all([getGameData(adminClient), adminClient
+        const [gameData, {data: existing}] = await Promise.all([getGameData(adminClient), adminClient
             .from           ("player_saves")
             .select         ("save_data")
             .eq             ("user_id", userId)
@@ -424,7 +424,9 @@ serve(async (req) => {
         if (!save.fiftyFifty || typeof save.fiftyFifty !== "object")    save.fiftyFifty             = {STANDARD: null, HOF: null, LIST: null, THEMED: {}};
 
         const dailyBanners = getDailyThemedBanners(gameData);
-        if (save.fiftyFifty.THEMED && save.fiftyFifty.THEMED.date !== dailyBanners.jstDate) save.fiftyFifty.THEMED = null;
+
+        if (!save.fiftyFifty.THEMED || typeof save.fiftyFifty.THEMED !== "object" || Array.isArray(save.fiftyFifty.THEMED)) save.fiftyFifty.THEMED = {};
+        for (const [category, selection] of Object.entries(save.fiftyFifty.THEMED)) if (!THEMED_KEYS.includes(category) || !selection || selection.date !== dailyBanners.jstDate) delete save.fiftyFifty.THEMED[category];
 
         const bannerPayload = {
             jstDate             : dailyBanners.jstDate,
@@ -845,7 +847,7 @@ serve(async (req) => {
                 if (activeFiftyChar && chosenKey === activeFiftyChar.uniqueKey && count >= 6) {
                     activeFiftyChar = null;
 
-                    if (isThemed)   save.fiftyFifty.THEMED      = null;
+                    if (isThemed)   delete save.fiftyFifty.THEMED[bannerType];
                     else            save.fiftyFifty[bannerType] = null;
                 }
 
