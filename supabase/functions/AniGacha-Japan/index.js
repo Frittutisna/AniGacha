@@ -340,6 +340,52 @@ serve(async (req) => {
                 Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
             );
 
+            const RATE_LIMITS = {
+                INIT                    : 10,
+                SUMMON                  : 100,
+                SPARK                   : 100,
+                SELL                    : 100,
+                SELL_ALL                : 10,
+                SET_PROFILE             : 10,
+                LINK_ANILIST            : 10,
+                UNLINK_ANILIST          : 10,
+                SET_FIFTY_FIFTY         : 100,
+                TOGGLE_LOCK             : 100,
+                CLAIM_DAILY_STARS       : 10,
+                QUIZ_COMPLETE           : 10,
+                QUIZ_MISSION_PROGRESS   : 100,
+                QUIZ_CLAIM_MISSION      : 100
+            };
+
+            const actionLimit = RATE_LIMITS[action] ?? 10;
+
+            const {data: rateAllowed, error: rateError} = await adminClient.rpc("check_api_rate_limit", {
+                p_user_id       : userId,
+                p_action        : action,
+                p_max_requests  : actionLimit
+            });
+
+            if (rateError) {
+                console.error("Rate limiter database error:", rateError);
+
+                return new Response(JSON.stringify({error: "Request validation temporarily unavailable"}), {
+                    status  : 503,
+                    headers : {...corsHeaders, "Content-Type": "application/json"}
+                });
+            }
+
+            if (rateAllowed !== true) {return new Response(JSON.stringify({
+                error   : "Too many requests. Please wait before trying again.",
+                code    : "RATE_LIMITED"
+            }), {
+                status  : 429,
+                headers : {
+                    ...corsHeaders,
+                    "Content-Type"  : "application/json",
+                    "Retry-After"   : "60"
+                }
+            })}
+
             const {data: row, error} = await adminClient.from("player_saves").select("save_data").eq("user_id", targetUserId).maybeSingle();
 
             if (error || !row?.save_data) return new Response(JSON.stringify({error: "Shared collection not found"}), {
