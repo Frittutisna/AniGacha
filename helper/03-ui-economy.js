@@ -423,18 +423,34 @@ function exitFiftyFiftyMode(shouldRender = true) {
 }
 
 async function selectFiftyFiftyCharacter(uniqueKey) {
-    if (!activeFiftyFiftyBanner) return;
+    if (!activeFiftyFiftyBanner || actionInFlight) return;
 
-    const currentKey    = getBannerFiftyFiftyKey(activeFiftyFiftyBanner);
-    const nextKey       = currentKey === uniqueKey ? null : uniqueKey;
+    const bannerKey         = activeFiftyFiftyBanner;
+    const currentKey        = getBannerFiftyFiftyKey(bannerKey);
+    const nextKey           = currentKey === uniqueKey ? null : uniqueKey;
+    const previousSelection = structuredClone(fiftyFifty);
 
-    const res = await sendGachaAction({
+    if (ALL_THEMED_KEYS.includes(bannerKey)) {
+        if (!fiftyFifty.THEMED) fiftyFifty.THEMED = {};
+        if (nextKey)            fiftyFifty.THEMED[bannerKey] = {date: activeDailyJstDate || getCurrentJstDate(), uniqueKey: nextKey};
+        else                    delete fiftyFifty.THEMED[bannerKey];
+    } else                      fiftyFifty[bannerKey] = nextKey;
+
+    updateFiftyFiftyButtonsUI   ();
+    exitFiftyFiftyMode          ();
+
+    const result = await sendGachaAction({
         action      : "SET_FIFTY_FIFTY",
-        bannerType  : activeFiftyFiftyBanner,
+        bannerType  : bannerKey,
         uniqueKey   : nextKey
     });
 
-    if (res && activeFiftyFiftyBanner) exitFiftyFiftyMode();
+    if (!result) {
+        fiftyFifty = previousSelection;
+
+        updateFiftyFiftyButtonsUI   ();
+        renderInventory             ();
+    }
 }
 
 function updateSellAllUI() {

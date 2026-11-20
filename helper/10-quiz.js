@@ -87,7 +87,7 @@ const ANI_QUIZ_MISSIONS = [{
     test        : s => s.allOptionsQuiz
 }];
 
-const aniQuizNorm = s => String(s || "").normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f]/g, "").replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+const aniQuizNorm = s => String(s || "").trim().toLowerCase();
 
 function aniQuizTitle(song) {
     const lang = typeof titleLang !== "undefined" ? titleLang : "JP";
@@ -95,7 +95,9 @@ function aniQuizTitle(song) {
 }
 
 function aniQuizAccepted(song) {return [song.romaji, song.english, ...(Array.isArray(song.alts) ? song.alts : [])].filter(Boolean).map(aniQuizNorm)}
-let aniQuizLoadPromise = null;
+
+let aniQuizLoadPromise  = null;
+let aniQuizPoolCache    = new Map();
 
 function loadAniQuizData() {
     if (aniQuizLoadPromise) return aniQuizLoadPromise;
@@ -115,36 +117,43 @@ function loadAniQuizData() {
 
             if (!timestampDirs.length || !namePaths.length) throw new Error("No timestamped quiz JSON files were found.");
 
-            const base  = "https://raw.githubusercontent.com/Frittutisna/Stats-Archive/main/";
-            const all   = [];
+            const base          = "https://raw.githubusercontent.com/Frittutisna/Stats-Archive/main/";
+            const all           = [];
+            const concurrency   = 10;
+            let nextIndex       = 0;
 
-            for (let i = 0; i < timestampDirs.length; i += 5) {
-                const batch = await Promise.all(timestampDirs.slice(i, i + 5).map(async ts => {
-                    const r = await fetch(base + ts + "/jsons/search.json");
-                    if (!r.ok) return [];
+            async function fetchWorker() {
+                while (nextIndex < timestampDirs.length) {
+                    const index = nextIndex++;
+                    const ts    = timestampDirs[index];
 
-                    const d = await r.json();
-                    return Array.isArray(d) ? d : [];
-                }));
+                    try {
+                        const response = await fetch(base + ts + "/jsons/search.json");
+                        if (!response.ok) continue;
 
-                batch.forEach(a => all.push(...a));
+                        const data = await response.json();
+                        if (Array.isArray(data)) all.push(...data);
+                    } catch (error) {console.warn("Could not load Quiz data:", ts, error)}
+                }
             }
+
+            await Promise.all(Array.from({length: Math.min(concurrency, timestampDirs.length)}, () => fetchWorker()));
 
             const nr = await fetch(base + namePaths[namePaths.length - 1]);
             if (!nr.ok) throw new Error("Could not load the newest anime title list.");
 
             const rawNames          = await nr.json();
             const pooledTitles      = [];
-            const seenNormTitles    = new Set();
+            const seenTitles        = new Set();
 
             const addPooledTitle = (t) => {
                 const trimmed   = String(t || "").trim();
-                const norm      = aniQuizNorm(trimmed);
+                const key       = trimmed;
 
-                if (!trimmed || !norm || seenNormTitles.has(norm)) return;
+                if (!trimmed || seenTitles.has(key)) return;
 
-                seenNormTitles  .add    (norm);
-                pooledTitles    .push   ({title: trimmed, norm});
+                seenTitles      .add    (key);
+                pooledTitles    .push   ({title: trimmed, norm: aniQuizNorm(trimmed)});
             };
 
             for (const entry of (Array.isArray(rawNames) ? rawNames : [])) {for (const part of String(entry || "").split(" || ")) addPooledTitle(part)}
@@ -170,7 +179,9 @@ function loadAniQuizData() {
                 return true;
             });
 
-            aniQuizBuildMcIndex();
+            aniQuizPoolCache.clear  ();
+            aniQuizBuildMcIndex     ();
+
             document.getElementById("quiz-loading")?.classList.add("hidden");
 
             aniQuizRenderMissions           ();
@@ -270,7 +281,18 @@ function aniQuizUpdateTimerBars(s, elapsed, total) {
 function aniQuizGetFilteredPool(settings) {
     if (!settings.cats.length) return [];
 
-    return aniQuizSongs.filter(s => {
+    const cacheKey = JSON.stringify([
+        settings.cats,
+        settings.chanting,
+        settings.vintageMin,
+        settings.vintageMax,
+        settings.diffMin,
+        settings.diffMax
+    ]);
+
+    if (aniQuizPoolCache.has(cacheKey)) return aniQuizPoolCache.get(cacheKey);
+
+    const pool = aniQuizSongs.filter(s => {
         const t         = String(s.type || "").toLowerCase();
         const category  = t.includes("opening") ? "op" : t.includes("ending") ? "ed" : t.includes("insert") ? "in" : null;
 
@@ -299,6 +321,9 @@ function aniQuizGetFilteredPool(settings) {
 
         return true;
     });
+
+    aniQuizPoolCache.set(cacheKey, pool);
+    return pool;
 }
 
 function aniQuizUpdateSettingsPreview() {
@@ -353,8 +378,24 @@ function aniQuizUpdateSettingsPreview() {
     if (startBtn) startBtn.disabled = !isValid;
 }
 
-
 async function aniQuizStart() {
+    const startBtn = document.getElementById("quiz-start");
+    if (startBtn.disabled) return;
+
+    startBtn.disabled       = true;
+    startBtn.textContent    = "Starting...";
+
+    try {await aniQuizStartInternal()}
+    catch (error) {
+        console.error("Quiz start failed:", error);
+        alert("Could not start the quiz; please try again");
+    } finally {if (!aniQuizRun) {
+        startBtn.textContent = "Start";
+        aniQuizUpdateSettingsPreview();
+    }}
+}
+
+async function aniQuizStartInternal() {
     const settings = aniQuizSettings();
 
     if (!settings.cats.length) {
@@ -783,6 +824,13 @@ async function aniQuizFinish() {
     document.getElementById("quiz-active")  .classList.add      ("hidden");
     document.getElementById("quiz-setup")   .classList.remove   ("hidden");
 
+    const startBtn = document.getElementById("quiz-start");
+
+    if (startBtn) {
+        startBtn.textContent = "Start";
+        aniQuizUpdateSettingsPreview();
+    }
+
     let reward          = 0;
     let missionState    = null;
 
@@ -833,10 +881,17 @@ function aniQuizAbortToHome() {
     aniQuizFilteredNames    = [];
     aniQuizSuggestionIndex  = -1;
 
-    document.getElementById("quiz-end-modal")?. classList.add("hidden");
-    document.getElementById("quiz-active")?.    classList.add("hidden");
-    document.getElementById("quiz-result")?.    classList.add("hidden");
-    document.getElementById("quiz-setup")?.     classList.remove("hidden");
+    document.getElementById("quiz-end-modal")?. classList.add       ("hidden");
+    document.getElementById("quiz-active")?.    classList.add       ("hidden");
+    document.getElementById("quiz-result")?.    classList.add       ("hidden");
+    document.getElementById("quiz-setup")?.     classList.remove    ("hidden");
+
+    const startBtn = document.getElementById("quiz-start");
+
+    if (startBtn) {
+        startBtn.textContent = "Start";
+        aniQuizUpdateSettingsPreview();
+    }
 
     const quizPage  = document.getElementById("quiz-page");
     const mainPage  = document.getElementById("main-page");
@@ -1167,3 +1222,6 @@ if (pageNavBtn) pageNavBtn.addEventListener("click", () => {
 
     window.scrollTo({top: 0, behavior: "instant"});
 });
+
+if (document.readyState === "loading")  document.addEventListener("DOMContentLoaded", () => {loadAniQuizData()}, {once: true});
+else                                    loadAniQuizData();
