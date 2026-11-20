@@ -560,7 +560,7 @@ serve(async (req) => {
 
             const VINTAGE_CHECKPOINTS   = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
             const DIFF_CHECKPOINTS      = [20, 25, 30, 35];
-            const DIFF_SPAN_MODS        = [0.4, 0.2, 0, -0.2, -0.4];
+            const DIFF_SPAN_MODS        = [0.6, 0.3, 0, -0.3, -0.6];
 
             const vMin = settings.vintageMin === null || settings.vintageMin === undefined ? null : Number(settings.vintageMin);
             const vMax = settings.vintageMax === null || settings.vintageMax === undefined ? null : Number(settings.vintageMax);
@@ -608,7 +608,7 @@ serve(async (req) => {
 
             let diffMod = 0;
             for (let i = dStart; i < dEnd; i++) diffMod += DIFF_SPAN_MODS[i];
-            const diffM = Math.max(0.2, Number((1 + diffMod).toFixed(2)));
+            const diffM = Math.max(0.2, Number((1 + diffMod / (dEnd - dStart)).toFixed(2)));
 
             const modeM             = settings.mode === "entry" ? 1 : 0.4;
             const streakM           = bestStreak >= 15 ? 1.6 : bestStreak >= 10 ? 1.4 : bestStreak >= 5 ? 1.2 : 1;

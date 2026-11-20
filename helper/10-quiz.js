@@ -187,7 +187,7 @@ function loadAniQuizData() {
 
 const VINTAGE_CHECKPOINTS   = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
 const DIFF_CHECKPOINTS      = [20, 25, 30, 35];
-const DIFF_SPAN_MODS        = [0.4, 0.2, 0, -0.2, -0.4];
+const DIFF_SPAN_MODS        = [0.6, 0.3, 0, -0.3, -0.6];
 
 function aniQuizSettings() {
     const cats              = ["op", "ed", "in"].filter(k => document.getElementById("quiz-" + k).checked);
@@ -226,7 +226,7 @@ function aniQuizDiffM(dMin, dMax) {
     let mod = 0;
     for (let i = startIdx; i < endIdx; i++) mod += DIFF_SPAN_MODS[i];
 
-    return Math.max(0.2, Number((1 + mod).toFixed(2)));
+    return Math.max(0.2, Number((1 + mod / (endIdx - startIdx)).toFixed(2)));
 }
 
 function aniQuizMultiplier(settings, best) {
