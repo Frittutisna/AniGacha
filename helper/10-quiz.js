@@ -435,6 +435,9 @@ function aniQuizNext() {
     document.getElementById("quiz-best")        .textContent = aniQuizBestStreak;
     document.getElementById("quiz-suggestions") .innerHTML   = "";
 
+    aniQuizFilteredNames    = [];
+    aniQuizSuggestionIndex  = -1;
+
     document.getElementById("quiz-suggestions").classList.add("hidden");
 
     const answerInput   = document.getElementById("quiz-answer");
@@ -632,8 +635,11 @@ function aniQuizResolve(correct) {
     answerReveal.className  = `w-full h-10 rounded-lg border px-3 text-sm font-bold flex items-center overflow-hidden ${correct ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' : 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'}`;
 
     aniQuizSetSwipeText(answerReveal, fullMeta);
-
     document.getElementById("quiz-suggestions").innerHTML = "";
+
+    aniQuizFilteredNames    = [];
+    aniQuizSuggestionIndex  = -1;
+
     document.getElementById("quiz-suggestions").classList.add("hidden");
 
     document.querySelectorAll("#quiz-mc-wrap button").forEach(b => {
@@ -769,6 +775,8 @@ function aniQuizAbortToHome() {
     aniQuizRevealing        = false;
     aniQuizAudioPlaying     = false;
     aniQuizSelectedMcBtn    = null;
+    aniQuizFilteredNames    = [];
+    aniQuizSuggestionIndex  = -1;
 
     document.getElementById("quiz-end-modal")?. classList.add("hidden");
     document.getElementById("quiz-active")?.    classList.add("hidden");
@@ -992,7 +1000,47 @@ document.getElementById("quiz-end-confirm")?.addEventListener("click", () => {
     if (goHome && pageNavBtn) pageNavBtn.click();
 });
 
-let aniQuizSuggestionIndex = -1;
+function aniQuizRankMatches(names, normQuery) {return names.map(title => {
+    const normTitle = aniQuizNorm(title);
+    if (!normTitle.includes(normQuery)) return null;
+
+    const matchTier = normTitle === normQuery ? 0 : normTitle.startsWith(normQuery) ? 1 : 2;
+    return {title, normTitle, matchTier}}).filter(Boolean).sort((a, b) => a.matchTier - b.matchTier || a.normTitle.length - b.normTitle.length || a.title.localeCompare(b.title)).map(item => item.title);
+}
+
+let aniQuizSuggestionIndex  = -1;
+let aniQuizFilteredNames    = [];
+
+function aniQuizRenderSuggestions(wrap, inputEl) {
+    wrap.innerHTML = "";
+
+    if (!aniQuizFilteredNames.length) {
+        wrap.classList.add("hidden");
+        return;
+    }
+
+    aniQuizFilteredNames.forEach((v, i) => {
+        const b         = document.createElement("button");
+        b.type          = "button";
+        b.className     = `block w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 truncate ${i === aniQuizSuggestionIndex ? "bg-indigo-100 dark:bg-slate-800" : ""}`;
+        b.textContent   = v;
+
+        b.addEventListener("click", () => {
+            inputEl.value           = v;
+            aniQuizFilteredNames    = [];
+            aniQuizSuggestionIndex  = -1;
+
+            wrap.classList.add("hidden");
+        });
+
+        wrap.append(b);
+    });
+
+    wrap.classList.remove("hidden");
+
+    wrap.style.maxHeight = "10rem";
+    wrap.style.overflowY = "auto";
+}
 
 document.getElementById("quiz-answer").addEventListener("keydown", e => {
     const wrap  = document.getElementById("quiz-suggestions");
@@ -1017,32 +1065,18 @@ document.getElementById("quiz-answer").addEventListener("input", e => {
     const wrap  = document.getElementById("quiz-suggestions");
     const q     = aniQuizNorm(e.target.value);
 
-    wrap.innerHTML          = "";
-    aniQuizSuggestionIndex  = -1;
+    aniQuizSuggestionIndex = -1;
 
     if (!q) {
+        aniQuizFilteredNames    = [];
+        wrap.innerHTML          = "";
+
         wrap.classList.add("hidden");
         return;
     }
 
-    const found = aniQuizNames.filter(v => aniQuizNorm(v).includes(q)).slice(0, 6);
-
-    found.forEach(v => {
-        const b         = document.createElement("button");
-        b.type          = "button";
-        b.className     = "block w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 truncate";
-        b.textContent   = v;
-
-        b.addEventListener("click", () => {
-            e.target.value = v;
-            wrap.classList.add("hidden");
-            aniQuizSuggestionIndex = -1;
-        });
-
-        wrap.append(b);
-    });
-
-    wrap.classList.toggle("hidden", !found.length);
+    aniQuizFilteredNames = aniQuizRankMatches(aniQuizNames, q);
+    aniQuizRenderSuggestions(wrap, e.target);
 });
 
 const pageNavBtn = document.getElementById("page-nav-btn");
