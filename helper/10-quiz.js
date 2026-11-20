@@ -460,11 +460,11 @@ function aniQuizNext() {
     skipBtn.textContent = "Skip";
 
     skipBtn.className = isMc
-        ? "h-10 sm:h-auto sm:row-span-2 sm:order-first px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition flex items-center justify-center"
+        ? "h-10 sm:h-auto sm:order-first px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition flex items-center justify-center"
         : "h-10 sm:order-first px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition";
 
     endBtn.className = isMc
-        ? "h-10 sm:h-auto sm:row-span-2 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold transition flex items-center justify-center"
+        ? "h-10 sm:h-auto px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold transition flex items-center justify-center"
         : "h-10 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold transition";
 
     audio.loop          = false;
@@ -616,7 +616,8 @@ function aniQuizResolve(correct) {
     document.getElementById("quiz-streak")  .textContent = aniQuizStreak;
     document.getElementById("quiz-best")    .textContent = aniQuizBestStreak;
 
-    aniQuizRenderMissions();
+    aniQuizRenderMissions   ();
+    aniQuizSyncMissions     ();
 
     const title             = aniQuizTitle(aniQuizCurrent);
     const type              = String(aniQuizCurrent.type || "").toUpperCase();
@@ -793,27 +794,85 @@ function aniQuizAbortToHome() {
     }
 }
 
-function aniQuizRenderMissions() {
-    const wrap = document.getElementById("quiz-missions");
-    if (!wrap) return;
+let aniQuizSyncingMissions = false;
 
+function aniQuizGetLiveProgress() {
     const d             = aniQuizDaily || {};
     const base          = d.progress || {};
     const inRun         = Boolean(aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden"));
+    const synced        = (inRun && d.activeQuizProgress?.[aniQuizRun.id]) || {songsPlayed: 0, correct: 0, chantingCorrect: 0};
     const runCompleted  = inRun && aniQuizRun.answers.length === aniQuizRun.songs.length;
     const s             = aniQuizRun?.settings;
     const runPct        = (inRun && aniQuizRun.songs.length > 0) ? Math.floor((aniQuizCorrect / aniQuizRun.songs.length) * 100) : 0;
 
-    const liveProgress = {
-        songsPlayed     : (base.songsPlayed || 0) + (inRun ? aniQuizRun.answers.length : 0),
-        correct         : (base.correct || 0) + (inRun ? aniQuizCorrect : 0),
+    return {
+        songsPlayed     : Math.max(0, (base.songsPlayed || 0) - synced.songsPlayed) + (inRun ? aniQuizRun.answers.length : 0),
+        correct         : Math.max(0, (base.correct || 0) - synced.correct) + (inRun ? aniQuizCorrect : 0),
         bestStreak      : Math.max(base.bestStreak || 0, inRun ? aniQuizBestStreak : 0),
-        chantingCorrect : (base.chantingCorrect || 0) + (inRun ? aniQuizChantingCorrect : 0),
+        chantingCorrect : Math.max(0, (base.chantingCorrect || 0) - synced.chantingCorrect) + (inRun ? aniQuizChantingCorrect : 0),
         bestRoundPct    : Math.max(base.bestRoundPct || 0, runPct),
         shortTimeQuiz   : Boolean(base.shortTimeQuiz || (runCompleted && (s.sound !== 20 || s.extra !== 0))),
         entryQuiz       : Boolean(base.entryQuiz || (runCompleted && s.mode === "entry")),
         allOptionsQuiz  : Boolean(base.allOptionsQuiz || (runCompleted && s.cats.length === 3 && s.chanting && s.vintageMin === null && s.vintageMax === null && s.diffMin === null && s.diffMax === null))
     };
+}
+
+async function aniQuizSyncMissions() {
+    if (typeof currentUser === "undefined" || !currentUser || !aniQuizRun || aniQuizSyncingMissions) return;
+
+    const d             = aniQuizDaily || {};
+    const claimed       = new Set(d.claimedMissions || []);
+    const liveProgress  = aniQuizGetLiveProgress();
+    const hasNewClaim   = ANI_QUIZ_MISSIONS.some(m => !claimed.has(m.id) && m.test(liveProgress));
+
+    if (!hasNewClaim) return;
+    aniQuizSyncingMissions = true;
+
+    try {
+        const s = aniQuizRun.settings;
+
+        const result = await sendGachaAction({
+            action: "QUIZ_MISSION_PROGRESS",
+            quizId: aniQuizRun.id,
+
+            missionStats: {
+                ...liveProgress,
+                songsPlayed     : aniQuizRun.answers.length,
+                roundSongs      : aniQuizRun.songs.length,
+                correct         : aniQuizCorrect,
+                bestStreak      : aniQuizBestStreak,
+                chantingCorrect : aniQuizChantingCorrect,
+                completed       : aniQuizRun.answers.length === aniQuizRun.songs.length
+            },
+
+            settings: {
+                categories  : s.cats,
+                chanting    : s.chanting,
+                sound       : s.sound,
+                extra       : s.extra,
+                mode        : s.mode,
+                vintageMin  : s.vintageMin,
+                vintageMax  : s.vintageMax,
+                diffMin     : s.diffMin,
+                diffMax     : s.diffMax
+            }
+        });
+
+        if (result?.save?.quizDaily) {
+            aniQuizDaily = result.save.quizDaily;
+            aniQuizRenderMissions();
+        }
+    } finally {
+        aniQuizSyncingMissions = false;
+    }
+}
+
+function aniQuizRenderMissions() {
+    const wrap = document.getElementById("quiz-missions");
+    if (!wrap) return;
+
+    const d             = aniQuizDaily || {};
+    const liveProgress  = aniQuizGetLiveProgress();
 
     wrap.innerHTML = "";
 

@@ -1,1 +1,1 @@
-# AniGacha v0.4.0-beta
+# AniGacha v0.4.1-beta

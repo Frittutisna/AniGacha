@@ -204,11 +204,15 @@ async function sendGachaAction(payload) {
         return handleGuestGachaAction(payload);
     }
 
-    if (actionInFlight) return null;
-    actionInFlight = true;
+    const isBackgroundSync = payload.action === "QUIZ_MISSION_PROGRESS";
 
-    updateStarsUI           ();
-    updateSparkButtonsUI    ();
+    if (!isBackgroundSync) {
+        if (actionInFlight) return null;
+        actionInFlight = true;
+
+        updateStarsUI           ();
+        updateSparkButtonsUI    ();
+    }
 
     try {
         const {data, error} = await sb.functions.invoke("AniGacha-Japan", {body: payload});
@@ -248,12 +252,12 @@ async function sendGachaAction(payload) {
         else if (data.dailyBanners) applyDailyBanners   (data.dailyBanners);
 
         return data;
-    } finally {
+    } finally {if (!isBackgroundSync) {
         actionInFlight = false;
 
         updateStarsUI           ();
         updateSparkButtonsUI    ();
-    }
+    }}
 }
 
 const ALL_THEMED_KEYS = Object.keys(THEMED_BANNERS);

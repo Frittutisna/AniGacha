@@ -1,5 +1,5 @@
-import {serve}          from "https://deno.land/std@0.177.0/http/server.ts";
-import {createClient}   from "https://esm.sh/@supabase/supabase-js@2";
+import {serve}          from "std/http/server.ts";
+import {createClient}   from "@supabase/supabase-js";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin"   :  "*",
@@ -48,7 +48,7 @@ const rarityInfoMap     = new Map(RARITIES.map(r => [r.tier, r]));
 let cachedData      = null;
 let dataLoadPromise = null;
 
-async function getGameData(adminClient) {
+function getGameData(adminClient) {
     if (cachedData)         return cachedData;
     if (dataLoadPromise)    return dataLoadPromise;
 
@@ -97,7 +97,7 @@ async function getGameData(adminClient) {
 let cachedQuizSongs         = null;
 let quizSongsLoadPromise    = null;
 
-async function getQuizSongsMeta() {
+function getQuizSongsMeta() {
     if (cachedQuizSongs)        return cachedQuizSongs;
     if (quizSongsLoadPromise)   return quizSongsLoadPromise;
 
@@ -467,6 +467,70 @@ serve(async (req) => {
             return new Response(JSON.stringify({ save, dailyBanners: bannerPayload }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
+        const QUIZ_MISSIONS = {
+            played20    : {reward: 10, ready: p => p.songsPlayed            >=  20},
+            played40    : {reward: 10, ready: p => p.songsPlayed            >=  40},
+            correct10   : {reward: 10, ready: p => p.correct                >=  10},
+            correct20   : {reward: 10, ready: p => p.correct                >=  20},
+            streak5     : {reward: 10, ready: p => p.bestStreak             >=  5},
+            streak10    : {reward: 10, ready: p => p.bestStreak             >=  10},
+            acc25       : {reward: 10, ready: p => (p.bestRoundPct || 0)    >=  25},
+            acc50       : {reward: 10, ready: p => (p.bestRoundPct || 0)    >=  50},
+            chanting    : {reward: 10, ready: p => p.chantingCorrect        >=  1},
+            shorttime   : {reward: 10, ready: p => p.shortTimeQuiz          === true},
+            entry       : {reward: 10, ready: p => p.entryQuiz              === true},
+            alloptions  : {reward: 10, ready: p => p.allOptionsQuiz         === true}
+        };
+
+        if (action === "QUIZ_MISSION_PROGRESS") {
+            const quizId = typeof body.quizId === "string" ? body.quizId.slice(0, 100) : "";
+            if (!quizId) throw new Error("Missing quiz identifier");
+
+            const daily = save.quizDaily;
+
+            if (daily.completedQuizIds.includes(quizId))                                    return new Response(JSON.stringify({save, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            if (!daily.activeQuizProgress || typeof daily.activeQuizProgress !== "object")  daily.activeQuizProgress = {};
+
+            const prev              = daily.activeQuizProgress[quizId] || {songsPlayed: 0, correct: 0, chantingCorrect: 0};
+            const stats             = body.missionStats || {};
+            const songsPlayed       = Math.max(prev.songsPlayed,        Math.min(100,         Math.floor(Number(stats.songsPlayed)      || 0)));
+            const correct           = Math.max(prev.correct,            Math.min(songsPlayed, Math.floor(Number(stats.correct)          || 0)));
+            const bestStreak        = Math.max(0,                       Math.min(correct,     Math.floor(Number(stats.bestStreak)       || 0)));
+            const chantingCorrect   = Math.max(prev.chantingCorrect,    Math.min(correct,     Math.floor(Number(stats.chantingCorrect)  || 0)));
+            const roundSongs        = Math.max(songsPlayed,             Math.min(100,         Math.floor(Number(stats.roundSongs)       || songsPlayed)));
+            const roundPct          = roundSongs >= 20 ? Math.floor((correct / roundSongs) * 100) : 0;
+            const deltaSongs        = songsPlayed - prev.songsPlayed;
+            const deltaCorrect      = correct - prev.correct;
+            const deltaChanting     = chantingCorrect - prev.chantingCorrect;
+
+            daily.activeQuizProgress[quizId] = {songsPlayed, correct, chantingCorrect};
+
+            const progress              =   daily.progress;
+            progress.songsPlayed        +=  deltaSongs;
+            progress.correct            +=  deltaCorrect;
+            progress.chantingCorrect    +=  deltaChanting;
+            progress.bestStreak         =   Math.max(progress.bestStreak, bestStreak);
+            progress.bestRoundPct       =   Math.max(progress.bestRoundPct || 0, roundPct);
+
+            let missionReward = 0;
+
+            for (const [missionId, mission] of Object.entries(QUIZ_MISSIONS)) {if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
+                daily.claimedMissions.push(missionId);
+
+                daily.missionEarned += mission.reward;
+                save.stars          += mission.reward;
+                missionReward       += mission.reward;
+            }}
+
+            await adminClient.from("player_saves").upsert({
+                user_id     : userId,
+                save_data   : save,
+                updated_at  : new Date().toISOString()
+            });
+
+            return new Response(JSON.stringify({save, missionReward, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+        }
+
         if (action === "QUIZ_COMPLETE") {
             const quizId = typeof body.quizId === "string" ? body.quizId.slice(0, 100) : "";
             if (!quizId) throw new Error("Missing quiz identifier");
@@ -560,14 +624,16 @@ serve(async (req) => {
             const chantingCorrect   = Math.max(0,           Math.min(correct,   Math.floor(Number(stats.chantingCorrect)    || 0)));
             const roundSongs        = Math.max(songsPlayed, Math.min(100,       Math.floor(Number(stats.roundSongs)         || songsPlayed)));
 
+            const prevSynced = daily.activeQuizProgress?.[quizId] || {songsPlayed: 0, correct: 0, chantingCorrect: 0};
+            if (daily.activeQuizProgress) delete daily.activeQuizProgress[quizId];
+
             const roundPct = roundSongs >= 20 ? Math.floor((correct / roundSongs) * 100) : 0;
             const progress = daily.progress;
 
-            progress.songsPlayed    += songsPlayed;
-            progress.correct        += correct;
-
+            progress.songsPlayed        +=  Math.max(0, songsPlayed      - prevSynced.songsPlayed);
+            progress.correct            +=  Math.max(0, correct          - prevSynced.correct);
             progress.bestStreak         =   Math.max(progress.bestStreak, bestStreak);
-            progress.chantingCorrect    +=  chantingCorrect;
+            progress.chantingCorrect    +=  Math.max(0, chantingCorrect  - prevSynced.chantingCorrect);
             progress.bestRoundPct       =   Math.max(progress.bestRoundPct || 0, roundPct);
 
             progress.allCategoriesQuiz  =   progress.allCategoriesQuiz  || (stats.allCategoriesQuiz === true && stats.completed === true);
@@ -575,22 +641,7 @@ serve(async (req) => {
             progress.shortTimeQuiz      =   progress.shortTimeQuiz      || (stats.shortTimeQuiz     === true && stats.completed === true);
             progress.allOptionsQuiz     =   progress.allOptionsQuiz     || (stats.allOptionsQuiz    === true && stats.completed === true);
 
-            const missions = {
-                played20    : {reward: 10, ready: p => p.songsPlayed            >=  20},
-                played40    : {reward: 10, ready: p => p.songsPlayed            >=  40},
-                correct10   : {reward: 10, ready: p => p.correct                >=  10},
-                correct20   : {reward: 10, ready: p => p.correct                >=  20},
-                streak5     : {reward: 10, ready: p => p.bestStreak             >=  5},
-                streak10    : {reward: 10, ready: p => p.bestStreak             >=  10},
-                acc25       : {reward: 10, ready: p => (p.bestRoundPct || 0)    >=  25},
-                acc50       : {reward: 10, ready: p => (p.bestRoundPct || 0)    >=  50},
-                chanting    : {reward: 10, ready: p => p.chantingCorrect        >=  1},
-                shorttime   : {reward: 10, ready: p => p.shortTimeQuiz          === true},
-                entry       : {reward: 10, ready: p => p.entryQuiz              === true},
-                alloptions  : {reward: 10, ready: p => p.allOptionsQuiz         === true}
-            };
-
-            for (const [missionId, mission] of Object.entries(missions)) {if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
+            for (const [missionId, mission] of Object.entries(QUIZ_MISSIONS)) {if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
                 daily.claimedMissions.push(missionId);
 
                 daily.missionEarned += mission.reward;
@@ -647,7 +698,7 @@ serve(async (req) => {
 
         const lockedSet             = new Set(save.lockedCards || []);
         const playerAnilistAnimeSet = new Set(save.anilistAnimeIds.map(String));
-        let rolledResults           = [];
+        const rolledResults         = [];
 
         if (action === "LINK_ANILIST") {
             const rawAnilist = typeof body.anilistUsername === "string" ? body.anilistUsername.trim().slice(0, 32) : "";
