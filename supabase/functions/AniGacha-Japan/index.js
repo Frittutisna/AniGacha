@@ -391,7 +391,7 @@ serve(async (req) => {
             inventory                   : {},
             lockedCards                 : [],
             sparkPoints                 : {STANDARD: 0, THEMED: 0, HOF: 0, LIST: 0},
-            fiftyFifty                  : {STANDARD: null, HOF: null, LIST: null, THEMED: null},
+            fiftyFifty                  : {STANDARD: null, HOF: null, LIST: null, THEMED: {}},
             totalPulls                  : 0,
             hofPulls                    : 0,
             listPulls                   : 0,
@@ -421,7 +421,7 @@ serve(async (req) => {
         if (typeof save.listPulls           !== "number")               save.listPulls              = 0;
         if (!Array.isArray(save.anilistAnimeIds))                       save.anilistAnimeIds        = [];
         if (!Array.isArray(save.linkedAnilistHistory))                  save.linkedAnilistHistory   = [];
-        if (!save.fiftyFifty || typeof save.fiftyFifty !== "object")    save.fiftyFifty             = {STANDARD: null, HOF: null, LIST: null, THEMED: null};
+        if (!save.fiftyFifty || typeof save.fiftyFifty !== "object")    save.fiftyFifty             = {STANDARD: null, HOF: null, LIST: null, THEMED: {}};
 
         const dailyBanners = getDailyThemedBanners(gameData);
         if (save.fiftyFifty.THEMED && save.fiftyFifty.THEMED.date !== dailyBanners.jstDate) save.fiftyFifty.THEMED = null;
@@ -749,32 +749,33 @@ serve(async (req) => {
             if (!validBanner) throw new Error("Invalid banner type");
 
             if (!uniqueKey) {
-                if (isThemed)   save.fiftyFifty.THEMED      = null;
+                if (isThemed)   delete save.fiftyFifty.THEMED[bannerType];
                 else            save.fiftyFifty[bannerType] = null;
             } else {
                 const char = gameData.charMap.get(uniqueKey);
 
-                if (!char)                                  throw new Error("Invalid character");
-                if (!FIFTY_FIFTY_TIERS.has(char.tier))      throw new Error("Only S, SR, or SSR characters can be selected for 50/50");
-                if ((save.inventory[uniqueKey] || 0) >= 6)  throw new Error("Character is already maxed out");
+                if (!char)                                                                  throw new Error("Invalid character");
+                if (!FIFTY_FIFTY_TIERS.has(char.tier))                                      throw new Error("Only S, SR, or SSR characters can be selected for 50/50");
+                if ((save.inventory[uniqueKey] || 0) >= 6)                                  throw new Error("Character is already maxed out");
 
                 if (isThemed) {
-                    const availableCategories = save.anilistUsername ? dailyBanners.activeCategories.slice(0, 1) : dailyBanners.activeCategories;
+                    const availableCategories = save.anilistUsername
+                        ? dailyBanners.activeCategories.slice(0, 1)
+                        : dailyBanners.activeCategories;
 
                     if (!availableCategories.includes(bannerType))                          throw new Error("Banner not active today");
                     if (!dailyBanners.activeEntries[bannerType].keys.includes(uniqueKey))   throw new Error("Character not in banner");
 
-                    save.fiftyFifty.THEMED = {
+                    save.fiftyFifty.THEMED[bannerType] = {
                         date        : dailyBanners.jstDate,
-                        bannerType  : bannerType,
                         uniqueKey   : uniqueKey
                     };
                 } else if (bannerType === "LIST") {
-                    if (!save.anilistUsername)                                      throw new Error("AniList account not linked");
-                    if (!char.animeId || !playerAnilistAnimeSet.has(char.animeId))  throw new Error("Character not in AniList");
+                    if (!save.anilistUsername)                                              throw new Error("AniList account not linked");
+                    if (!char.animeId || !playerAnilistAnimeSet.has(char.animeId))          throw new Error("Character not in AniList");
 
-                    save.fiftyFifty.LIST = uniqueKey;
-                } else save.fiftyFifty[bannerType] = uniqueKey;
+                    save.fiftyFifty.LIST            = uniqueKey;
+                } else save.fiftyFifty[bannerType]  = uniqueKey;
             }
         } else if (action === "SUMMON") {
             const bannerType    = body.bannerType || "STANDARD";
@@ -809,15 +810,17 @@ serve(async (req) => {
 
             let activeFiftyKey = null;
 
-            if (isThemed) if (save.fiftyFifty.THEMED?.date === dailyBanners.jstDate && save.fiftyFifty.THEMED?.bannerType === bannerType)   activeFiftyKey = save.fiftyFifty.THEMED.uniqueKey;
-            else                                                                                                                            activeFiftyKey = save.fiftyFifty[bannerType] || null;
+            if (isThemed) {
+                const themedSelection = save.fiftyFifty.THEMED?.[bannerType];
+                if (themedSelection?.date === dailyBanners.jstDate) activeFiftyKey = themedSelection.uniqueKey;
+            } else                                                  activeFiftyKey = save.fiftyFifty[bannerType] || null;
 
             let activeFiftyChar = activeFiftyKey ? gameData.charMap.get(activeFiftyKey) : null;
 
             if (activeFiftyChar && (!FIFTY_FIFTY_TIERS.has(activeFiftyChar.tier) || (save.inventory[activeFiftyKey] || 0) >= 6)) {
                 activeFiftyChar = null;
 
-                if (isThemed)   save.fiftyFifty.THEMED      = null;
+                if (isThemed)   delete save.fiftyFifty.THEMED[bannerType];
                 else            save.fiftyFifty[bannerType] = null;
             }
 

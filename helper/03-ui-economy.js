@@ -285,13 +285,15 @@ function isCharacterEligibleForBanner(char, bannerKey) {
 const isCharacterSparkableInBanner = isCharacterEligibleForBanner;
 
 function getBannerFiftyFiftyKey(bannerKey) {
-    const todayJst  = activeDailyJstDate || getCurrentJstDate();
-    let key         = null;
+    const todayJst = activeDailyJstDate || getCurrentJstDate();
+    let key = null;
 
-    if (ALL_THEMED_KEYS.includes(bannerKey)) if (fiftyFifty.THEMED?.date === todayJst && fiftyFifty.THEMED?.bannerType === bannerKey)   key = fiftyFifty.THEMED.uniqueKey;
-    else                                                                                                                                key = fiftyFifty[bannerKey] || null;
+    if (ALL_THEMED_KEYS.includes(bannerKey)) {
+        const themedSelection = fiftyFifty.THEMED?.[bannerKey];
+        if (themedSelection?.date === todayJst) key = themedSelection.uniqueKey;
+    } else                                      key = fiftyFifty[bannerKey] || null;
 
-    if (!key)                       return null;
+    if (!key) return null;
     if ((inventory[key] || 0) >= 6) return null;
 
     return key;

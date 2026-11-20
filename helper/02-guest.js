@@ -92,16 +92,18 @@ function handleGuestGachaAction(payload) {
         const todayJst      = activeDailyJstDate || getCurrentJstDate();
         let activeFiftyKey  = null;
 
-        if (isThemed) if (fiftyFifty.THEMED?.date === todayJst && fiftyFifty.THEMED?.bannerType === bannerType) activeFiftyKey = fiftyFifty.THEMED.uniqueKey;
-        else                                                                                                    activeFiftyKey = fiftyFifty[bannerType] || null;
+        if (isThemed) {
+            const themedSelection = fiftyFifty.THEMED?.[bannerType];
+            if (themedSelection?.date === todayJst) activeFiftyKey = themedSelection.uniqueKey;
+        } else                                      activeFiftyKey = fiftyFifty[bannerType] || null;
 
         let activeFiftyChar = activeFiftyKey ? characterMap.get(activeFiftyKey) : null;
 
         if (activeFiftyChar && (!FIFTY_FIFTY_TIERS.has(activeFiftyChar.rarity.tier) || (inventory[activeFiftyKey] || 0) >= 6)) {
             activeFiftyChar = null;
 
-            if (isThemed)   fiftyFifty.THEMED       = null;
-            else            fiftyFifty[bannerType]  = null;
+            if (isThemed) delete    fiftyFifty.THEMED[bannerType];
+            else                    fiftyFifty[bannerType] = null;
         }
 
         for (let i = 0; i < 10; i++) {
@@ -163,8 +165,8 @@ function handleGuestGachaAction(payload) {
         const isThemed                  = ALL_THEMED_KEYS.includes(bannerType);
 
         if (!uniqueKey) {
-            if (isThemed)   fiftyFifty.THEMED       = null;
-            else            fiftyFifty[bannerType]  = null;
+            if (isThemed)   delete fiftyFifty.THEMED[bannerType];
+            else            fiftyFifty[bannerType] = null;
         } else {
             const char = characterMap.get(uniqueKey);
 
@@ -172,10 +174,9 @@ function handleGuestGachaAction(payload) {
             if (!FIFTY_FIFTY_TIERS.has(char.rarity.tier))           return null;
             if (!isCharacterEligibleForBanner(char, bannerType))    return null;
 
-            if (isThemed) {fiftyFifty.THEMED = {
-                date       : activeDailyJstDate || getCurrentJstDate(),
-                bannerType : bannerType,
-                uniqueKey  : uniqueKey
+            if (isThemed) {fiftyFifty.THEMED[bannerType] = {
+                    date        : activeDailyJstDate || getCurrentJstDate(),
+                    uniqueKey   : uniqueKey
             }} else fiftyFifty[bannerType] = uniqueKey;
         }
     } else if (action === "TOGGLE_LOCK") {

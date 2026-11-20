@@ -75,6 +75,8 @@ async function initDatabase() {
         }
     } catch (err) {
         console.error(err);
-        document.getElementById("error-detail").textContent = err.message;
+
+        const errorDetailEl = document.getElementById("error-detail");
+        if (errorDetailEl) errorDetailEl.textContent = err.message;
     }
 }

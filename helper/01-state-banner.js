@@ -154,7 +154,7 @@ let fiftyFifty = {
     STANDARD    : null,
     HOF         : null,
     LIST        : null,
-    THEMED      : null
+    THEMED      : {}
 };
 
 let activeSparkBanner       = null;
@@ -535,7 +535,8 @@ function applyDailyBanners(dailyBanners) {
         } else listCardEl.classList.add ("hidden");
     }
 
-    if (fiftyFifty.THEMED && fiftyFifty.THEMED.date !== activeDailyJstDate) fiftyFifty.THEMED = null;
+    if (!fiftyFifty.THEMED || typeof fiftyFifty.THEMED !== "object") fiftyFifty.THEMED = {}
+    for (const key of ALL_THEMED_KEYS) if (fiftyFifty.THEMED?.[key]?.date !== activeDailyJstDate) delete fiftyFifty.THEMED[key];
 
     updateStarsUI               ();
     updateSparkButtonsUI        ();
