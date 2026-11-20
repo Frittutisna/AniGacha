@@ -99,7 +99,9 @@ function handleGuestGachaAction(payload) {
 
             inventory[chosen.uniqueKey] = count;
             if (AUTO_LOCK_TIERS.has(tier)) lockedCards.add(chosen.uniqueKey);
-            sparkPoints[bannerType] = (sparkPoints[bannerType] || 0) + 1;
+
+            const sparkKey = isThemed ? "THEMED" : bannerType;
+            sparkPoints[sparkKey] = (sparkPoints[sparkKey] || 0) + 1;
 
             if      (isThemed)      THEMED_BANNERS[bannerType].pulls++;
             else if (isListBanner)  listPulls++;
@@ -116,12 +118,13 @@ function handleGuestGachaAction(payload) {
     } else if (action === "SPARK") {
         const {bannerType, uniqueKey}   = payload;
         const char                      = characterMap.get(uniqueKey);
+        const sparkKey                  = ALL_THEMED_KEYS.includes(bannerType) ? "THEMED" : bannerType;
 
         if (!char || !isCharacterSparkableInBanner(char, bannerType))   return null;
-        if ((sparkPoints[bannerType] || 0) < char.rarity.sparkCost)     return null;
+        if ((sparkPoints[sparkKey] || 0) < char.rarity.sparkCost)       return null;
 
-        sparkPoints [bannerType]    -=  char.rarity.sparkCost;
-        inventory   [uniqueKey]     =   (inventory[uniqueKey] || 0) + 1;
+        sparkPoints[sparkKey]   -=  char.rarity.sparkCost;
+        inventory[uniqueKey]    =   (inventory[uniqueKey] || 0) + 1;
 
         lockedCards.add(uniqueKey);
     } else if (action === "TOGGLE_LOCK") {

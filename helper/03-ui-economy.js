@@ -241,8 +241,8 @@ function updateSparkButtonsUI() {
     ALL_THEMED_KEYS.forEach(key => {
         const banner = THEMED_BANNERS[key];
 
-        document.getElementById(banner.sparkCountElId).textContent  = sparkPoints[key].toLocaleString();
-        document.getElementById(banner.sparkBtnElId).disabled       = actionInFlight || !databaseReady || !banner.active || sparkPoints[key] < getMinSparkCost(key);
+        document.getElementById(banner.sparkCountElId)  .textContent    = sparkPoints.THEMED.toLocaleString();
+        document.getElementById(banner.sparkBtnElId)    .disabled       = actionInFlight || !databaseReady || !banner.active || sparkPoints.THEMED < getMinSparkCost(key);
     });
 }
 

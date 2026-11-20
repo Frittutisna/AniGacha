@@ -389,7 +389,7 @@ serve(async (req) => {
             stars                       : 1200,
             inventory                   : {},
             lockedCards                 : [],
-            sparkPoints                 : {STANDARD: 0, ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0, HOF: 0, LIST: 0},
+            sparkPoints                 : {STANDARD: 0, THEMED: 0, HOF: 0, LIST: 0},
             totalPulls                  : 0,
             hofPulls                    : 0,
             listPulls                   : 0,
@@ -405,7 +405,16 @@ serve(async (req) => {
             lastAnilistChangeJstYear    :null,
         };
 
-        if (!save.sparkPoints)                              save.sparkPoints            = {};
+        if (!save.sparkPoints)                              save.sparkPoints        = {};
+        if (typeof save.sparkPoints.THEMED  !== "number")   save.sparkPoints.THEMED = 0;
+
+        for (const k of THEMED_KEYS) {
+            if (typeof save.sparkPoints[k] === "number") {
+                save.sparkPoints.THEMED += save.sparkPoints[k];
+                delete save.sparkPoints[k];
+            }
+        }
+
         if (typeof save.sparkPoints.LIST    !== "number")   save.sparkPoints.LIST       = 0;
         if (typeof save.listPulls           !== "number")   save.listPulls              = 0;
         if (!Array.isArray(save.anilistAnimeIds))           save.anilistAnimeIds        = [];
@@ -767,7 +776,9 @@ serve(async (req) => {
                 save.inventory[chosenKey]   = count;
 
                 if (AUTO_LOCK_TIERS.has(tier)) lockedSet.add(chosenKey);
-                save.sparkPoints[bannerType] = (save.sparkPoints[bannerType] || 0) + 1;
+
+                const sparkKey = isThemed ? "THEMED" : bannerType;
+                save.sparkPoints[sparkKey] = (save.sparkPoints[sparkKey] || 0) + 1;
 
                 if      (isThemed)      save.themedPulls[bannerType]    = (save.themedPulls[bannerType] || 0) + 1;
                 else if (isListBanner)  save.listPulls                  = (save.listPulls               || 0) + 1;
@@ -812,13 +823,14 @@ serve(async (req) => {
                 if (!char?.animeId || !playerAnilistAnimeSet.has(char.animeId)) throw new Error("Character not in AniList");
             }
 
-            const char = gameData.charMap.get(uniqueKey);
-            const cost = char ? rarityInfoMap.get(char.tier).sparkCost : Infinity;
+            const char      = gameData.charMap.get(uniqueKey);
+            const cost      = char ? rarityInfoMap.get(char.tier).sparkCost : Infinity;
+            const sparkKey  = isThemed ? "THEMED" : bannerType;
 
-            if (!char || (save.sparkPoints[bannerType] || 0) < cost) throw new Error("Not enough spark points");
+            if (!char || (save.sparkPoints[sparkKey] || 0) < cost) throw new Error("Not enough spark points");
 
-            save.sparkPoints[bannerType]    -=  cost;
-            save.inventory[uniqueKey]       =   (save.inventory[uniqueKey] || 0) + 1;
+            save.sparkPoints[sparkKey]  -=  cost;
+            save.inventory[uniqueKey]   =   (save.inventory[uniqueKey] || 0) + 1;
 
             lockedSet.add(uniqueKey);
         } else if (action === "TOGGLE_LOCK") {

@@ -98,7 +98,7 @@ async function exitSharedCollection() {
             stars                       : 0,
             inventory                   : {},
             lockedCards                 : [],
-            sparkPoints                 : {STANDARD: 0, ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0, HOF: 0, LIST: 0},
+            sparkPoints                 : {STANDARD: 0, THEMED: 0, HOF: 0, LIST: 0},
             totalPulls                  : 0,
             hofPulls                    : 0,
             listPulls                   : 0,

@@ -354,7 +354,8 @@ function renderInventory(useCache = false) {
     const rawQuery          = document.getElementById("search-input").value.trim();
     const itemsPerPage      = getItemsPerPage();
     const isSparkMode       = activeSparkBanner !== null;
-    const availableSpark    = isSparkMode ? sparkPoints[activeSparkBanner] : 0;
+    const sparkKey          = isSparkMode && ALL_THEMED_KEYS.includes(activeSparkBanner) ? "THEMED" : activeSparkBanner;
+    const availableSpark    = isSparkMode ? sparkPoints[sparkKey] : 0;
     const isAnilistLinked   = Boolean(anilistUsername);
     const lang              = typeof titleLang !== "undefined" ? titleLang : "JP";
 

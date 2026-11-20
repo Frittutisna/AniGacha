@@ -144,12 +144,7 @@ const SUMMON_COSTS = {
 
 let sparkPoints = {
     STANDARD    : 0,
-    ERA         : 0,
-    FRANCHISE   : 0,
-    GENRE       : 0,
-    SOURCE      : 0,
-    STUDIO      : 0,
-    TAG         : 0,
+    THEMED      : 0,
     HOF         : 0,
     LIST        : 0
 };
@@ -366,7 +361,11 @@ function applySaveState(data) {
     const anilistInput = document.getElementById("profile-anilist-input");
     if (anilistInput) anilistInput.value = anilistUsername || "";
 
-    if (data.sparkPoints)                                   Object.keys(sparkPoints).forEach(k => {sparkPoints[k] = typeof data.sparkPoints[k] === "number" ? data.sparkPoints[k] : 0})
+    if (data.sparkPoints) {
+        Object.keys(sparkPoints)    .forEach(k => {sparkPoints[k] = typeof data.sparkPoints[k] === "number" ? data.sparkPoints[k] : 0});
+        ALL_THEMED_KEYS             .forEach(k => {if (typeof data.sparkPoints[k] === "number") sparkPoints.THEMED += data.sparkPoints[k]});
+    }
+
     if (data.themedPulls)                                   ALL_THEMED_KEYS.forEach(k => {THEMED_BANNERS[k].pulls = typeof data.themedPulls[k] === "number" ? data.themedPulls[k] : 0})
     if (activeSparkBanner === "LIST" && !anilistUsername)   exitSparkMode()
 
@@ -474,7 +473,7 @@ function applyDailyBanners(dailyBanners) {
                 banner.secondHoverLine.replace(/^The first/, "First"),
                 "Auto-locks sparks and S+ summons",
                 "Rotates 00:00 JST",
-                "Sparks stay within the same banner type",
+                "Shares Spark points across all themed banners",
                 "",
                 ...otherLabels
             ].join("\n"));
