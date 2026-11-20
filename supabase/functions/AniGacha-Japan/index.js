@@ -404,6 +404,35 @@ function getSellMultiplier(count) {
     return 1;
 }
 
+async function persistPlayerSave(adminClient, userId, saveVersion, save) {
+    const {data, error} = await adminClient.rpc("save_player_save_cas", {
+        p_user_id           : userId,
+        p_expected_version  : saveVersion,
+        p_save_data         : save
+    });
+
+    if (error) {
+        console.error("Save persistence failed:", error);
+        throw new Error("Failed to save player data");
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    if (!result?.success) {
+        return new Response(
+            JSON.stringify({
+                error   : "Save conflict. Please retry your action.",
+                code    : "SAVE_CONFLICT"
+            }), {
+                status  : 409,
+                headers : {...corsHeaders, "Content-Type": "application/json"}
+            }
+        );
+    }
+
+    return null;
+}
+
 serve(async (req) => {
     if (req.method === "OPTIONS") return new Response("ok", {headers: corsHeaders});
 
@@ -543,35 +572,6 @@ serve(async (req) => {
             lastAnilistChangeJstYear    : null,
         };
 
-        async function persistPlayerSave() {
-            const {data, error} = await adminClient.rpc("save_player_save_cas", {
-                p_user_id           : userId,
-                p_expected_version  : saveVersion,
-                p_save_data         : save
-            });
-
-            if (error) {
-                console.error("Save persistence failed:", error);
-                throw new Error("Failed to save player data");
-            }
-
-            const result = Array.isArray(data) ? data[0] : data;
-
-            if (!result?.success) {
-                return new Response(
-                    JSON.stringify({
-                        error   : "Save conflict. Please retry your action.",
-                        code    : "SAVE_CONFLICT"
-                    }), {
-                        status  : 409,
-                        headers : {...corsHeaders, "Content-Type": "application/json"}
-                    }
-                );
-            }
-
-            return null;
-        }
-
         if (!save.sparkPoints)                              save.sparkPoints        = {};
         if (typeof save.sparkPoints.THEMED  !== "number")   save.sparkPoints.THEMED = 0;
 
@@ -639,7 +639,7 @@ serve(async (req) => {
             if (!save.displayName && incomingDiscordName) save.displayName = incomingDiscordName;
 
             if (!existing || existing.save_data?.quizDaily?.date !== dailyBanners.jstDate || (!existing.save_data?.displayName && save.displayName)) {
-                const conflictResponse = await persistPlayerSave();
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
                 if (conflictResponse) return conflictResponse;
             }
 
@@ -855,7 +855,7 @@ serve(async (req) => {
                     }
                 }
 
-                const conflictResponse = await persistPlayerSave();
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
 
                 if (conflictResponse) {
                     await adminClient
@@ -926,7 +926,7 @@ serve(async (req) => {
             daily.missionEarned += mission.reward;
             save.stars          += mission.reward;
 
-            const conflictResponse = await persistPlayerSave(); 
+            const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save); 
             if (conflictResponse) return conflictResponse;
             return new Response(JSON.stringify({save, missionReward: mission.reward, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
@@ -1205,7 +1205,7 @@ serve(async (req) => {
 
         save.lockedCards = Array.from(lockedSet);
 
-        const conflictResponse = await persistPlayerSave();
+        const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
         if (conflictResponse) return conflictResponse;
         return new Response(JSON.stringify({save, rolledResults, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
     } catch (err) {return new Response(JSON.stringify({error: err.message}), {
