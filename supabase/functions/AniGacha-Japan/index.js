@@ -379,12 +379,18 @@ serve(async (req) => {
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
         );
 
-        const [gameData, {data: existing}] = await Promise.all([getGameData(adminClient), adminClient
-            .from           ("player_saves")
-            .select         ("save_data")
-            .eq             ("user_id", userId)
-            .maybeSingle    (),
+        const [gameData, { data: existing, error: loadError }] = await Promise.all([
+            getGameData(adminClient),
+
+            adminClient
+                .from("player_saves")
+                .select("save_data, save_version")
+                .eq("user_id", userId)
+                .maybeSingle()
         ]);
+
+        if (loadError) throw new Error("Failed to load player save");
+        const saveVersion = existing?.save_version ?? null;
 
         const save = existing?.save_data ?? {
             stars                       : 1200,
@@ -406,6 +412,35 @@ serve(async (req) => {
             linkedAnilistHistory        : [],
             lastAnilistChangeJstYear    : null,
         };
+
+        async function persistPlayerSave() {
+            const {data, error} = await adminClient.rpc("save_player_save_cas", {
+                p_user_id           : userId,
+                p_expected_version  : saveVersion,
+                p_save_data         : save
+            });
+
+            if (error) {
+                console.error("Save persistence failed:", error);
+                throw new Error("Failed to save player data");
+            }
+
+            const result = Array.isArray(data) ? data[0] : data;
+
+            if (!result?.success) {
+                return new Response(
+                    JSON.stringify({
+                        error   : "Save conflict. Please retry your action.",
+                        code    : "SAVE_CONFLICT"
+                    }), {
+                        status  : 409,
+                        headers : {...corsHeaders, "Content-Type": "application/json"}
+                    }
+                );
+            }
+
+            return null;
+        }
 
         if (!save.sparkPoints)                              save.sparkPoints        = {};
         if (typeof save.sparkPoints.THEMED  !== "number")   save.sparkPoints.THEMED = 0;
@@ -473,13 +508,12 @@ serve(async (req) => {
             const incomingDiscordName = typeof body.discordName === "string" ? body.discordName.trim().slice(0, 24) : "";
             if (!save.displayName && incomingDiscordName) save.displayName = incomingDiscordName;
 
-            if (!existing || existing.save_data?.quizDaily?.date !== dailyBanners.jstDate || (!existing.save_data?.displayName && save.displayName)) await adminClient.from("player_saves").upsert({
-                user_id     : userId,
-                save_data   : save,
-                updated_at  : new Date().toISOString(),
-            });
+            if (!existing || existing.save_data?.quizDaily?.date !== dailyBanners.jstDate || (!existing.save_data?.displayName && save.displayName)) {
+                const conflictResponse = await persistPlayerSave();
+                if (conflictResponse) return conflictResponse;
+            }
 
-            return new Response(JSON.stringify({ save, dailyBanners: bannerPayload }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            return new Response(JSON.stringify({save, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
         const QUIZ_MISSIONS = {
@@ -537,12 +571,8 @@ serve(async (req) => {
                 missionReward       += mission.reward;
             }}
 
-            await adminClient.from("player_saves").upsert({
-                user_id     : userId,
-                save_data   : save,
-                updated_at  : new Date().toISOString()
-            });
-
+            const conflictResponse = await persistPlayerSave();
+            if (conflictResponse) return conflictResponse;
             return new Response(JSON.stringify({save, missionReward, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
@@ -663,11 +693,8 @@ serve(async (req) => {
                 save.stars          += mission.reward;
             }}
 
-            await adminClient.from("player_saves").upsert({
-                user_id     : userId,
-                save_data   : save,
-                updated_at  : new Date().toISOString()
-            });
+            const conflictResponse = await persistPlayerSave();
+            if (conflictResponse) return conflictResponse;
 
             return new Response(JSON.stringify({save, quizReward, requestedReward, multiplier, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         } else if (action === "QUIZ_CLAIM_MISSION") {
@@ -702,12 +729,8 @@ serve(async (req) => {
             daily.missionEarned += mission.reward;
             save.stars          += mission.reward;
 
-            await adminClient.from("player_saves").upsert({
-                user_id     : userId,
-                save_data   : save,
-                updated_at  : new Date().toISOString(),
-            });
-
+            const conflictResponse = await persistPlayerSave(); 
+            if (conflictResponse) return conflictResponse;
             return new Response(JSON.stringify({save, missionReward: mission.reward, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
@@ -985,12 +1008,8 @@ serve(async (req) => {
 
         save.lockedCards = Array.from(lockedSet);
 
-        await adminClient.from("player_saves").upsert({
-            user_id     : userId,
-            save_data   : save,
-            updated_at  : new Date().toISOString()
-        });
-
+        const conflictResponse = await persistPlayerSave();
+        if (conflictResponse) return conflictResponse;
         return new Response(JSON.stringify({save, rolledResults, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
     } catch (err) {return new Response(JSON.stringify({error: err.message}), {
         status  : 400,
