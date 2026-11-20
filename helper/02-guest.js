@@ -126,8 +126,8 @@ function handleGuestGachaAction(payload) {
             if (activeFiftyChar && chosen.uniqueKey === activeFiftyChar.uniqueKey && count >= 6) {
                 activeFiftyChar = null;
 
-                if (isThemed)   fiftyFifty.THEMED       = null;
-                else            fiftyFifty[bannerType]  = null;
+                if (isThemed)   delete fiftyFifty.THEMED[bannerType];
+                else            fiftyFifty[bannerType] = null;
             }
 
             if (AUTO_LOCK_TIERS.has(tier)) lockedCards.add(chosen.uniqueKey);

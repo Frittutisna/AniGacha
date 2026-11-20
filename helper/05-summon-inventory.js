@@ -108,6 +108,15 @@ function createCardHTML(char, {
         ? "bg-white hover:bg-slate-200 text-black"
         : "bg-slate-950/80 hover:bg-slate-950 text-white";
 
+    const sellFooterHtml = showSellButton
+        ? `<div class="px-1.5 pb-1.5">
+            <button type="button" data-sell-key="${escapeHTML(char.uniqueKey)}" ${(sellInFlight || isLocked) ? "disabled" : ""}
+                class="sell-card-btn w-full py-1 rounded text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed transition ${sellBtnColors}">
+                Sell: ★ ${sellTotal}
+            </button>
+        </div>`
+        : "";
+
     const autoSoldFooterHtml = autoSoldStars > 0
         ? `<div class="px-1.5 pb-1.5">
             <div title="Already maxed (Level 3) — automatically sold for ★ ${autoSoldStars}"
@@ -147,6 +156,7 @@ function createCardHTML(char, {
             </div>
             ${sparkFooterHtml}
             ${fiftyFooterHtml}
+            ${sellFooterHtml}
             ${autoSoldFooterHtml}
         </div>
         </div>
@@ -356,10 +366,14 @@ function matchesSearchTokens(char, tokens) {
     return true;
 }
 
-let invCacheSignature = "";
-let invCachedFiltered = [];
+let invCacheSignature   = "";
+let invCachedFiltered   = [];
+let invStateVersion     = 0;
 
-function invalidateInventoryCache() {invCacheSignature = ""}
+function invalidateInventoryCache() {
+    invStateVersion++;
+    invCacheSignature = "";
+}
 
 function renderInventory(useCache = false) {
     if (!useCache) invalidateInventoryCache();
@@ -390,6 +404,7 @@ function renderInventory(useCache = false) {
     document.getElementById("filter-status-row")?.      classList.remove("hidden");
 
     const cacheSig = [
+        invStateVersion,
         characterPool.length,
         isSharedView    ? 1                                                     : 0,
         isSparkMode     ? `${activeSparkBanner}:${availableSpark}`              : "0",

@@ -493,7 +493,12 @@ function aniQuizNext() {
         audio.currentTime   = Math.min(Number(aniQuizCurrent.start_sample) || 0, max);
     }, {once: true});
 
-    audio.play().catch(() => {});
+    audio.play().catch(() => {
+        const unlockPlay = () => {if (!aniQuizAnswered && !aniQuizAudioPlaying && aniQuizRun) audio.play().catch(() => {})};
+
+        document.addEventListener("pointerdown", unlockPlay, {once: true});
+        document.addEventListener("keydown",     unlockPlay, {once: true});
+    });
 
     if (isMc)   aniQuizMakeChoices();
     else        document.getElementById("quiz-answer").focus();
@@ -980,6 +985,7 @@ if (quizAudio) {
     });
 
     quizAudio.addEventListener("pause", () => {aniQuizAudioPlaying = false});
+    quizAudio.addEventListener("error", () => {if (!aniQuizAnswered && aniQuizRun) aniQuizResolve(false)});
 }
 
 document.querySelectorAll("#quiz-setup-form select, #quiz-setup-form input").forEach(el => {el.addEventListener("change", () => {if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview()})});
