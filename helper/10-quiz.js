@@ -144,7 +144,7 @@ function loadAniQuizData() {
                 if (!trimmed || !norm || seenNormTitles.has(norm)) return;
 
                 seenNormTitles  .add    (norm);
-                pooledTitles    .push   (trimmed);
+                pooledTitles    .push   ({title: trimmed, norm});
             };
 
             for (const entry of (Array.isArray(rawNames) ? rawNames : [])) {for (const part of String(entry || "").split(" || ")) addPooledTitle(part)}
@@ -1034,26 +1034,34 @@ document.getElementById("quiz-end-confirm")?.addEventListener("click", () => {
     if (goHome && pageNavBtn) pageNavBtn.click();
 });
 
-function aniQuizRankMatches(names, normQuery) {return names.map(title => {
-    const normTitle = aniQuizNorm(title);
-    if (!normTitle.includes(normQuery)) return null;
+function aniQuizRankMatches(names, normQuery) {
+    const matches = [];
 
-    const matchTier = normTitle === normQuery ? 0 : normTitle.startsWith(normQuery) ? 1 : 2;
-    return {title, normTitle, matchTier}}).filter(Boolean).sort((a, b) => a.matchTier - b.matchTier || a.normTitle.length - b.normTitle.length || a.title.localeCompare(b.title)).map(item => item.title);
-}
+    for (let i = 0; i < names.length; i++) {
+        const {title, norm} = names[i];
+        if (!norm.includes(normQuery)) continue;
 
-let aniQuizSuggestionIndex  = -1;
-let aniQuizFilteredNames    = [];
-
-function aniQuizRenderSuggestions(wrap, inputEl) {
-    wrap.innerHTML = "";
-
-    if (!aniQuizFilteredNames.length) {
-        wrap.classList.add("hidden");
-        return;
+        const matchTier = norm === normQuery ? 0 : norm.startsWith(normQuery) ? 1 : 2;
+        matches.push({title, norm, matchTier});
     }
 
-    aniQuizFilteredNames.forEach((v, i) => {
+    matches.sort((a, b) => a.matchTier - b.matchTier || a.norm.length - b.norm.length || a.title.localeCompare(b.title));
+    return matches.map(item => item.title);
+}
+
+let aniQuizSuggestionIndex      = -1;
+let aniQuizFilteredNames        = [];
+let aniQuizRenderedSugCount     = 0;
+const ANI_QUIZ_SUG_BATCH_SIZE   = 50;
+
+function aniQuizAppendSuggestionBatch(wrap, inputEl, targetCount) {
+    const end = Math.min(aniQuizFilteredNames.length, targetCount);
+    if (aniQuizRenderedSugCount >= end) return;
+
+    const frag = document.createDocumentFragment();
+
+    for (let i = aniQuizRenderedSugCount; i < end; i++) {
+        const v         = aniQuizFilteredNames[i];
         const b         = document.createElement("button");
         b.type          = "button";
         b.className     = `block w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 truncate ${i === aniQuizSuggestionIndex ? "bg-indigo-100 dark:bg-slate-800" : ""}`;
@@ -1063,30 +1071,59 @@ function aniQuizRenderSuggestions(wrap, inputEl) {
             inputEl.value           = v;
             aniQuizFilteredNames    = [];
             aniQuizSuggestionIndex  = -1;
+            aniQuizRenderedSugCount = 0;
 
             wrap.classList.add("hidden");
         });
 
-        wrap.append(b);
-    });
+        frag.appendChild(b);
+    }
 
+    wrap.appendChild(frag);
+    aniQuizRenderedSugCount = end;
+}
+
+function aniQuizRenderSuggestions(wrap, inputEl) {
+    wrap.innerHTML          = "";
+    wrap.scrollTop          = 0;
+    aniQuizRenderedSugCount = 0;
+
+    if (!aniQuizFilteredNames.length) {
+        wrap.classList.add("hidden");
+        return;
+    }
+
+    aniQuizAppendSuggestionBatch(wrap, inputEl, ANI_QUIZ_SUG_BATCH_SIZE);
     wrap.classList.remove("hidden");
 
     wrap.style.maxHeight = "10rem";
     wrap.style.overflowY = "auto";
 }
 
+document.getElementById("quiz-suggestions")?.addEventListener("scroll", (e) => {
+    const wrap = e.currentTarget;
+
+    if (aniQuizRenderedSugCount < aniQuizFilteredNames.length && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 40) {
+        aniQuizAppendSuggestionBatch(wrap, document.getElementById("quiz-answer"), aniQuizRenderedSugCount + ANI_QUIZ_SUG_BATCH_SIZE);
+    }
+
+}, {passive: true});
+
 document.getElementById("quiz-answer").addEventListener("keydown", e => {
     const wrap  = document.getElementById("quiz-suggestions");
-    const items = [...wrap.querySelectorAll("button")];
+    const total = aniQuizFilteredNames.length;
 
-    if (!items.length) return;
+    if (!total || wrap.classList.contains("hidden")) return;
 
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        aniQuizSuggestionIndex = (aniQuizSuggestionIndex + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+
+        aniQuizSuggestionIndex = (aniQuizSuggestionIndex + (e.key === "ArrowDown" ? 1 : -1) + total) % total;
+        if (aniQuizSuggestionIndex >= aniQuizRenderedSugCount) aniQuizAppendSuggestionBatch(wrap, e.currentTarget, aniQuizSuggestionIndex + ANI_QUIZ_SUG_BATCH_SIZE);
+
+        const items = wrap.querySelectorAll("button");
         items.forEach((b, i) => b.classList.toggle("bg-indigo-100", i === aniQuizSuggestionIndex));
-        items[aniQuizSuggestionIndex].scrollIntoView({ block: "nearest" });
+        items[aniQuizSuggestionIndex]?.scrollIntoView({ block: "nearest" });
     }
 
     if (e.key === "Escape") {
