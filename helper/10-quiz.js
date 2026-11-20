@@ -170,6 +170,7 @@ function loadAniQuizData() {
                 return true;
             });
 
+            aniQuizBuildMcIndex();
             document.getElementById("quiz-loading")?.classList.add("hidden");
 
             aniQuizRenderMissions           ();
@@ -498,20 +499,45 @@ function aniQuizNext() {
     else        document.getElementById("quiz-answer").focus();
 }
 
-function aniQuizStringSimilarity(a, b) {
-    const s1 = String(a || "").toLowerCase().replace(/\s+/g, "");
-    const s2 = String(b || "").toLowerCase().replace(/\s+/g, "");
+let aniQuizMcEntries = [];
 
-    if (s1 === s2)                      return 1;
-    if (s1.length < 2 || s2.length < 2) return 0;
+function aniQuizMakeBigrams(str) {
+    const clean = String(str || "").toLowerCase().replace(/\s+/g, "");
+    const set   = new Set();
 
-    const grams = s => new Set(Array.from({ length: s.length - 1 }, (_, i) => s.slice(i, i + 2)));
-    const x     = grams(s1);
-    const y     = grams(s2);
-    let common  = 0;
+    for (let i = 0; i < clean.length - 1; i++) set.add(clean.slice(i, i + 2));
+    return set;
+}
 
-    x.forEach(g => { if (y.has(g)) common++; });
-    return 2 * common / (x.size + y.size);
+function aniQuizBigramSim(setA, setB, strA, strB) {
+    if (strA === strB)              return 1;
+    if (!setA.size || !setB.size)   return 0;
+
+    let common = 0;
+    const [smaller, larger] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
+    for (const g of smaller) if (larger.has(g)) common++;
+
+    return (2 * common) / (setA.size + setB.size);
+}
+
+function aniQuizBuildMcIndex() {
+    const seen = new Set();
+    const list = [];
+
+    for (const s of aniQuizSongs) {
+        const jp        = s.romaji || s.english || "";
+        const en        = s.english || s.romaji || "";
+        const normJp    = aniQuizNorm(jp);
+        const normEn    = aniQuizNorm(en);
+        const key       = `${normJp}|${normEn}`;
+
+        if ((!normJp && !normEn) || seen.has(key)) continue;
+
+        seen.add    (key);
+        list.push   ({jp, en, normJp, normEn, gramsJp: aniQuizMakeBigrams(jp), gramsEn: aniQuizMakeBigrams(en)});
+    }
+
+    aniQuizMcEntries = list;
 }
 
 function aniQuizChoiceLabel(choice) {
@@ -525,27 +551,27 @@ function aniQuizRefreshMcLanguage() {document.querySelectorAll("#quiz-mc-wrap bu
 })}
 
 function aniQuizMakeChoices() {
-    const correctChoice = {
-        jp          : aniQuizCurrent.romaji || aniQuizCurrent.english || "",
-        en          : aniQuizCurrent.english || aniQuizCurrent.romaji || "",
-        isCorrect   : true
-    };
-
-    const correctDisplay    = aniQuizChoiceLabel(correctChoice);
+    const useJp             = (typeof titleLang !== "undefined" ? titleLang : "JP") === "JP";
+    const correctJp         = aniQuizCurrent.romaji || aniQuizCurrent.english || "";
+    const correctEn         = aniQuizCurrent.english || aniQuizCurrent.romaji || "";
+    const correctChoice     = {jp: correctJp, en: correctEn, isCorrect: true};
+    const correctDisplay    = useJp ? correctJp : correctEn;
+    const correctGrams      = aniQuizMakeBigrams(correctDisplay);
     const acceptedSet       = new Set(aniQuizAccepted(aniQuizCurrent));
-    const seenCandidates    = new Set();
+    const seenDisplay       = new Set();
     const candidates        = [];
 
-    for (const s of aniQuizSongs) {
-        const jp            = s.romaji || s.english || "";
-        const en            = s.english || s.romaji || "";
-        const display       = aniQuizChoiceLabel({ jp, en });
-        const normDisplay   = aniQuizNorm(display);
+    for (const entry of aniQuizMcEntries) {
+        if (acceptedSet.has(entry.normJp) || acceptedSet.has(entry.normEn)) continue;
 
-        if (!display || acceptedSet.has(aniQuizNorm(jp)) || acceptedSet.has(aniQuizNorm(en)) || seenCandidates.has(normDisplay)) continue;
+        const normDisp = useJp ? entry.normJp : entry.normEn;
+        if (!normDisp || seenDisplay.has(normDisp)) continue;
+        seenDisplay.add(normDisp);
 
-        seenCandidates.add(normDisplay);
-        candidates.push({jp, en, isCorrect: false, score: aniQuizStringSimilarity(correctDisplay, display)});
+        const disp  = useJp ? entry.jp      : entry.en;
+        const grams = useJp ? entry.gramsJp : entry.gramsEn;
+
+        candidates.push({jp: entry.jp, en: entry.en, grams, disp, isCorrect: false, score: aniQuizBigramSim(correctGrams, grams, correctDisplay, disp)});
     }
 
     candidates.sort((a, b) => b.score - a.score);
@@ -563,13 +589,12 @@ function aniQuizMakeChoices() {
 
             for (let i = 0; i < pool.length; i++) {
                 const cand              = pool[i];
-                const candText          = aniQuizChoiceLabel(cand);
-                const avgSimToChosen    = opts.reduce((sum, chosen) => sum + aniQuizStringSimilarity(candText, aniQuizChoiceLabel(chosen)), 0) / opts.length;
+                const avgSimToChosen    = opts.reduce((sum, chosen) => sum + aniQuizBigramSim(cand.grams, chosen.grams, cand.disp, chosen.disp), 0) / opts.length;
                 const combinedScore     = cand.score + clusterWeight * avgSimToChosen;
 
                 if (combinedScore > bestScore) {
-                    bestScore   = combinedScore;
-                    bestIdx     = i;
+                    bestScore = combinedScore;
+                    bestIdx   = i;
                 }
             }
 
