@@ -5,7 +5,7 @@ window.addEventListener("resize", () => {
 
     if (isMobile !== lastIsMobile) {
         lastIsMobile = isMobile;
-        renderInventory();
+        renderInventory(true);
     }
 });
 
@@ -112,36 +112,32 @@ clearSearchBtn.addEventListener("click", () => {
 document.querySelectorAll(".first-page").forEach(btn => btn.addEventListener("click", () => {if (currentPage > 1) {
     hideResultsSection();
     currentPage = 1;
-    renderInventory();
+    renderInventory(true);
 }}));
 
 document.querySelectorAll(".prev-page").forEach(btn => btn.addEventListener("click", () => {if (currentPage > 1) {
     hideResultsSection();
     currentPage--;
-    renderInventory();
+    renderInventory(true);
 }}));
 
-document.querySelectorAll(".next-page").forEach(btn => btn.addEventListener("click", () => {
-    if (currentPage < totalPages) {
-        hideResultsSection();
-        currentPage++;
-        renderInventory();
-    }
-}));
+document.querySelectorAll(".next-page").forEach(btn => btn.addEventListener("click", () => {if (currentPage < totalPages) {
+    hideResultsSection();
+    currentPage++;
+    renderInventory(true);
+}}));
 
 document.querySelectorAll(".last-page").forEach(btn => btn.addEventListener("click", () => {if (currentPage < totalPages) {
     hideResultsSection();
     currentPage = totalPages;
-    renderInventory();
+    renderInventory(true);
 }}));
 
 document.querySelectorAll(".page-input").forEach(input => input.addEventListener("change", (e) => {
     hideResultsSection();
-
     const val = parseInt(e.target.value, 10);
     if (!Number.isNaN(val)) currentPage = Math.min(Math.max(1, val), totalPages);
-
-    renderInventory();
+    renderInventory(true);
 }));
 
 function hintBannerSwipe() {

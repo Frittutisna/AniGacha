@@ -287,13 +287,16 @@ function matchesSearchTokens(char, tokens) {
             if (Number.isNaN(numVal))                           return false;
             if (!compareNumeric(char.animeYear, op, numVal))    return false;
         } else if (field === "genre" || field === "genres") {
-            const found = Array.from(char.genres).some(g => g.toLowerCase().includes(val));
+            let found = false;
+            for (const g of char.genres) {if (g.toLowerCase().includes(val)) {found = true; break}}
             if (!found) return false;
         } else if (field === "tag" || field === "tags") {
-            const found = Array.from(char.tags).some(t => t.toLowerCase().includes(val));
+            let found = false;
+            for (const t of char.tags) {if (t.toLowerCase().includes(val)) {found = true; break}}
             if (!found) return false;
         } else if (field === "studio" || field === "studios") {
-            const found = Array.from(char.studios).some(s => s.toLowerCase().includes(val));
+            let found = false;
+            for (const s of char.studios) {if (s.toLowerCase().includes(val)) {found = true; break}}
             if (!found) return false;
         } else if (field === "source") {
             if (!char.source || !char.source.toLowerCase().includes(val)) return false;
@@ -329,7 +332,13 @@ function matchesSearchTokens(char, tokens) {
     return true;
 }
 
-function renderInventory() {
+let invCacheSignature = "";
+let invCachedFiltered = [];
+
+function invalidateInventoryCache() {invCacheSignature = ""}
+
+function renderInventory(useCache = false) {
+    if (!useCache) invalidateInventoryCache();
     updateSellAllUI();
 
     const grid          = document.getElementById   ("inventory-grid");
@@ -343,49 +352,75 @@ function renderInventory() {
     const selectedList      = getCheckedValues("#filter-list-group");
     const sortMode          = getResolvedSortMode();
     const rawQuery          = document.getElementById("search-input").value.trim();
-    const searchTokens      = parseSearchQuery(rawQuery);
     const itemsPerPage      = getItemsPerPage();
     const isSparkMode       = activeSparkBanner !== null;
     const availableSpark    = isSparkMode ? sparkPoints[activeSparkBanner] : 0;
     const isAnilistLinked   = Boolean(anilistUsername);
+    const lang              = typeof titleLang !== "undefined" ? titleLang : "JP";
 
     document.getElementById("filter-own-section")?.     classList.toggle("hidden", isSharedView);
     document.getElementById("filter-list-section")?.    classList.toggle("hidden", !isAnilistLinked);
     document.getElementById("filter-status-row")?.      classList.remove("hidden");
 
-    let filtered = characterPool.filter(c => {
-        const isOwned   = Boolean(inventory[c.uniqueKey]);
-        const isLocked  = isOwned && lockedCards.has(c.uniqueKey);
+    const cacheSig = [
+        characterPool.length,
+        isSharedView    ? 1                                         : 0,
+        isSparkMode     ? `${activeSparkBanner}:${availableSpark}`  : "0",
+        isAnilistLinked ? anilistUsername                           : "",
+        lang,
+        sortMode,
+        rawQuery,
+        Array.from(selectedRarities)    .sort().join(","),
+        Array.from(selectedOwn)         .sort().join(","),
+        Array.from(selectedLock)        .sort().join(","),
+        Array.from(selectedList)        .sort().join(",")
+    ].join("|");
 
-        if (isSharedView) {
-            if (!isOwned) return false;
-        } else if (selectedOwn.size > 0) {
-            const ownMatch = (selectedOwn.has("OWNED") && isOwned) || (selectedOwn.has("UNOWNED") && !isOwned);
-            if (!ownMatch) return false;
-        }
+    let filtered;
 
-        if (isSparkMode) {
-            if (!isCharacterSparkableInBanner(c, activeSparkBanner))    return false;
-            if (availableSpark < c.rarity.sparkCost)                    return false;
-        } else {
-            if (selectedLock.size > 0) {
-                const lockMatch = (selectedLock.has("LOCKED") && isLocked) || (selectedLock.has("UNLOCKED") && isOwned && !isLocked);
-                if (!lockMatch) return false;
+    if (cacheSig === invCacheSignature) filtered = invCachedFiltered;
+    else {
+        const searchTokens = parseSearchQuery(rawQuery);
+
+        filtered = characterPool.filter(c => {
+            const isOwned   = Boolean(inventory[c.uniqueKey]);
+            const isLocked  = isOwned && lockedCards.has(c.uniqueKey);
+
+            if (isSharedView) {
+                if (!isOwned) return false;
+            } else if (selectedOwn.size > 0) {
+                const ownMatch = (selectedOwn.has("OWNED") && isOwned) || (selectedOwn.has("UNOWNED") && !isOwned);
+                if (!ownMatch) return false;
             }
-        }
 
-        if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity.tier)) return false;
+            if (isSparkMode) {
+                if (!isCharacterSparkableInBanner(c, activeSparkBanner))    return false;
+                if (availableSpark < c.rarity.sparkCost)                    return false;
+            } else {
+                if (selectedLock.size > 0) {
+                    const lockMatch = (selectedLock.has("LOCKED") && isLocked) || (selectedLock.has("UNLOCKED") && isOwned && !isLocked);
+                    if (!lockMatch) return false;
+                }
+            }
 
-        if (isAnilistLinked && selectedList.size > 0) {
-            const onList    = isListCharacter(c);
-            const listMatch = (selectedList.has("IN_LIST") && onList) || (selectedList.has("NOT_IN_LIST") && !onList);
+            if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity.tier)) return false;
 
-            if (!listMatch) return false;
-        }
+            if (isAnilistLinked && selectedList.size > 0) {
+                const onList    = isListCharacter(c);
+                const listMatch = (selectedList.has("IN_LIST") && onList) || (selectedList.has("NOT_IN_LIST") && !onList);
 
-        if (!matchesSearchTokens(c, searchTokens)) return false;
-        return true;
-    });
+                if (!listMatch) return false;
+            }
+
+            if (!matchesSearchTokens(c, searchTokens)) return false;
+            return true;
+        });
+
+        if (filtered.length > 0) filtered = sortCharacters(filtered, sortMode);
+
+        invCacheSignature = cacheSig;
+        invCachedFiltered = filtered;
+    }
 
     if (filtered.length === 0) {
         const emptyMsg = isSparkMode
@@ -398,7 +433,6 @@ function renderInventory() {
         return;
     }
 
-    filtered    = sortCharacters(filtered, sortMode);
     totalPages  = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
 
     if (currentPage > totalPages) currentPage = totalPages;

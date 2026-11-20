@@ -379,23 +379,26 @@ function initGlobalTooltips() {
         return true;
     }
 
+    let tooltipRafId = 0;
+
     function positionTooltip(el) {
         const margin    = 8;
         const maxAvail  = window.innerWidth - margin * 2;
         const hasList   = !listWrapEl.classList.contains("hidden");
+        const rect      = el.getBoundingClientRect();
 
         tooltipEl.style.width       = "max-content";
         tooltipEl.style.maxWidth    = `${maxAvail}px`;
 
-        if (hasList) listWrapEl.classList.add("hidden");
-        const contentW = Math.min(tooltipEl.offsetWidth, maxAvail);
-
         if (hasList) {
-            tooltipEl.style.width = `${contentW}px`;
+            listWrapEl.classList.add("hidden");
+
+            const contentW          = Math.min(tooltipEl.offsetWidth, maxAvail);
+            tooltipEl.style.width   = `${contentW}px`;
+
             listWrapEl.classList.remove("hidden");
         }
 
-        const rect  = el.getBoundingClientRect();
         const tipW  = tooltipEl.offsetWidth;
         const tipH  = tooltipEl.offsetHeight;
         let left    = rect.left + rect.width / 2 - tipW / 2;
@@ -412,14 +415,20 @@ function initGlobalTooltips() {
         if (!syncTooltipContent(el)) return;
 
         activeTarget = el;
-        positionTooltip(el);
+        cancelAnimationFrame(tooltipRafId);
 
-        tooltipEl.classList.remove  ("opacity-0");
-        tooltipEl.classList.add     ("opacity-100");
+        tooltipRafId = requestAnimationFrame(() => {
+            if (activeTarget !== el) return;
+            positionTooltip(el);
+
+            tooltipEl.classList.remove  ("opacity-0");
+            tooltipEl.classList.add     ("opacity-100");
+        });
     }
 
     function hideTooltip() {
         activeTarget = null;
+        cancelAnimationFrame(tooltipRafId);
 
         tooltipEl.classList.remove  ("opacity-100");
         tooltipEl.classList.add     ("opacity-0");
@@ -480,7 +489,7 @@ function initGlobalTooltips() {
     });
 
     document.addEventListener("focusout",   () => {if (!isTouchDevice())    hideTooltip()});
-    document.addEventListener("scroll",     () => {if (activeTarget)        hideTooltip()}, true);
+    document.addEventListener("scroll",     () => {if (activeTarget)        hideTooltip()}, {capture: true, passive: true});
 
     document.addEventListener("click", (e) => {
         if (suppressNextClick) {
