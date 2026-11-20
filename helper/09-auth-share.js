@@ -99,6 +99,7 @@ async function exitSharedCollection() {
             inventory                   : {},
             lockedCards                 : [],
             sparkPoints                 : {STANDARD: 0, THEMED: 0, HOF: 0, LIST: 0},
+            fiftyFifty                  : {STANDARD: null, HOF: null, LIST: null, THEMED: null},
             totalPulls                  : 0,
             hofPulls                    : 0,
             listPulls                   : 0,
@@ -176,7 +177,9 @@ sb.auth.onAuthStateChange((event, session) => {
         }
 
         document.getElementById("results-section").classList.add("hidden");
-        if (activeSparkBanner) exitSparkMode();
+
+        if (activeSparkBanner)      exitSparkMode       ();
+        if (activeFiftyFiftyBanner) exitFiftyFiftyMode  ();
 
         document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = false});
 
@@ -185,6 +188,7 @@ sb.auth.onAuthStateChange((event, session) => {
             inventory                   : {},
             lockedCards                 : [],
             sparkPoints                 : {STANDARD: 0, ERA: 0, FRANCHISE: 0, GENRE: 0, SOURCE: 0, STUDIO: 0, TAG: 0, HOF: 0, LIST: 0},
+            fiftyFifty                  : {STANDARD: null, HOF: null, LIST: null, THEMED: null},
             totalPulls                  : 0,
             hofPulls                    : 0,
             listPulls                   : 0,

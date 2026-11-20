@@ -271,7 +271,7 @@ function getSparkIndicatorText(bannerKey) {
     return themed && themed.active ? `${themed.active.title} Spark` : `${bannerKey} Spark`;
 }
 
-function isCharacterSparkableInBanner(char, bannerKey) {
+function isCharacterEligibleForBanner(char, bannerKey) {
     if (!bannerKey)                                         return false;
     if (bannerKey === "STANDARD" || bannerKey === "HOF")    return true;
     if (bannerKey === "LIST")                               return Boolean(anilistUsername && anilistEligibleKeys.has(char.uniqueKey));
@@ -282,7 +282,65 @@ function isCharacterSparkableInBanner(char, bannerKey) {
     return themed.active.eligibleKeys.has(char.uniqueKey);
 }
 
+const isCharacterSparkableInBanner = isCharacterEligibleForBanner;
+
+function getBannerFiftyFiftyKey(bannerKey) {
+    const todayJst  = activeDailyJstDate || getCurrentJstDate();
+    let key         = null;
+
+    if (ALL_THEMED_KEYS.includes(bannerKey)) if (fiftyFifty.THEMED?.date === todayJst && fiftyFifty.THEMED?.bannerType === bannerKey)   key = fiftyFifty.THEMED.uniqueKey;
+    else                                                                                                                                key = fiftyFifty[bannerKey] || null;
+
+    if (!key)                       return null;
+    if ((inventory[key] || 0) >= 6) return null;
+
+    return key;
+}
+
+function updateFiftyFiftyButtonsUI() {
+    const setBtnState = (btnId, labelId, bannerKey, enabled) => {
+        const btn       = document.getElementById(btnId);
+        const labelEl   = document.getElementById(labelId);
+
+        if (!btn || !labelEl) return;
+
+        const key   = getBannerFiftyFiftyKey(bannerKey);
+        const char  = key ? characterMap.get(key) : null;
+
+        labelEl.textContent = char ? char.name : "None";
+        btn.disabled = actionInFlight || !databaseReady || !enabled;
+
+        if (char) {
+            btn.setAttribute("data-tooltip-title",  `50/50 Target (${char.rarity.tier})`);
+            btn.setAttribute("data-tooltip",        `${char.name}\n${getAnimeTitle(char)}\n50% chance when rolling ${char.rarity.tier}`);
+        } else {
+            btn.setAttribute("data-tooltip-title",  "50/50 Selection");
+            btn.setAttribute("data-tooltip",        "Select a non-maxed S+ character for a 50% rate-up in its rarity");
+        }
+    };
+
+    setBtnState("fifty-standard",   "fifty-label-standard", "STANDARD", true);
+    setBtnState("fifty-hof",        "fifty-label-hof",      "HOF",      true);
+    setBtnState("fifty-list",       "fifty-label-list",     "LIST",     Boolean(anilistUsername));
+
+    ALL_THEMED_KEYS.forEach(key => {
+        const banner = THEMED_BANNERS[key];
+        setBtnState(banner.fiftyBtnElId, banner.fiftyLabelElId, key, Boolean(banner.active));
+    });
+}
+
+function getFiftyFiftyIndicatorText(bannerKey) {
+    if (bannerKey === "STANDARD")   return "Standard 50/50";
+    if (bannerKey === "HOF")        return "Premium 50/50";
+    if (bannerKey === "LIST")       return `${anilistUsername || "List"} 50/50`;
+
+    const themed = THEMED_BANNERS[bannerKey];
+    return themed && themed.active ? `${themed.active.title} 50/50` : `${bannerKey} 50/50`;
+}
+
 function enterSparkMode(bannerKey) {
+    if (activeFiftyFiftyBanner) exitFiftyFiftyMode(false);
+
     hideResultsSection();
     activeSparkBanner = bannerKey;
 
@@ -307,7 +365,7 @@ function enterSparkMode(bannerKey) {
     document.getElementById("inventory-grid").scrollIntoView({behavior: "smooth", block: "nearest"});
 }
 
-function exitSparkMode() {
+function exitSparkMode(shouldRender = true) {
     activeSparkBanner = null;
 
     document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
@@ -315,8 +373,68 @@ function exitSparkMode() {
     document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
 
     if (!isSharedView) document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"})
+
+    if (shouldRender) {
+        currentPage = 1;
+        renderInventory();
+    }
+}
+
+function enterFiftyFiftyMode(bannerKey) {
+    if (activeSparkBanner) exitSparkMode(false);
+
+    hideResultsSection();
+    activeFiftyFiftyBanner = bannerKey;
+
+    setSortControlState     ("CHARACTER", "RARITY", "DESC");
+    clearFilterCheckboxes   (["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
+
+    document.getElementById("sell-all-btn")         .classList.add("hidden");
+    document.getElementById("filter-lock-section")  .classList.add("hidden");
+
+    const sortWrapper = document.getElementById("sort-filter-wrapper");
+
+    sortWrapper?.classList.remove   ("col-span-2");
+    sortWrapper?.classList.add      ("col-span-1");
+
+    const indicator     = document.getElementById("fifty-mode-indicator");
+    const label         = document.getElementById("fifty-mode-label");
+    label.textContent   = getFiftyFiftyIndicatorText(bannerKey);
+
+    indicator.classList.remove("hidden");
     currentPage = 1;
     renderInventory();
+    document.getElementById("inventory-grid").scrollIntoView({behavior: "smooth", block: "nearest"});
+}
+
+function exitFiftyFiftyMode(shouldRender = true) {
+    activeFiftyFiftyBanner = null;
+
+    document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
+    document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
+    document.getElementById("fifty-mode-indicator") .classList.add      ("hidden");
+
+    if (!isSharedView) document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"})
+
+    if (shouldRender) {
+        currentPage = 1;
+        renderInventory();
+    }
+}
+
+async function selectFiftyFiftyCharacter(uniqueKey) {
+    if (!activeFiftyFiftyBanner) return;
+
+    const currentKey    = getBannerFiftyFiftyKey(activeFiftyFiftyBanner);
+    const nextKey       = currentKey === uniqueKey ? null : uniqueKey;
+
+    const res = await sendGachaAction({
+        action      : "SET_FIFTY_FIFTY",
+        bannerType  : activeFiftyFiftyBanner,
+        uniqueKey   : nextKey
+    });
+
+    if (res && activeFiftyFiftyBanner) exitFiftyFiftyMode();
 }
 
 function updateSellAllUI() {
@@ -331,8 +449,9 @@ function updateSellAllUI() {
 
     const sellAllBtn    = document.getElementById("sell-all-btn");
     const sortWrapper   = document.getElementById("sort-filter-wrapper");
-    const shouldHide    = isSharedView || activeSparkBanner !== null || totalValue <= 0;
-    const isFullWidth   = shouldHide && activeSparkBanner === null;
+    const inSelectMode  = activeSparkBanner !== null || activeFiftyFiftyBanner !== null;
+    const shouldHide    = isSharedView || inSelectMode || totalValue <= 0;
+    const isFullWidth   = shouldHide && !inSelectMode;
 
     document.getElementById("sell-all-amount").textContent  = totalValue.toLocaleString();
     sellAllBtn.disabled                                     = sellInFlight || totalValue <= 0;

@@ -66,11 +66,12 @@ async function initDatabase() {
             applyDailyBanners(getClientDailyBanners());
             if (currentUser) await loadCloudSave(currentUser);
 
-            updateHeaderProfileUI   ();
-            updateSparkButtonsUI    ();
-            updateStarsUI           ();
-            renderInventory         ();
-            hintBannerSwipe         ();
+            updateHeaderProfileUI       ();
+            updateSparkButtonsUI        ();
+            updateFiftyFiftyButtonsUI   ();
+            updateStarsUI               ();
+            renderInventory             ();
+            hintBannerSwipe             ();
         }
     } catch (err) {
         console.error(err);

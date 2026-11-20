@@ -104,6 +104,7 @@ const HOF_RARITIES = RARITIES.map(r => {
 const GUARANTEED_B_PLUS         = new Set(["SSR", "SR", "S", "A", "B"]);
 const GUARANTEED_A_PLUS         = new Set(["SSR", "SR", "S", "A"]);
 const AUTO_LOCK_TIERS           = new Set(["SSR", "SR", "S"]);
+const FIFTY_FIFTY_TIERS         = new Set(["SSR", "SR", "S"]);
 let characterPool               = [];
 let characterMap                = new Map();
 let inventory                   = {};
@@ -149,7 +150,15 @@ let sparkPoints = {
     LIST        : 0
 };
 
-let activeSparkBanner = null;
+let fiftyFifty = {
+    STANDARD    : null,
+    HOF         : null,
+    LIST        : null,
+    THEMED      : null
+};
+
+let activeSparkBanner       = null;
+let activeFiftyFiftyBanner  = null;
 
 const THEMED_BANNERS = {
     ERA: {
@@ -160,6 +169,8 @@ const THEMED_BANNERS = {
         buttonElId      : "pull-era-10",
         sparkBtnElId    : "spark-era",
         sparkCountElId  : "spark-count-era",
+        fiftyBtnElId    : "fifty-era",
+        fiftyLabelElId  : "fifty-label-era",
         secondHoverLine : "The first 5 summons will be from this era",
         possibleLabel   : "Possible Era:",
         active          : null,
@@ -174,6 +185,8 @@ const THEMED_BANNERS = {
         buttonElId      : "pull-franchise-10",
         sparkBtnElId    : "spark-franchise",
         sparkCountElId  : "spark-count-franchise",
+        fiftyBtnElId    : "fifty-franchise",
+        fiftyLabelElId  : "fifty-label-franchise",
         secondHoverLine : "The first 5 summons will be from this franchise",
         possibleLabel   : "Possible Franchise:",
         active          : null,
@@ -188,6 +201,8 @@ const THEMED_BANNERS = {
         buttonElId      : "pull-genre-10",
         sparkBtnElId    : "spark-genre",
         sparkCountElId  : "spark-count-genre",
+        fiftyBtnElId    : "fifty-genre",
+        fiftyLabelElId  : "fifty-label-genre",
         secondHoverLine : "The first 5 summons will be from anime with this genre",
         possibleLabel   : "Possible Genre:",
         active          : null,
@@ -202,6 +217,8 @@ const THEMED_BANNERS = {
         buttonElId      : "pull-source-10",
         sparkBtnElId    : "spark-source",
         sparkCountElId  : "spark-count-source",
+        fiftyBtnElId    : "fifty-source",
+        fiftyLabelElId  : "fifty-label-source",
         secondHoverLine : "The first 5 summons will be from this source",
         possibleLabel   : "Possible Source:",
         active          : null,
@@ -216,6 +233,8 @@ const THEMED_BANNERS = {
         buttonElId      : "pull-studio-10",
         sparkBtnElId    : "spark-studio",
         sparkCountElId  : "spark-count-studio",
+        fiftyBtnElId    : "fifty-studio",
+        fiftyLabelElId  : "fifty-label-studio",
         secondHoverLine : "The first 5 summons will be from this studio",
         possibleLabel   : "Possible Studio:",
         active          : null,
@@ -230,6 +249,8 @@ const THEMED_BANNERS = {
         buttonElId      : "pull-tag-10",
         sparkBtnElId    : "spark-tag",
         sparkCountElId  : "spark-count-tag",
+        fiftyBtnElId    : "fifty-tag",
+        fiftyLabelElId  : "fifty-label-tag",
         secondHoverLine : "The first 5 summons will be from anime with this tag",
         possibleLabel   : "Possible Tag:",
         active          : null,
@@ -366,12 +387,23 @@ function applySaveState(data) {
         ALL_THEMED_KEYS             .forEach(k => {if (typeof data.sparkPoints[k] === "number") sparkPoints.THEMED += data.sparkPoints[k]});
     }
 
-    if (data.themedPulls)                                   ALL_THEMED_KEYS.forEach(k => {THEMED_BANNERS[k].pulls = typeof data.themedPulls[k] === "number" ? data.themedPulls[k] : 0})
-    if (activeSparkBanner === "LIST" && !anilistUsername)   exitSparkMode()
+    const incomingFifty = data.fiftyFifty || {};
 
-    applyDailyBanners       (lastDailyBannersPayload || getClientDailyBanners());
-    updateSparkButtonsUI    ();
-    renderInventory         ();
+    fiftyFifty = {
+        STANDARD    : incomingFifty.STANDARD    || null,
+        HOF         : incomingFifty.HOF         || null,
+        LIST        : incomingFifty.LIST        || null,
+        THEMED      : incomingFifty.THEMED      || null
+    };
+
+    if (data.themedPulls)                                       ALL_THEMED_KEYS.forEach(k => {THEMED_BANNERS[k].pulls = typeof data.themedPulls[k] === "number" ? data.themedPulls[k] : 0})
+    if (activeSparkBanner === "LIST" && !anilistUsername)       exitSparkMode()
+    if (activeFiftyFiftyBanner === "LIST" && !anilistUsername)  exitFiftyFiftyMode()
+
+    applyDailyBanners           (lastDailyBannersPayload || getClientDailyBanners());
+    updateSparkButtonsUI        ();
+    updateFiftyFiftyButtonsUI   ();
+    renderInventory             ();
 
     if (lastResults.length > 0 && !document.getElementById("results-section").classList.contains("hidden")) renderResults(lastResults, false, lastBannerType);
 }
@@ -503,6 +535,9 @@ function applyDailyBanners(dailyBanners) {
         } else listCardEl.classList.add ("hidden");
     }
 
-    updateStarsUI           ();
-    updateSparkButtonsUI    ();
+    if (fiftyFifty.THEMED && fiftyFifty.THEMED.date !== activeDailyJstDate) fiftyFifty.THEMED = null;
+
+    updateStarsUI               ();
+    updateSparkButtonsUI        ();
+    updateFiftyFiftyButtonsUI   ();
 }

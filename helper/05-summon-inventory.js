@@ -17,7 +17,8 @@ async function performSummon(_, bannerType = "STANDARD") {
     const res = await sendGachaAction({action: "SUMMON", bannerType});
     if (!res) return;
 
-    if (activeSparkBanner) exitSparkMode();
+    if (activeSparkBanner)      exitSparkMode       ();
+    if (activeFiftyFiftyBanner) exitFiftyFiftyMode  ();
 
     if (!isSharedView) {
         document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"});
@@ -43,6 +44,8 @@ function createCardHTML(char, {
     extraClass      = "",
     showSparkButton = false,
     canAffordSpark  = false,
+    showFiftyButton = false,
+    isFiftySelected = false,
     showSellButton  = false,
     autoSoldStars   = 0
 } = {}) {
@@ -69,6 +72,15 @@ function createCardHTML(char, {
             <button type="button" data-spark-key="${escapeHTML(char.uniqueKey)}" ${canAffordSpark ? "" : "disabled"}
                 class="spark-card-btn w-full py-1 rounded text-[11px] font-bold bg-slate-950/80 hover:bg-slate-950 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                 Spark: ${r.sparkCost}
+            </button>
+        </div>`
+        : "";
+
+    const fiftyFooterHtml = showFiftyButton
+        ? `<div class="px-1.5 pb-1.5">
+            <button type="button" data-fifty-key="${escapeHTML(char.uniqueKey)}"
+                class="fifty-card-btn w-full py-1 rounded text-[11px] font-bold ${isFiftySelected ? "bg-indigo-600 hover:bg-indigo-500 text-white" : "bg-slate-950/80 hover:bg-slate-950 text-white"} transition">
+                ${isFiftySelected ? "Selected" : "Select 50/50"}
             </button>
         </div>`
         : "";
@@ -134,6 +146,7 @@ function createCardHTML(char, {
             </div>
             </div>
             ${sparkFooterHtml}
+            ${fiftyFooterHtml}
             ${autoSoldFooterHtml}
         </div>
         </div>
@@ -365,8 +378,10 @@ function renderInventory(useCache = false) {
     const rawQuery          = document.getElementById("search-input").value.trim();
     const itemsPerPage      = getItemsPerPage();
     const isSparkMode       = activeSparkBanner !== null;
+    const isFiftyMode       = activeFiftyFiftyBanner !== null;
     const sparkKey          = isSparkMode && ALL_THEMED_KEYS.includes(activeSparkBanner) ? "THEMED" : activeSparkBanner;
     const availableSpark    = isSparkMode ? sparkPoints[sparkKey] : 0;
+    const selectedFiftyKey  = isFiftyMode ? getBannerFiftyFiftyKey(activeFiftyFiftyBanner) : null;
     const isAnilistLinked   = Boolean(anilistUsername);
     const lang              = typeof titleLang !== "undefined" ? titleLang : "JP";
 
@@ -376,9 +391,10 @@ function renderInventory(useCache = false) {
 
     const cacheSig = [
         characterPool.length,
-        isSharedView    ? 1                                         : 0,
-        isSparkMode     ? `${activeSparkBanner}:${availableSpark}`  : "0",
-        isAnilistLinked ? anilistUsername                           : "",
+        isSharedView    ? 1                                                     : 0,
+        isSparkMode     ? `${activeSparkBanner}:${availableSpark}`              : "0",
+        isFiftyMode     ? `${activeFiftyFiftyBanner}:${selectedFiftyKey || ""}` : "0",
+        isAnilistLinked ? anilistUsername                                       : "",
         lang,
         sortMode,
         rawQuery,
@@ -406,9 +422,13 @@ function renderInventory(useCache = false) {
             }
 
             if (isSparkMode) {
-                if ((inventory[c.uniqueKey] || 0) >= 6)                     return false;
-                if (!isCharacterSparkableInBanner(c, activeSparkBanner))    return false;
-                if (availableSpark < c.rarity.sparkCost)                    return false;
+                if ((inventory[c.uniqueKey] || 0) >= 6)                         return false;
+                if (!isCharacterSparkableInBanner(c, activeSparkBanner))        return false;
+                if (availableSpark < c.rarity.sparkCost)                        return false;
+            } else if (isFiftyMode) {
+                if ((inventory[c.uniqueKey] || 0) >= 6)                         return false;
+                if (!FIFTY_FIFTY_TIERS.has(c.rarity.tier))                      return false;
+                if (!isCharacterEligibleForBanner(c, activeFiftyFiftyBanner))   return false;
             } else {
                 if (selectedLock.size > 0) {
                     const lockMatch = (selectedLock.has("LOCKED") && isLocked) || (selectedLock.has("UNLOCKED") && isOwned && !isLocked);
@@ -438,7 +458,9 @@ function renderInventory(useCache = false) {
     if (filtered.length === 0) {
         const emptyMsg = isSparkMode
             ? "No affordable sparkable characters match the current filter"
-            : "No characters match the current filter";
+            : isFiftyMode
+                ? "No eligible S+ characters match the current filter"
+                : "No characters match the current filter";
 
         grid.innerHTML = `<div class="col-span-full text-center py-8 text-slate-500 text-sm">${emptyMsg}</div>`;
         paginationEls.forEach(el => el.classList.add("hidden"));
@@ -461,10 +483,12 @@ function renderInventory(useCache = false) {
             duplicateCount  : ownedCount > 1 ? ownedCount : null,
             showSparkButton : isSparkMode   && !isSharedView,
             canAffordSpark  : canAfford,
-            showSellButton  : !isSparkMode  && !isSharedView && ownedCount > 0
+            showFiftyButton : isFiftyMode   && !isSharedView,
+            isFiftySelected : isFiftyMode   && selectedFiftyKey === c.uniqueKey,
+            showSellButton  : !isSparkMode  && !isFiftyMode && !isSharedView && ownedCount > 0
         });
 
-        return ownedCount === 0 && !isSparkMode
+        return ownedCount === 0 && !isSparkMode && !isFiftyMode
             ? `<div class="opacity-35 grayscale hover:grayscale-0 hover:opacity-80 transition">${card}</div>`
             : card;
     }).join("");

@@ -89,18 +89,45 @@ function handleGuestGachaAction(payload) {
             ? buildClientTierMapFromKeys(THEMED_BANNERS[bannerType].active.eligibleKeys, globalBuckets)
             : (isListBanner ? buildClientTierMapFromKeys(anilistEligibleKeys, globalBuckets) : null);
 
+        const todayJst      = activeDailyJstDate || getCurrentJstDate();
+        let activeFiftyKey  = null;
+
+        if (isThemed) if (fiftyFifty.THEMED?.date === todayJst && fiftyFifty.THEMED?.bannerType === bannerType) activeFiftyKey = fiftyFifty.THEMED.uniqueKey;
+        else                                                                                                    activeFiftyKey = fiftyFifty[bannerType] || null;
+
+        let activeFiftyChar = activeFiftyKey ? characterMap.get(activeFiftyKey) : null;
+
+        if (activeFiftyChar && (!FIFTY_FIFTY_TIERS.has(activeFiftyChar.rarity.tier) || (inventory[activeFiftyKey] || 0) >= 6)) {
+            activeFiftyChar = null;
+
+            if (isThemed)   fiftyFifty.THEMED       = null;
+            else            fiftyFifty[bannerType]  = null;
+        }
+
         for (let i = 0; i < 10; i++) {
             const guaranteeTier     = i === 0 ? (isHOF ? "A" : "B") : null;
             const isCategorySlot    = Boolean(categoryTierMap && i < 5);
             const tier              = selectClientRarityTier(guaranteeTier, customRarities);
             const pool              = isCategorySlot ? categoryTierMap[tier] : globalBuckets[tier];
-            const chosen            = pool[Math.floor(Math.random() * pool.length)];
-            const prevCount         = inventory[chosen.uniqueKey] || 0;
-            const isMaxed           = prevCount >= 6;
-            const autoSoldStars     = isMaxed ? chosen.rarity.sellValue : 0;
-            const count             = isMaxed ? prevCount : prevCount + 1;
 
+            let chosen;
+
+            if (activeFiftyChar && activeFiftyChar.rarity.tier === tier && (inventory[activeFiftyChar.uniqueKey] || 0) < 6 && Math.random() < 0.5)  chosen = activeFiftyChar;
+            else                                                                                                                                    chosen = pool[Math.floor(Math.random() * pool.length)];
+
+            const prevCount             = inventory[chosen.uniqueKey] || 0;
+            const isMaxed               = prevCount >= 6;
+            const autoSoldStars         = isMaxed ? chosen.rarity.sellValue : 0;
+            const count                 = isMaxed ? prevCount : prevCount + 1;
             inventory[chosen.uniqueKey] = count;
+
+            if (activeFiftyChar && chosen.uniqueKey === activeFiftyChar.uniqueKey && count >= 6) {
+                activeFiftyChar = null;
+
+                if (isThemed)   fiftyFifty.THEMED       = null;
+                else            fiftyFifty[bannerType]  = null;
+            }
+
             if (AUTO_LOCK_TIERS.has(tier)) lockedCards.add(chosen.uniqueKey);
 
             const sparkKey = isThemed ? "THEMED" : bannerType;
@@ -131,6 +158,26 @@ function handleGuestGachaAction(payload) {
         inventory[uniqueKey]    =   (inventory[uniqueKey] || 0) + 1;
 
         lockedCards.add(uniqueKey);
+    } else if (action === "SET_FIFTY_FIFTY") {
+        const {bannerType, uniqueKey}   = payload;
+        const isThemed                  = ALL_THEMED_KEYS.includes(bannerType);
+
+        if (!uniqueKey) {
+            if (isThemed)   fiftyFifty.THEMED       = null;
+            else            fiftyFifty[bannerType]  = null;
+        } else {
+            const char = characterMap.get(uniqueKey);
+
+            if (!char || (inventory[uniqueKey] || 0) >= 6)          return null;
+            if (!FIFTY_FIFTY_TIERS.has(char.rarity.tier))           return null;
+            if (!isCharacterEligibleForBanner(char, bannerType))    return null;
+
+            if (isThemed) {fiftyFifty.THEMED = {
+                date       : activeDailyJstDate || getCurrentJstDate(),
+                bannerType : bannerType,
+                uniqueKey  : uniqueKey
+            }} else fiftyFifty[bannerType] = uniqueKey;
+        }
     } else if (action === "TOGGLE_LOCK") {
         const key = payload.uniqueKey;
 
@@ -140,9 +187,10 @@ function handleGuestGachaAction(payload) {
         }
     }
 
-    updateStarsUI           ();
-    updateSparkButtonsUI    ();
-    renderInventory         ();
+    updateStarsUI               ();
+    updateSparkButtonsUI        ();
+    updateFiftyFiftyButtonsUI   ();
+    renderInventory             ();
 
     return {rolledResults};
 }
@@ -217,8 +265,9 @@ async function sendGachaAction(payload) {
         if (actionInFlight) return null;
         actionInFlight = true;
 
-        updateStarsUI           ();
-        updateSparkButtonsUI    ();
+        updateStarsUI               ();
+        updateSparkButtonsUI        ();
+        updateFiftyFiftyButtonsUI   ();
     }
 
     try {
@@ -262,8 +311,9 @@ async function sendGachaAction(payload) {
     } finally {if (!isBackgroundSync) {
         actionInFlight = false;
 
-        updateStarsUI           ();
-        updateSparkButtonsUI    ();
+        updateStarsUI               ();
+        updateSparkButtonsUI        ();
+        updateFiftyFiftyButtonsUI   ();
     }}
 }
 

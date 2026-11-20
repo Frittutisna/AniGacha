@@ -42,6 +42,7 @@ const COSTS = {
 const GUARANTEED_B_PLUS = new Set(["SSR", "SR", "S", "A", "B"]);
 const GUARANTEED_A_PLUS = new Set(["SSR", "SR", "S", "A"]);
 const AUTO_LOCK_TIERS   = new Set(["SSR", "SR", "S"]);
+const FIFTY_FIFTY_TIERS = new Set(["SSR", "SR", "S"]);
 const THEMED_KEYS       = ["ERA", "FRANCHISE", "GENRE", "SOURCE", "STUDIO", "TAG"];
 const rarityInfoMap     = new Map(RARITIES.map(r => [r.tier, r]));
 
@@ -390,6 +391,7 @@ serve(async (req) => {
             inventory                   : {},
             lockedCards                 : [],
             sparkPoints                 : {STANDARD: 0, THEMED: 0, HOF: 0, LIST: 0},
+            fiftyFifty                  : {STANDARD: null, HOF: null, LIST: null, THEMED: null},
             totalPulls                  : 0,
             hofPulls                    : 0,
             listPulls                   : 0,
@@ -402,7 +404,7 @@ serve(async (req) => {
             anilistUsername             : null,
             anilistAnimeIds             : [],
             linkedAnilistHistory        : [],
-            lastAnilistChangeJstYear    :null,
+            lastAnilistChangeJstYear    : null,
         };
 
         if (!save.sparkPoints)                              save.sparkPoints        = {};
@@ -415,12 +417,14 @@ serve(async (req) => {
             }
         }
 
-        if (typeof save.sparkPoints.LIST    !== "number")   save.sparkPoints.LIST       = 0;
-        if (typeof save.listPulls           !== "number")   save.listPulls              = 0;
-        if (!Array.isArray(save.anilistAnimeIds))           save.anilistAnimeIds        = [];
-        if (!Array.isArray(save.linkedAnilistHistory))      save.linkedAnilistHistory   = [];
+        if (typeof save.sparkPoints.LIST    !== "number")               save.sparkPoints.LIST       = 0;
+        if (typeof save.listPulls           !== "number")               save.listPulls              = 0;
+        if (!Array.isArray(save.anilistAnimeIds))                       save.anilistAnimeIds        = [];
+        if (!Array.isArray(save.linkedAnilistHistory))                  save.linkedAnilistHistory   = [];
+        if (!save.fiftyFifty || typeof save.fiftyFifty !== "object")    save.fiftyFifty             = {STANDARD: null, HOF: null, LIST: null, THEMED: null};
 
         const dailyBanners = getDailyThemedBanners(gameData);
+        if (save.fiftyFifty.THEMED && save.fiftyFifty.THEMED.date !== dailyBanners.jstDate) save.fiftyFifty.THEMED = null;
 
         const bannerPayload = {
             jstDate             : dailyBanners.jstDate,
@@ -735,6 +739,43 @@ serve(async (req) => {
         } else if (action === "UNLINK_ANILIST") {
             save.anilistUsername = null;
             save.anilistAnimeIds = [];
+            save.fiftyFifty.LIST = null;
+        } else if (action === "SET_FIFTY_FIFTY") {
+            const bannerType    = body.bannerType;
+            const uniqueKey     = body.uniqueKey || null;
+            const isThemed      = THEMED_KEYS.includes(bannerType);
+            const validBanner   = bannerType === "STANDARD" || bannerType === "HOF" || bannerType === "LIST" || isThemed;
+
+            if (!validBanner) throw new Error("Invalid banner type");
+
+            if (!uniqueKey) {
+                if (isThemed)   save.fiftyFifty.THEMED      = null;
+                else            save.fiftyFifty[bannerType] = null;
+            } else {
+                const char = gameData.charMap.get(uniqueKey);
+
+                if (!char)                                  throw new Error("Invalid character");
+                if (!FIFTY_FIFTY_TIERS.has(char.tier))      throw new Error("Only S, SR, or SSR characters can be selected for 50/50");
+                if ((save.inventory[uniqueKey] || 0) >= 6)  throw new Error("Character is already maxed out");
+
+                if (isThemed) {
+                    const availableCategories = save.anilistUsername ? dailyBanners.activeCategories.slice(0, 1) : dailyBanners.activeCategories;
+
+                    if (!availableCategories.includes(bannerType))                          throw new Error("Banner not active today");
+                    if (!dailyBanners.activeEntries[bannerType].keys.includes(uniqueKey))   throw new Error("Character not in banner");
+
+                    save.fiftyFifty.THEMED = {
+                        date        : dailyBanners.jstDate,
+                        bannerType  : bannerType,
+                        uniqueKey   : uniqueKey
+                    };
+                } else if (bannerType === "LIST") {
+                    if (!save.anilistUsername)                                      throw new Error("AniList account not linked");
+                    if (!char.animeId || !playerAnilistAnimeSet.has(char.animeId))  throw new Error("Character not in AniList");
+
+                    save.fiftyFifty.LIST = uniqueKey;
+                } else save.fiftyFifty[bannerType] = uniqueKey;
+            }
         } else if (action === "SUMMON") {
             const bannerType    = body.bannerType || "STANDARD";
             const isThemed      = THEMED_KEYS.includes(bannerType);
@@ -766,18 +807,44 @@ serve(async (req) => {
                 categoryTierMap = buildTierMapFromKeys(listKeys, gameData);
             }
 
+            let activeFiftyKey = null;
+
+            if (isThemed) if (save.fiftyFifty.THEMED?.date === dailyBanners.jstDate && save.fiftyFifty.THEMED?.bannerType === bannerType)   activeFiftyKey = save.fiftyFifty.THEMED.uniqueKey;
+            else                                                                                                                            activeFiftyKey = save.fiftyFifty[bannerType] || null;
+
+            let activeFiftyChar = activeFiftyKey ? gameData.charMap.get(activeFiftyKey) : null;
+
+            if (activeFiftyChar && (!FIFTY_FIFTY_TIERS.has(activeFiftyChar.tier) || (save.inventory[activeFiftyKey] || 0) >= 6)) {
+                activeFiftyChar = null;
+
+                if (isThemed)   save.fiftyFifty.THEMED      = null;
+                else            save.fiftyFifty[bannerType] = null;
+            }
+
             for (let i = 0; i < 10; i++) {
-                const guaranteeTier         = i === 0 ? (isHOF ? "A" : "B") : null;
-                const isCategorySlot        = Boolean(categoryTierMap && i < 5);
-                const tier                  = selectRarityTier(guaranteeTier, customRarities);
-                const pool                  = isCategorySlot ? categoryTierMap[tier] : gameData.globalBuckets[tier];
-                const chosenKey             = pool[Math.floor(Math.random() * pool.length)];
+                const guaranteeTier     = i === 0 ? (isHOF ? "A" : "B") : null;
+                const isCategorySlot    = Boolean(categoryTierMap && i < 5);
+                const tier              = selectRarityTier(guaranteeTier, customRarities);
+                const pool              = isCategorySlot ? categoryTierMap[tier] : gameData.globalBuckets[tier];
+
+                let chosenKey;
+
+                if (activeFiftyChar && activeFiftyChar.tier === tier && (save.inventory[activeFiftyChar.uniqueKey] || 0) < 6 && Math.random() < 0.5)    chosenKey = activeFiftyChar.uniqueKey;
+                else                                                                                                                                    chosenKey = pool[Math.floor(Math.random() * pool.length)];
+
                 const prevCount             = save.inventory[chosenKey] || 0;
                 const isMaxed               = prevCount >= 6;
                 const autoSoldStars         = isMaxed ? rarityInfoMap.get(tier).sellValue : 0;
                 const count                 = isMaxed ? prevCount : prevCount + 1;
 
                 save.inventory[chosenKey] = count;
+
+                if (activeFiftyChar && chosenKey === activeFiftyChar.uniqueKey && count >= 6) {
+                    activeFiftyChar = null;
+
+                    if (isThemed)   save.fiftyFifty.THEMED      = null;
+                    else            save.fiftyFifty[bannerType] = null;
+                }
 
                 if (autoSoldStars > 0)          save.stars += autoSoldStars;
                 if (AUTO_LOCK_TIERS.has(tier))  lockedSet.add(chosenKey);

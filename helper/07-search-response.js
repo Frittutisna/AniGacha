@@ -9,25 +9,35 @@ window.addEventListener("resize", () => {
     }
 });
 
-document.getElementById("pull-10").                 addEventListener("click", () => performSummon   (10, "STANDARD"));
-document.getElementById("pull-era-10").             addEventListener("click", () => performSummon   (10, "ERA"));
-document.getElementById("pull-franchise-10").       addEventListener("click", () => performSummon   (10, "FRANCHISE"));
-document.getElementById("pull-genre-10").           addEventListener("click", () => performSummon   (10, "GENRE"));
-document.getElementById("pull-source-10").          addEventListener("click", () => performSummon   (10, "SOURCE"));
-document.getElementById("pull-studio-10").          addEventListener("click", () => performSummon   (10, "STUDIO"));
-document.getElementById("pull-tag-10").             addEventListener("click", () => performSummon   (10, "TAG"));
-document.getElementById("pull-hof-10").             addEventListener("click", () => performSummon   (10, "HOF"));
-document.getElementById("pull-list-10")?.           addEventListener("click", () => performSummon   (10, "LIST"));
-document.getElementById("spark-standard").          addEventListener("click", () => enterSparkMode  ("STANDARD"));
-document.getElementById("spark-era").               addEventListener("click", () => enterSparkMode  ("ERA"));
-document.getElementById("spark-franchise").         addEventListener("click", () => enterSparkMode  ("FRANCHISE"));
-document.getElementById("spark-genre").             addEventListener("click", () => enterSparkMode  ("GENRE"));
-document.getElementById("spark-source").            addEventListener("click", () => enterSparkMode  ("SOURCE"));
-document.getElementById("spark-studio").            addEventListener("click", () => enterSparkMode  ("STUDIO"));
-document.getElementById("spark-tag").               addEventListener("click", () => enterSparkMode  ("TAG"));
-document.getElementById("spark-hof").               addEventListener("click", () => enterSparkMode  ("HOF"));
-document.getElementById("spark-list")?.             addEventListener("click", () => enterSparkMode  ("LIST"));
-document.getElementById("spark-mode-indicator").    addEventListener("click",  exitSparkMode);
+document.getElementById("pull-10").                 addEventListener("click", () => performSummon       (10, "STANDARD"));
+document.getElementById("pull-era-10").             addEventListener("click", () => performSummon       (10, "ERA"));
+document.getElementById("pull-franchise-10").       addEventListener("click", () => performSummon       (10, "FRANCHISE"));
+document.getElementById("pull-genre-10").           addEventListener("click", () => performSummon       (10, "GENRE"));
+document.getElementById("pull-source-10").          addEventListener("click", () => performSummon       (10, "SOURCE"));
+document.getElementById("pull-studio-10").          addEventListener("click", () => performSummon       (10, "STUDIO"));
+document.getElementById("pull-tag-10").             addEventListener("click", () => performSummon       (10, "TAG"));
+document.getElementById("pull-hof-10").             addEventListener("click", () => performSummon       (10, "HOF"));
+document.getElementById("pull-list-10")?.           addEventListener("click", () => performSummon       (10, "LIST"));
+document.getElementById("spark-standard").          addEventListener("click", () => enterSparkMode      ("STANDARD"));
+document.getElementById("spark-era").               addEventListener("click", () => enterSparkMode      ("ERA"));
+document.getElementById("spark-franchise").         addEventListener("click", () => enterSparkMode      ("FRANCHISE"));
+document.getElementById("spark-genre").             addEventListener("click", () => enterSparkMode      ("GENRE"));
+document.getElementById("spark-source").            addEventListener("click", () => enterSparkMode      ("SOURCE"));
+document.getElementById("spark-studio").            addEventListener("click", () => enterSparkMode      ("STUDIO"));
+document.getElementById("spark-tag").               addEventListener("click", () => enterSparkMode      ("TAG"));
+document.getElementById("spark-hof").               addEventListener("click", () => enterSparkMode      ("HOF"));
+document.getElementById("spark-list")?.             addEventListener("click", () => enterSparkMode      ("LIST"));
+document.getElementById("fifty-standard").          addEventListener("click", () => enterFiftyFiftyMode ("STANDARD"));
+document.getElementById("fifty-era").               addEventListener("click", () => enterFiftyFiftyMode ("ERA"));
+document.getElementById("fifty-franchise").         addEventListener("click", () => enterFiftyFiftyMode ("FRANCHISE"));
+document.getElementById("fifty-genre").             addEventListener("click", () => enterFiftyFiftyMode ("GENRE"));
+document.getElementById("fifty-source").            addEventListener("click", () => enterFiftyFiftyMode ("SOURCE"));
+document.getElementById("fifty-studio").            addEventListener("click", () => enterFiftyFiftyMode ("STUDIO"));
+document.getElementById("fifty-tag").               addEventListener("click", () => enterFiftyFiftyMode ("TAG"));
+document.getElementById("fifty-hof").               addEventListener("click", () => enterFiftyFiftyMode ("HOF"));
+document.getElementById("fifty-list")?.             addEventListener("click", () => enterFiftyFiftyMode ("LIST"));
+document.getElementById("spark-mode-indicator").    addEventListener("click", () => exitSparkMode       ());
+document.getElementById("fifty-mode-indicator").    addEventListener("click", () => exitFiftyFiftyMode  ());
 
 const sellAllModal      = document.getElementById("sell-all-modal");
 const closeSellAllModal = () => sellAllModal?.classList.add("hidden");
@@ -77,6 +87,17 @@ document.getElementById("inventory-grid").addEventListener("click", (e) => {
 
         const key = sparkBtn.getAttribute("data-spark-key");
         if (key) sparkCharacter(key);
+
+        return;
+    }
+
+    const fiftyBtn = e.target.closest(".fifty-card-btn");
+
+    if (fiftyBtn && !fiftyBtn.disabled) {
+        hideResultsSection();
+
+        const key = fiftyBtn.getAttribute("data-fifty-key");
+        if (key) selectFiftyFiftyCharacter(key);
 
         return;
     }
