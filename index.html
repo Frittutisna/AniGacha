@@ -146,212 +146,176 @@
                 </div>
             </section>
             <div id="banner-carousel" class="w-full lg:col-span-7 flex lg:grid lg:grid-cols-2 gap-1.5 overflow-x-auto snap-x snap-mandatory no-scrollbar">
-                <section class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 data-tooltip-title="Standard: All-Star"
-                            title="First summon is guaranteed to be a B-tier or better&#10;Free 10-summon daily, 00:00 JST&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-indigo-600 dark:text-indigo-400">Standard:</span> All-Star
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: Free
-                        </button>
-                        <button id="spark-standard" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-standard">0</span>
-                        </button>
-                        <button id="fifty-standard" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-standard">None</span>
-                        </button>
-                    </div>
+                <section class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 data-tooltip-title="Standard: All-Star"
+                        title="First summon is guaranteed to be a B-tier or better&#10;Free 10-summon daily, 00:00 JST&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-indigo-600 dark:text-indigo-400 truncate">
+                        All-Star
+                    </h2>
+                    <button id="fifty-standard" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-standard">None</span>
+                    </button>
+                    <button id="pull-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: Free
+                    </button>
+                    <button id="spark-standard" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-standard">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-era" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="era-banner-pill" data-tooltip-title="Era Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this era&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-amber-600 dark:text-amber-400">Era:</span> <span id="era-banner-title">Era</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-era-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 100
-                        </button>
-                        <button id="spark-era" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-amber-500/40 text-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-era">0</span>
-                        </button>
-                        <button id="fifty-era" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-amber-500/40 text-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-era">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-era" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="era-banner-pill" data-tooltip-title="Era Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this era&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-amber-600 dark:text-amber-400 truncate">
+                        <span id="era-banner-title">Era</span>
+                    </h2>
+                    <button id="fifty-era" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-amber-500/40 text-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-era">None</span>
+                    </button>
+                    <button id="pull-era-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 100
+                    </button>
+                    <button id="spark-era" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-amber-500/40 text-amber-700 dark:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-era">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-franchise" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="franchise-banner-pill" data-tooltip-title="Franchise Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this franchise&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-rose-600 dark:text-rose-400">Franchise:</span> <span id="franchise-banner-title">Franchise</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-franchise-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 100
-                        </button>
-                        <button id="spark-franchise" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-rose-500/40 text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-franchise">0</span>
-                        </button>
-                        <button id="fifty-franchise" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-rose-500/40 text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-franchise">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-franchise" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="franchise-banner-pill" data-tooltip-title="Franchise Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this franchise&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-rose-600 dark:text-rose-400 truncate">
+                        <span id="franchise-banner-title">Franchise</span>
+                    </h2>
+                    <button id="fifty-franchise" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-rose-500/40 text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-franchise">None</span>
+                    </button>
+                    <button id="pull-franchise-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 100
+                    </button>
+                    <button id="spark-franchise" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-rose-500/40 text-rose-700 dark:text-rose-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-franchise">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-genre" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="genre-banner-pill" data-tooltip-title="Genre Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this genre&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-emerald-600 dark:text-emerald-400">Genre:</span> <span id="genre-banner-title">Genre</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-genre-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 100
-                        </button>
-                        <button id="spark-genre" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-genre">0</span>
-                        </button>
-                        <button id="fifty-genre" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-genre">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-genre" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="genre-banner-pill" data-tooltip-title="Genre Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this genre&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-emerald-600 dark:text-emerald-400 truncate">
+                        <span id="genre-banner-title">Genre</span>
+                    </h2>
+                    <button id="fifty-genre" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-genre">None</span>
+                    </button>
+                    <button id="pull-genre-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 100
+                    </button>
+                    <button id="spark-genre" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-genre">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-source" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="source-banner-pill" data-tooltip-title="Source Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this source&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-sky-600 dark:text-sky-400">Source:</span> <span id="source-banner-title">Source</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-source-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 100
-                        </button>
-                        <button id="spark-source" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-700 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-source">0</span>
-                        </button>
-                        <button id="fifty-source" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-700 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-source">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-source" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="source-banner-pill" data-tooltip-title="Source Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this source&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-sky-600 dark:text-sky-400 truncate">
+                        <span id="source-banner-title">Source</span>
+                    </h2>
+                    <button id="fifty-source" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-700 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-source">None</span>
+                    </button>
+                    <button id="pull-source-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 100
+                    </button>
+                    <button id="spark-source" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-700 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-source">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-studio" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="studio-banner-pill" data-tooltip-title="Studio Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this studio&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-violet-600 dark:text-violet-400">Studio:</span> <span id="studio-banner-title">Studio</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-studio-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 100
-                        </button>
-                        <button id="spark-studio" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-violet-500/40 text-violet-700 dark:text-violet-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-studio">0</span>
-                        </button>
-                        <button id="fifty-studio" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-violet-500/40 text-violet-700 dark:text-violet-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-studio">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-studio" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="studio-banner-pill" data-tooltip-title="Studio Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from this studio&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-violet-600 dark:text-violet-400 truncate">
+                        <span id="studio-banner-title">Studio</span>
+                    </h2>
+                    <button id="fifty-studio" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-violet-500/40 text-violet-700 dark:text-violet-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-studio">None</span>
+                    </button>
+                    <button id="pull-studio-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 100
+                    </button>
+                    <button id="spark-studio" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-violet-500/40 text-violet-700 dark:text-violet-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-studio">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-tag" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="tag-banner-pill" data-tooltip-title="Tag Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this tag&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-teal-600 dark:text-teal-400">Tag:</span> <span id="tag-banner-title">Tag</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-tag-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 100
-                        </button>
-                        <button id="spark-tag" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-teal-500/40 text-teal-700 dark:text-teal-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-tag">0</span>
-                        </button>
-                        <button id="fifty-tag" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-teal-500/40 text-teal-700 dark:text-teal-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-tag">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-tag" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="tag-banner-pill" data-tooltip-title="Tag Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from anime with this tag&#10;Auto-locks sparks and S+ summons&#10;Rotates 00:00 JST&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-teal-600 dark:text-teal-400 truncate">
+                        <span id="tag-banner-title">Tag</span>
+                    </h2>
+                    <button id="fifty-tag" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-teal-500/40 text-teal-700 dark:text-teal-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-tag">None</span>
+                    </button>
+                    <button id="pull-tag-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 100
+                    </button>
+                    <button id="spark-tag" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-teal-500/40 text-teal-700 dark:text-teal-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-tag">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-hof" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="hof-banner-pill" data-tooltip-title="Premium: Hall-of-Fame"
-                            title="First summon is guaranteed to be an A-tier or better&#10;SSR, SR, and S spawn rates are doubled at the cost of F-tier spawn rates&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-purple-600 dark:text-purple-400">Premium:</span> <span id="hof-banner-title">Hall-of-Fame</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-hof-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: Free
-                        </button>
-                        <button id="spark-hof" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-purple-500/40 text-purple-700 dark:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-hof">0</span>
-                        </button>
-                        <button id="fifty-hof" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-purple-500/40 text-purple-700 dark:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-hof">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-hof" class="w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="hof-banner-pill" data-tooltip-title="Premium: Hall-of-Fame"
+                        title="First summon is guaranteed to be an A-tier or better&#10;SSR, SR, and S spawn rates are doubled at the cost of F-tier spawn rates&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-purple-600 dark:text-purple-400 truncate">
+                        <span id="hof-banner-title">Hall-of-Fame</span>
+                    </h2>
+                    <button id="fifty-hof" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-purple-500/40 text-purple-700 dark:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-hof">None</span>
+                    </button>
+                    <button id="pull-hof-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: Free
+                    </button>
+                    <button id="spark-hof" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-purple-500/40 text-purple-700 dark:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-hof">0</span>
+                    </button>
                 </section>
-                <section id="banner-card-list" class="hidden w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex flex-col justify-between gap-2">
-                    <div class="flex items-center justify-center">
-                        <h2 id="list-banner-pill" data-tooltip-title="AniList Banner"
-                            title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from your AniList&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
-                            class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight pb-0.5 truncate">
-                            <span class="text-sky-500 dark:text-sky-400">List:</span> <span id="list-banner-title">AniList</span>
-                        </h2>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button id="pull-list-10" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
-                            Summon: ★ 120
-                        </button>
-                        <button id="spark-list" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-600 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            Spark: <span id="spark-count-list">0</span>
-                        </button>
-                        <button id="fifty-list" disabled
-                            class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-600 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
-                            50/50: <span id="fifty-label-list">None</span>
-                        </button>
-                    </div>
+                <section id="banner-card-list" class="hidden w-full shrink-0 snap-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 grid grid-cols-2 items-center gap-1.5">
+                    <h2 id="list-banner-pill" data-tooltip-title="AniList Banner"
+                        title="First summon is guaranteed to be a B-tier or better&#10;First 5 summons are from your AniList&#10;Auto-locks sparks and S+ summons&#10;Sparks stay within the same banner type"
+                        class="cursor-help text-lg sm:text-xl font-bold whitespace-nowrap leading-tight text-center text-sky-500 dark:text-sky-400 truncate">
+                        <span id="list-banner-title">AniList</span>
+                    </h2>
+                    <button id="fifty-list" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-600 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        50/50: <span id="fifty-label-list">None</span>
+                    </button>
+                    <button id="pull-list-10" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-white truncate transition">
+                        Summon: ★ 120
+                    </button>
+                    <button id="spark-list" disabled
+                        class="w-full py-1.5 px-1 rounded-lg font-bold text-xs sm:text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-sky-500/40 text-sky-600 dark:text-sky-300 disabled:opacity-40 disabled:cursor-not-allowed truncate transition">
+                        Spark: <span id="spark-count-list">0</span>
+                    </button>
                 </section>
             </div>
         </div>

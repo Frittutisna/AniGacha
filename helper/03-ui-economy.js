@@ -311,11 +311,11 @@ function updateFiftyFiftyButtonsUI() {
         btn.disabled = actionInFlight || !databaseReady || !enabled;
 
         if (char) {
-            btn.setAttribute("data-tooltip-title",  `50/50 Target (${char.rarity.tier})`);
-            btn.setAttribute("data-tooltip",        `${char.name}\n${getAnimeTitle(char)}\n50% chance when rolling ${char.rarity.tier}`);
+            btn.setAttribute("data-tooltip-title",  `50/50: ${char.name}`);
+            btn.setAttribute("data-tooltip",        `50% summon chance from their tier`);
         } else {
             btn.setAttribute("data-tooltip-title",  "50/50 Selection");
-            btn.setAttribute("data-tooltip",        "Select a non-maxed S+ character for a 50% rate-up in its rarity");
+            btn.setAttribute("data-tooltip",        "Select a non-maxed S+ character for a 50% summon chance from their tier");
         }
     };
 
@@ -413,8 +413,6 @@ function exitFiftyFiftyMode(shouldRender = true) {
     document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
     document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
     document.getElementById("fifty-mode-indicator") .classList.add      ("hidden");
-
-    if (!isSharedView) document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"})
 
     if (shouldRender) {
         currentPage = 1;

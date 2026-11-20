@@ -80,7 +80,7 @@ function createCardHTML(char, {
         ? `<div class="px-1.5 pb-1.5">
             <button type="button" data-fifty-key="${escapeHTML(char.uniqueKey)}"
                 class="fifty-card-btn w-full py-1 rounded text-[11px] font-bold ${isFiftySelected ? "bg-indigo-600 hover:bg-indigo-500 text-white" : "bg-slate-950/80 hover:bg-slate-950 text-white"} transition">
-                ${isFiftySelected ? "Selected" : "Select 50/50"}
+                ${isFiftySelected ? "Selected" : "Select"}
             </button>
         </div>`
         : "";
