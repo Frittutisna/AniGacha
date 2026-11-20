@@ -60,6 +60,24 @@ const rawSources    = readCSV("./dataset/source.csv");
 const rawStudios    = readCSV("./dataset/studio.csv");
 const rawTags       = readCSV("./dataset/tag.csv");
 
+function parseAnimeDateMs(row) {
+    const raw = getField(row, ["start_date", "release_date", "aired", "date", "premiered", "year", "start_year", "season_year"]);
+    if (!raw) return null;
+
+    if (/^\d{8}$/.test(raw)) {
+        const y = Number(raw.slice(0, 4));
+        const m = Math.min(Math.max(Number(raw.slice(4, 6)), 1), 99) - 1;
+        const d = Math.min(Math.max(Number(raw.slice(6, 8)), 1), 99);
+
+        return new Date(y, m, d).getTime();
+    }
+
+    if (/^\d{4}$/.test(raw)) return new Date(Number(raw), 0, 1).getTime();
+
+    const parsed = Date.parse(raw);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
 const animeMap = new Map();
 
 rawAnime.forEach(row => {
@@ -68,6 +86,10 @@ rawAnime.forEach(row => {
 
     animeMap.set(id, {
         id,
+        romaji      : getField(row, ["romaji", "title_romaji", "title"]),
+        english     : getField(row, ["english", "title_english"]),
+        animeCount  : parseFloat(getField(row, ["count", "favorites", "favourites", "popularity"])) || 0,
+        animeDate   : parseAnimeDateMs(row),
         rawDateInt  : parseRawDateInt(row),
         rootId      : normalizeId(getField(row, ["root_id", "root_anime_id", "root"])),
         parentId    : normalizeId(getField(row, ["parent_id", "prequel_id", "parent_anime_id", "source_anime_id"])),
@@ -208,6 +230,60 @@ const themedOptions = {
 };
 
 const compactChars = chars.map(c => [c.uniqueKey, c.tier, c.animeId]);
-
 fs.writeFileSync("./supabase/functions/AniGacha-Japan/server-data.json", JSON.stringify({chars: compactChars, themedOptions}));
-console.log(`Generated server-data.json with ${compactChars.length} characters`);
+
+const clientAnimes = {};
+
+for (const [id, a] of animeMap.entries()) {
+    const root = resolveRootAnime(id) || a;
+
+    clientAnimes[id] = [
+        root.romaji,
+        root.english,
+        root.animeCount,
+        root.animeDate,
+        root.rawDateInt,
+        root.id,
+        Array.from(a.genres),
+        Array.from(a.tags),
+        Array.from(a.studios),
+        a.source
+    ];
+}
+
+const rawCharByKey = new Map(rawChars.map((row, idx) => {
+    const rawCharId = getField(row, ["id", "char_id", "character_id"]);
+    const uniqueKey = rawCharId ? `${rawCharId}_${idx}` : String(idx);
+    const name      = getField(row, ["name", "full_name", "character_name"]) || `Character #${idx + 1}`;
+    const img       = getField(row, ["image", "img", "image_url", "avatar", "picture", "suffix"]);
+
+    return [uniqueKey, [name, img]];
+}));
+
+const clientChars = chars.map(c => {
+    const [name, img] = rawCharByKey.get(c.uniqueKey) || ["Unknown", null];
+    return [c.uniqueKey, name, c.animeId, img, c.count, c.tier];
+});
+
+const clientEraOptions = rawEras.map((row, i) => {
+    const title     = getField(row, ["era", "name"]);
+    const s         = getField(row, ["start"]);
+    const e         = getField(row, ["end"]);
+    const startYear = s !== null ? Math.floor(Number(s)) : null;
+    const endYear   = e !== null ? Math.floor(Number(e)) : null;
+    const hasStart  = startYear !== null && !Number.isNaN(startYear);
+    const hasEnd    = endYear !== null && !Number.isNaN(endYear);
+    const isSpecial = title === "Pre-2000s" || title === "2000s";
+    const hover     = (title && hasStart && hasEnd && !isSpecial) ? `${title} (${startYear}-${endYear})` : title;
+    const opt       = themedOptions.ERA.find(o => o.title === title);
+
+    return opt ? {title, hoverLabel: hover, sortOrder: hasStart ? startYear : -Infinity, idxs: opt.idxs} : null;
+}).filter(Boolean);
+
+fs.writeFileSync("./supabase/functions/AniGacha-Japan/client-data.json", JSON.stringify({
+    animes          : clientAnimes,
+    chars           : clientChars,
+    themedOptions   : {...themedOptions, ERA: clientEraOptions}
+}));
+
+console.log(`Generated server-data.json and client-data.json`);

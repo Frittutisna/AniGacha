@@ -1,223 +1,57 @@
-async function fetchCSV(url) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Failed to fetch ${url} (HTTP ${response.status})`);
-
-    const csvText = await response.text();
-
-    return new Promise((resolve, reject) => {Papa.parse(csvText, {
-        header          : true,
-        skipEmptyLines  : true,
-        complete        : (results) => resolve(results.data),
-        error           : (err)     => reject(err)
-    })});
-}
-
 async function initDatabase() {
     try {
-        const [
-            rawAnime,
-            rawChars,
-            rawEras,
-            rawFranchises,
-            rawGenres,
-            rawSources,
-            rawStudios,
-            rawTags
-        ] = await Promise.all([
-            fetchCSV("./dataset/anime.csv"),
-            fetchCSV("./dataset/char.csv"),
-            fetchCSV("./dataset/era.csv"),
-            fetchCSV("./dataset/franchise.csv"),
-            fetchCSV("./dataset/genre.csv"),
-            fetchCSV("./dataset/source.csv"),
-            fetchCSV("./dataset/studio.csv"),
-            fetchCSV("./dataset/tag.csv")
-        ]);
+        const res = await fetch("./supabase/functions/AniGacha-Japan/client-data.json");
+        if (!res.ok) throw new Error(`Failed to fetch client-data.json (HTTP ${res.status})`);
 
-        const animeMap = new Map();
+        const {animes, chars: rawChars, themedOptions}  = await res.json();
+        const rarityByTier                              = new Map(RARITIES.map(r => [r.tier, r]));
+        const fallbackRarity                            = RARITIES[RARITIES.length - 1];
+        const hydratedAnimes                            = new Map();
 
-        rawAnime.forEach(row => {
-            const id = normalizeId(getField(row, ["id", "anime_id"]));
-            if (!id) return;
-
-            const romaji        = getField(row, ["romaji", "title_romaji", "title"]);
-            const english       = getField(row, ["english", "title_english"]);
-            const animeCount    = parseFloat(getField(row, ["count", "favorites", "favourites", "popularity"])) || 0;
-            const animeDate     = parseAnimeDate(row);
-            const rawDateInt    = parseRawDateInt(row);
-            const rootId        = normalizeId(getField(row, ["root_id", "root_anime_id", "root"]));
-            const parentId      = normalizeId(getField(row, ["parent_id", "prequel_id", "parent_anime_id", "source_anime_id"]));
-            const genres        = new Set(parseCSVList(getField(row, ["genres", "genre"])));
-            const tags          = new Set(parseCSVList(getField(row, ["tags", "tag"])));
-            const studios       = new Set(parseCSVList(getField(row, ["studios", "studio"])));
-            const source        = getField(row, ["source"]);
-
-            animeMap.set(id, {id, romaji, english, animeCount, animeDate, rawDateInt, rootId, parentId, genres, tags, studios, source});
+        for (const [id, a] of Object.entries(animes)) hydratedAnimes.set(id, {
+            animeRomaji : a[0],
+            animeEnglish: a[1],
+            animeCount  : a[2],
+            animeDate   : a[3],
+            rawDateInt  : a[4],
+            animeYear   : a[4] ? Math.floor(a[4] / 10000) : null,
+            rootAnimeId : a[5],
+            genres      : new Set(a[6]),
+            tags        : new Set(a[7]),
+            studios     : new Set(a[8]),
+            source      : a[9]
         });
 
-        let chars = rawChars.map((row, idx) => {
-            const rawCharId         = getField(row, ["id", "char_id", "character_id"]);
-            const uniqueKey         = rawCharId ? `${rawCharId}_${idx}` : String(idx);
-            const name              = getField(row, ["name", "full_name", "character_name"]) || `Character #${idx + 1}`;
-            const explicitRootId    = normalizeId(getField(row, ["root_anime_id", "root_id"]));
-            const normalizedAnimeId = normalizeId(getField(row, ["anime_id"]));
-            const directAnimeInfo   = normalizedAnimeId ? animeMap.get(normalizedAnimeId) : null;
-            const animeInfo         = resolveRootAnime(explicitRootId || normalizedAnimeId, animeMap);
-            const animeRomaji       = animeInfo ? animeInfo.romaji : null;
-            const animeEnglish      = animeInfo ? animeInfo.english : null;
-            const animeCount        = animeInfo ? animeInfo.animeCount : 0;
-            const animeDate         = animeInfo ? animeInfo.animeDate : null;
-            const rawDateInt        = animeInfo ? animeInfo.rawDateInt : null;
-            const animeYear         = rawDateInt ? Math.floor(rawDateInt / 10000) : null;
-            const rootAnimeId       = animeInfo ? animeInfo.id : normalizedAnimeId;
-            const genres            = directAnimeInfo ? directAnimeInfo.genres : new Set();
-            const tags              = directAnimeInfo ? directAnimeInfo.tags : new Set();
-            const studios           = directAnimeInfo ? directAnimeInfo.studios : new Set();
-            const source            = directAnimeInfo ? directAnimeInfo.source : null;
-            const imgSuffix         = getField(row, ["image", "img", "image_url", "avatar", "picture", "suffix"]);
-            const countVal          = parseFloat(getField(row, ["count"])) || 0;
-            let imageUrl            = null;
-
-            if (imgSuffix) {imageUrl = imgSuffix.startsWith("http") ? imgSuffix : IMAGE_PREFIX + imgSuffix.replace(/^\/+/, "")}
+        const chars = rawChars.map(([uniqueKey, name, animeId, imgSuffix, count, tier]) => {
+            const a         = animeId   ? hydratedAnimes.get(animeId)                                                               : null;
+            const imageUrl  = imgSuffix ? (imgSuffix.startsWith("http") ? imgSuffix : IMAGE_PREFIX + imgSuffix.replace(/^\/+/, "")) : null;
 
             return {
                 uniqueKey,
                 name,
-                animeId: normalizedAnimeId,
-                rootAnimeId,
-                animeRomaji,
-                animeEnglish,
+                animeId,
+                rootAnimeId     : a ? a.rootAnimeId         :   animeId,
+                animeRomaji     : a ? a.animeRomaji         :   null,
+                animeEnglish    : a ? a.animeEnglish        :   null,
                 imageUrl,
-                count: countVal,
-                animeCount,
-                animeDate,
-                rawDateInt,
-                animeYear,
-                genres,
-                tags,
-                studios,
-                source
+                count,
+                animeCount      : a ? a.animeCount          :   0,
+                animeDate       : a ? a.animeDate           :   null,
+                rawDateInt      : a ? a.rawDateInt          :   null,
+                animeYear       : a ? a.animeYear           :   null,
+                genres          : a ? a.genres              :   new Set(),
+                tags            : a ? a.tags                :   new Set(),
+                studios         : a ? a.studios             :   new Set(),
+                source          : a ? a.source              :   null,
+                rarity          : rarityByTier.get(tier)    ||  fallbackRarity
             };
         });
 
-        chars.sort((a, b) => b.count - a.count);
-        const total = chars.length;
-
-        chars.forEach((char, i) => {
-            const percentile    = i / total;
-            let assigned        = RARITIES[RARITIES.length - 1];
-            let acc             = 0;
-
-            for (const r of RARITIES) {
-                acc += r.dist;
-
-                if (percentile < acc) {
-                    assigned = r;
-                    break;
-                }
-            }
-
-            char.rarity = assigned;
-        });
-
-        characterPool   = chars;
-        characterMap    = new Map(chars.map(c => [c.uniqueKey, c]));
+        characterPool = chars;
+        characterMap  = new Map(chars.map(c => [c.uniqueKey, c]));
 
         rebuildAnilistEligibleKeys();
-
-        const eraOptions = rawEras.map(row => {
-            const title                 = getField(row, ["era", "name"]);
-            const startRaw              = getField(row, ["start"]);
-            const endRaw                = getField(row, ["end"]);
-            const startYear             = startRaw !== null ? Math.floor(Number(startRaw)) : null;
-            const endYear               = endRaw !== null ? Math.floor(Number(endRaw)) : null;
-            const hasStart              = startYear !== null && !Number.isNaN(startYear);
-            const hasEnd                = endYear !== null && !Number.isNaN(endYear);
-            const startDate             = hasStart ? Number(`${startYear}0101`) : -Infinity;
-            const endDate               = hasEnd ? Number(`${endYear}9999`) : Infinity;
-            const matching              = chars.filter(c => c.rawDateInt !== null && c.rawDateInt >= startDate && c.rawDateInt <= endDate);
-            const isUnboundedOrDecade   = title === "Pre-2000s" || title === "2000s";
-            const hoverLabel            = (title && hasStart && hasEnd && !isUnboundedOrDecade) ? `${title} (${startYear}-${endYear})` : title;
-            const sortOrder             = hasStart ? startYear : -Infinity;
-
-            return title ? {
-                title,
-                hoverLabel,
-                sortOrder,
-                eligibleKeys: new Set(matching.map(c => c.uniqueKey)),
-            } : null;
-        }).filter(Boolean);
-
-        THEMED_BANNERS.ERA.allOptions = eraOptions;
-
-        const franchiseOptions = rawFranchises.map(row => {
-            const title         = getField(row, ["clean", "franchise", "name"]);
-            const relatedIds    = new Set(parseCSVList(getField(row, ["related"])).map(normalizeId).filter(Boolean));
-
-            const rootId = normalizeId(getField(row, ["id"]));
-            if (rootId) relatedIds.add(rootId);
-
-            const matching = chars.filter(c =>
-                (c.animeId      && relatedIds.has(c.animeId)) ||
-                (c.rootAnimeId  && relatedIds.has(c.rootAnimeId))
-            );
-
-            return title ? {
-                title,
-                eligibleKeys: new Set(matching.map(c => c.uniqueKey)),
-            } : null;
-        }).filter(Boolean);
-
-        THEMED_BANNERS.FRANCHISE.allOptions = franchiseOptions;
-
-        const genreOptions = rawGenres.map(row => {
-            const title     = getField(row, ["genre", "name"]);
-            const matching  = title ? chars.filter(c => c.genres.has(title)) : [];
-
-            return title ? {
-                title,
-                eligibleKeys: new Set(matching.map(c => c.uniqueKey)),
-            } : null;
-        }).filter(Boolean);
-
-        THEMED_BANNERS.GENRE.allOptions = genreOptions;
-
-        const sourceOptions = rawSources.map(row => {
-            const title     = getField(row, ["source", "name"]);
-            const matching  = title ? chars.filter(c => c.source === title) : [];
-
-            return title ? {
-                title,
-                eligibleKeys: new Set(matching.map(c => c.uniqueKey)),
-            } : null;
-        }).filter(Boolean);
-        THEMED_BANNERS.SOURCE.allOptions = sourceOptions;
-
-        const studioOptions = rawStudios.map(row => {
-            const rawStudio = getField(row, ["studio"]);
-            const title     = getField(row, ["clean", "studio", "name"]);
-            const matching  = rawStudio ? chars.filter(c => c.studios.has(rawStudio)) : [];
-
-            return title ? {
-                title,
-                eligibleKeys: new Set(matching.map(c => c.uniqueKey)),
-            } : null;
-        }).filter(Boolean);
-
-        THEMED_BANNERS.STUDIO.allOptions = studioOptions;
-
-        const tagOptions = rawTags.map(row => {
-            const rawTag    = getField(row, ["tag"]);
-            const title     = getField(row, ["clean", "tag", "name"]);
-            const matching  = rawTag ? chars.filter(c => c.tags.has(rawTag)) : [];
-
-            return title ? {
-                title,
-                eligibleKeys: new Set(matching.map(c => c.uniqueKey)),
-            } : null;
-        }).filter(Boolean);
-
-        THEMED_BANNERS.TAG.allOptions = tagOptions;
+        ALL_THEMED_KEYS.forEach(key => {THEMED_BANNERS[key].allOptions = (themedOptions[key] || []).map(opt => ({...opt, eligibleKeys: new Set(opt.idxs.map(idx => chars[idx]?.uniqueKey).filter(Boolean))}))});
         databaseReady = true;
 
         if (isSharedView) {
