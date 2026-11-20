@@ -353,9 +353,14 @@ function aniQuizUpdateSettingsPreview() {
     if (startBtn) startBtn.disabled = !isValid;
 }
 
-function aniQuizStart() {
+
+async function aniQuizStart() {
     const settings = aniQuizSettings();
-    if (!settings.cats.length) { alert("Select at least one song category."); return; }
+
+    if (!settings.cats.length) {
+        alert("Select at least one song category");
+        return;
+    }
 
     const pool = aniQuizGetFilteredPool(settings);
 
@@ -364,16 +369,55 @@ function aniQuizStart() {
         return;
     }
 
-    for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
+    const serverSettings = {
+        categories  : settings.cats,
+        chanting    : settings.chanting,
+        sound       : settings.sound,
+        extra       : settings.extra,
+        mode        : settings.mode,
+        count       : settings.count,
+        vintageMin  : settings.vintageMin,
+        vintageMax  : settings.vintageMax,
+        diffMin     : settings.diffMin,
+        diffMax     : settings.diffMax
+    };
+
+    let selectedSongs   = pool;
+    let quizId          = null;
+
+    if (typeof currentUser !== "undefined" && currentUser) {
+        const result = await sendGachaAction({action: "QUIZ_START", settings: serverSettings});
+
+        if (!result?.quizId || !Array.isArray(result.songUrls)) {
+            alert("Could not create a secure quiz session");
+            return;
+        }
+
+        const songMap = new Map(pool.map(song => [song.video_url, song]));
+        selectedSongs = result.songUrls.map(url => songMap.get(url));
+
+        if (selectedSongs.length !== settings.count || selectedSongs.some(song => !song)) {
+            alert("Server-issued quiz songs couldn't be loaded; please try again");
+            return;
+        }
+
+        quizId = result.quizId;
+    } else {
+        selectedSongs = [...pool];
+
+        for (let i = selectedSongs.length - 1; i > 0; i--) {
+            const j                                 = Math.floor(Math.random() * (i + 1));
+            [selectedSongs[i], selectedSongs[j]]    = [selectedSongs[j], selectedSongs[i]];
+        }
+
+        selectedSongs = selectedSongs.slice(0, settings.count);
     }
 
     aniQuizRun = {
         settings,
-        songs   : pool.slice(0, settings.count),
+        songs   : selectedSongs,
         answers : [],
-        id      : crypto.randomUUID?.() || String(Date.now()) + "-" + Math.random()
+        id      : quizId || crypto.randomUUID()
     };
 
     aniQuizIndex            = 0;
@@ -628,15 +672,18 @@ function aniQuizMakeChoices() {
         aniQuizSetSwipeText(b, aniQuizChoiceLabel(opt));
 
         b.addEventListener("click", () => {
-            aniQuizSelectedMcBtn = b;
-            aniQuizResolve(opt.isCorrect);
+            aniQuizSelectedMcBtn    = b;
+            const useJp             = (typeof titleLang !== "undefined" ? titleLang : "JP") === "JP";
+
+           aniQuizResolve(opt.isCorrect, useJp ? (opt.jp || opt.en) : (opt.en || opt.jp));
         });
 
         wrap.appendChild(b);
     });
 }
 
-function aniQuizResolve(correct) {
+
+function aniQuizResolve(correct, submittedAnswer = null) {
     if (aniQuizAnswered) return;
 
     aniQuizAnswered     = true;
@@ -647,19 +694,18 @@ function aniQuizResolve(correct) {
     if (correct) {
         aniQuizCorrect++;
         aniQuizStreak++;
-        aniQuizBestStreak = Math.max(aniQuizBestStreak, aniQuizStreak);
 
+        aniQuizBestStreak = Math.max(aniQuizBestStreak, aniQuizStreak);
         if (["yes", "true", "1"].includes(String(aniQuizCurrent?.chanting ?? "no").toLowerCase())) aniQuizChantingCorrect++;
     } else aniQuizStreak = 0;
 
-    aniQuizRun.answers.push({song: aniQuizCurrent, correct});
+    aniQuizRun.answers.push({song: aniQuizCurrent, correct, submittedAnswer: submittedAnswer == null ? null : String(submittedAnswer)});
 
     document.getElementById("quiz-score")   .textContent = aniQuizCorrect;
     document.getElementById("quiz-streak")  .textContent = aniQuizStreak;
     document.getElementById("quiz-best")    .textContent = aniQuizBestStreak;
 
-    aniQuizRenderMissions   ();
-    aniQuizSyncMissions     ();
+    aniQuizRenderMissions();
 
     const title             = aniQuizTitle(aniQuizCurrent);
     const type              = String(aniQuizCurrent.type || "").toUpperCase();
@@ -730,55 +776,25 @@ function aniQuizAdvanceReveal() {
     aniQuizNext();
 }
 
+
 async function aniQuizFinish() {
     aniQuizClearTimers();
 
     document.getElementById("quiz-active")  .classList.add      ("hidden");
     document.getElementById("quiz-setup")   .classList.remove   ("hidden");
 
-    const s                 = aniQuizRun.settings;
-    const m                 = aniQuizMultiplier(s, aniQuizBestStreak);
-    const completed         = aniQuizRun.answers.length === aniQuizRun.songs.length;
-    const bestRoundPct      = aniQuizRun.songs.length > 0 ? Math.floor((aniQuizCorrect / aniQuizRun.songs.length) * 100) : 0;
-    const allOptionsEnabled = s.cats.length === 3 && s.chanting && s.vintageMin === null && s.vintageMax === null && s.diffMin === null && s.diffMax === null;
-
-    const missionStats = {
-        songsPlayed         : aniQuizRun.answers.length,
-        roundSongs          : aniQuizRun.songs.length,
-        correct             : aniQuizCorrect,
-        bestStreak          : aniQuizBestStreak,
-        chantingCorrect     : aniQuizChantingCorrect,
-        bestRoundPct,
-        allCategoriesQuiz   : s.cats.length === 3,
-        entryQuiz           : s.mode === "entry",
-        shortTimeQuiz       : (s.sound !== 20 || s.extra !== 0),
-        allOptionsQuiz      : allOptionsEnabled,
-        completed
-    };
-
     let reward          = 0;
     let missionState    = null;
 
-    if (typeof currentUser !== "undefined" && currentUser) {
+    if (typeof currentUser !== "undefined" && currentUser) {    
         const result = await sendGachaAction({
-            action      : "QUIZ_COMPLETE",
-            quizId      : aniQuizRun.id,
-            correct     : aniQuizCorrect,
-
-            settings: {
-                categories  : s.cats,
-                chanting    : s.chanting,
-                sound       : s.sound,
-                extra       : s.extra,
-                mode        : s.mode,
-                vintageMin  : s.vintageMin,
-                vintageMax  : s.vintageMax,
-                diffMin     : s.diffMin,
-                diffMax     : s.diffMax
-            },
-
-            bestStreak: aniQuizBestStreak,
-            missionStats
+            action  : "QUIZ_COMPLETE",
+            quizId  : aniQuizRun.id,
+            answers : aniQuizRun.answers.map(item => ({
+                video_url   : item.song.video_url,
+                answer      : item.submittedAnswer,
+                skipped     : item.submittedAnswer == null || !String(item.submittedAnswer).trim()
+            }))
         });
 
         if (result) {
@@ -864,56 +880,6 @@ function aniQuizGetLiveProgress() {
     };
 }
 
-async function aniQuizSyncMissions() {
-    if (typeof currentUser === "undefined" || !currentUser || !aniQuizRun || aniQuizSyncingMissions) return;
-
-    const d             = aniQuizDaily || {};
-    const claimed       = new Set(d.claimedMissions || []);
-    const liveProgress  = aniQuizGetLiveProgress();
-    const hasNewClaim   = ANI_QUIZ_MISSIONS.some(m => !claimed.has(m.id) && m.test(liveProgress));
-
-    if (!hasNewClaim) return;
-    aniQuizSyncingMissions = true;
-
-    try {
-        const s = aniQuizRun.settings;
-
-        const result = await sendGachaAction({
-            action: "QUIZ_MISSION_PROGRESS",
-            quizId: aniQuizRun.id,
-
-            missionStats: {
-                ...liveProgress,
-                songsPlayed     : aniQuizRun.answers.length,
-                roundSongs      : aniQuizRun.songs.length,
-                correct         : aniQuizCorrect,
-                bestStreak      : aniQuizBestStreak,
-                chantingCorrect : aniQuizChantingCorrect,
-                completed       : aniQuizRun.answers.length === aniQuizRun.songs.length
-            },
-
-            settings: {
-                categories  : s.cats,
-                chanting    : s.chanting,
-                sound       : s.sound,
-                extra       : s.extra,
-                mode        : s.mode,
-                vintageMin  : s.vintageMin,
-                vintageMax  : s.vintageMax,
-                diffMin     : s.diffMin,
-                diffMax     : s.diffMax
-            }
-        });
-
-        if (result?.save?.quizDaily) {
-            aniQuizDaily = result.save.quizDaily;
-            aniQuizRenderMissions();
-        }
-    } finally {
-        aniQuizSyncingMissions = false;
-    }
-}
-
 function aniQuizRenderMissions() {
     const wrap = document.getElementById("quiz-missions");
     if (!wrap) return;
@@ -989,9 +955,14 @@ if (quizAudio) {
 }
 
 document.querySelectorAll("#quiz-setup-form select, #quiz-setup-form input").forEach(el => {el.addEventListener("change", () => {if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview()})});
+document.getElementById("quiz-start").addEventListener("click", aniQuizStart);
 
-document.getElementById("quiz-start")   .addEventListener("click", aniQuizStart);
-document.getElementById("quiz-submit")  .addEventListener("click", () => aniQuizResolve(aniQuizAccepted(aniQuizCurrent).includes(aniQuizNorm(document.getElementById("quiz-answer").value))));
+document.getElementById("quiz-submit").addEventListener("click", () => {
+    const answer    = document.getElementById("quiz-answer").value;
+    const correct   = aniQuizAccepted(aniQuizCurrent).includes(aniQuizNorm(answer));
+
+    aniQuizResolve(correct, answer);
+});
 
 document.getElementById("quiz-answer").addEventListener("keydown", e => {if (e.key === "Enter") {
     e.preventDefault();
@@ -1008,7 +979,10 @@ document.getElementById("quiz-answer").addEventListener("keydown", e => {if (e.k
     document.getElementById("quiz-submit").click();
 }});
 
-document.getElementById("quiz-skip").addEventListener("click", () => { if (aniQuizRevealing) aniQuizAdvanceReveal(); else aniQuizResolve(false); });
+document.getElementById("quiz-skip").addEventListener("click", () => {
+    if (aniQuizRevealing)   aniQuizAdvanceReveal    ();
+    else                    aniQuizResolve          (false);
+});
 
 let aniQuizEndToHome    = false;
 const quizEndModal      = document.getElementById("quiz-end-modal");

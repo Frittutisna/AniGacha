@@ -118,25 +118,28 @@ function getQuizSongsMeta() {
         const songs         = [];
 
         for (let i = 0; i < timestampDirs.length; i += 5) {
-            const batch = await Promise.all(timestampDirs.slice(i, i + 5).map(async ts => {
-                const r = await fetch(`${base}${ts}/jsons/search.json`);
-                if (!r.ok) return [];
+            const batch = await Promise.all(
+                timestampDirs.slice(i, i + 5).map(async ts => {
+                    const r = await fetch(`${base}${ts}/jsons/search.json`);
+                    if (!r.ok) return [];
 
-                const d = await r.json();
-                return Array.isArray(d) ? d : [];
-            }));
+                    const data = await r.json();
+                    return Array.isArray(data) ? data : [];
+                })
+            );
 
             for (const list of batch) {
                 for (const s of list) {
-                    if (!s?.video_url || (!s?.romaji && !s?.english)) continue;
+                    if (!s?.video_url || (!s.romaji && !s.english)) continue;
 
                     const key = String(s.video_url).trim();
                     if (key.toLowerCase().split("?")[0].endsWith(".webm") || seen.has(key)) continue;
                     seen.add(key);
 
-                    const t         = String(s.type || "").toLowerCase();
-                    const category  = t.includes("opening") ? "op" : t.includes("ending") ? "ed" : t.includes("insert") ? "in" : null;
 
+                    const type = String(s.type || "").toLowerCase();
+
+                    const category = type.includes("opening") ? "op" : type.includes("ending") ? "ed" : type.includes("insert") ? "in" : null;
                     if (!category) continue;
 
                     const chanting  = ["yes", "true", "1"].includes(String(s.chanting ?? "no").toLowerCase());
@@ -144,7 +147,18 @@ function getQuizSongsMeta() {
                     const year      = yearMatch ? Number(yearMatch[1]) : null;
                     const diff      = parseFloat(s.difficulty);
 
-                    songs.push([category, chanting, year, Number.isFinite(diff) ? diff : null]);
+                    songs.push({
+                        video_url       : key,
+                        romaji          : s.romaji                  || "",
+                        english         : s.english                 || "",
+                        alts            : Array.isArray(s.alts) ? s.alts    : [],
+                        category, chanting, year,
+                        difficulty      : Number.isFinite(diff) ? diff      : null,
+                        start_sample    : Number(s.start_sample)    || 0,
+                        type            : s.type                    || "",
+                        song            : s.song                    || "",
+                        artist_raw      : s.artist_raw              || ""
+                    });
                 }
             }
         }
@@ -155,6 +169,76 @@ function getQuizSongsMeta() {
 
     return quizSongsLoadPromise;
 }
+
+
+function normalizeQuizAnswer(value) {return String(value || "")
+    .normalize      ("NFKD")
+    .toLowerCase    ()
+    .replace        (/[\u0300-\u036f]/g, "")
+    .replace        (/&/g, "and")
+    .replace        (/[^a-z0-9]/g, "");
+}
+
+function validateQuizSettings(settings) {
+    if (!settings || typeof settings !== "object") throw new Error("Invalid quiz settings");
+    const categories = Array.isArray(settings.categories) ? [...new Set(settings.categories)] : [];
+
+    if (!categories.length || categories.some(c => !["op", "ed", "in"].includes(c)))    throw new Error("Invalid quiz categories");
+    if (!["entry", "mc"].includes(settings.mode))                                       throw new Error("Invalid quiz mode");
+
+    const count = Number(settings.count);
+    if (![20, 40, 60, 80, 100].includes(count)) throw new Error("Invalid quiz length");
+
+    const sound = Number(settings.sound);
+    const extra = Number(settings.extra);
+
+    if (!((sound === 20 && extra === 0) || (sound === 15 && extra === 0) || (sound === 5 && extra === 0) || (sound === 2 && extra === 8))) throw new Error("Invalid quiz time settings");
+
+    const vintageMin    = settings.vintageMin   == null ? null : Number(settings.vintageMin);
+    const vintageMax    = settings.vintageMax   == null ? null : Number(settings.vintageMax);
+    const diffMin       = settings.diffMin      == null ? null : Number(settings.diffMin);
+    const diffMax       = settings.diffMax      == null ? null : Number(settings.diffMax);
+    const vintagePoints = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
+    const diffPoints    = [20, 25, 30, 35];
+
+    if (
+        (vintageMin !== null && !vintagePoints.includes(vintageMin)) ||
+        (vintageMax !== null && !vintagePoints.includes(vintageMax)) ||
+        (vintageMin !== null && vintageMax !== null && vintageMin >= vintageMax)
+    ) throw new Error("Invalid vintage range");
+
+    if (
+        (diffMin !== null && !diffPoints.includes(diffMin)) ||
+        (diffMax !== null && !diffPoints.includes(diffMax)) ||
+        (diffMin !== null && diffMax !== null && diffMin >= diffMax)
+    ) throw new Error("Invalid difficulty range");
+
+    return {
+        categories,
+        chanting    : settings.chanting === true,
+        mode        : settings.mode,
+        count, sound, extra, vintageMin, vintageMax, diffMin, diffMax
+    };
+}
+
+function getFilteredServerQuizSongs(settings, songs) {return songs.filter(song => {
+    if (!settings.categories.includes(song.category))                           return false;
+    if (!settings.chanting && song.chanting)                                    return false;
+
+    if (settings.vintageMin !== null || settings.vintageMax !== null) {
+        if (song.year === null)                                                 return false;
+        if (settings.vintageMin !== null && song.year < settings.vintageMin)    return false;
+        if (settings.vintageMax !== null && song.year >= settings.vintageMax)   return false;
+    }
+
+    if (settings.diffMin !== null || settings.diffMax !== null) {
+        if (song.difficulty === null)                                           return false;
+        if (settings.diffMin !== null && song.difficulty < settings.diffMin)    return false;
+        if (settings.diffMax !== null && song.difficulty >= settings.diffMax)   return false;
+    }
+
+    return true;
+})}
 
 async function fetchAnilistUserAnimeIds(username) {
     const query = `
@@ -577,172 +661,239 @@ serve(async (req) => {
             alloptions  : {reward: 10, ready: p => p.allOptionsQuiz         === true}
         };
 
-        if (action === "QUIZ_MISSION_PROGRESS") {
-            const quizId = typeof body.quizId === "string" ? body.quizId.slice(0, 100) : "";
-            if (!quizId) throw new Error("Missing quiz identifier");
+        if (action === "QUIZ_START") {
+            const settings  = validateQuizSettings(body.settings);
+            const allSongs  = await getQuizSongsMeta();
+            const pool      = getFilteredServerQuizSongs(settings, allSongs);
 
-            const daily = save.quizDaily;
+            if (pool.length < 100) throw new Error("Quiz pool must include at least 100 valid songs");
 
-            if (daily.completedQuizIds.includes(quizId))                                    return new Response(JSON.stringify({save, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
-            if (!daily.activeQuizProgress || typeof daily.activeQuizProgress !== "object")  daily.activeQuizProgress = {};
-
-            const prev              = daily.activeQuizProgress[quizId] || {songsPlayed: 0, correct: 0, chantingCorrect: 0};
-            const stats             = body.missionStats || {};
-            const songsPlayed       = Math.max(prev.songsPlayed,        Math.min(100,         Math.floor(Number(stats.songsPlayed)      || 0)));
-            const correct           = Math.max(prev.correct,            Math.min(songsPlayed, Math.floor(Number(stats.correct)          || 0)));
-            const bestStreak        = Math.max(0,                       Math.min(correct,     Math.floor(Number(stats.bestStreak)       || 0)));
-            const chantingCorrect   = Math.max(prev.chantingCorrect,    Math.min(correct,     Math.floor(Number(stats.chantingCorrect)  || 0)));
-            const roundSongs        = Math.max(songsPlayed,             Math.min(100,         Math.floor(Number(stats.roundSongs)       || songsPlayed)));
-            const roundPct          = roundSongs >= 20 ? Math.floor((correct / roundSongs) * 100) : 0;
-            const deltaSongs        = songsPlayed - prev.songsPlayed;
-            const deltaCorrect      = correct - prev.correct;
-            const deltaChanting     = chantingCorrect - prev.chantingCorrect;
-
-            daily.activeQuizProgress[quizId] = {songsPlayed, correct, chantingCorrect};
-
-            const progress              =   daily.progress;
-            progress.songsPlayed        +=  deltaSongs;
-            progress.correct            +=  deltaCorrect;
-            progress.chantingCorrect    +=  deltaChanting;
-            progress.bestStreak         =   Math.max(progress.bestStreak, bestStreak);
-            progress.bestRoundPct       =   Math.max(progress.bestRoundPct || 0, roundPct);
-
-            let missionReward = 0;
-
-            for (const [missionId, mission] of Object.entries(QUIZ_MISSIONS)) {if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
-                daily.claimedMissions.push(missionId);
-
-                daily.missionEarned += mission.reward;
-                save.stars          += mission.reward;
-                missionReward       += mission.reward;
-            }}
-
-            const conflictResponse = await persistPlayerSave();
-            if (conflictResponse) return conflictResponse;
-            return new Response(JSON.stringify({save, missionReward, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
-        }
-
-        if (action === "QUIZ_COMPLETE") {
-            const quizId = typeof body.quizId === "string" ? body.quizId.slice(0, 100) : "";
-            if (!quizId) throw new Error("Missing quiz identifier");
-
-            const daily = save.quizDaily;
-            if (daily.completedQuizIds.includes(quizId)) throw new Error("This quiz has already been submitted");
-
-            const stats         = body.missionStats || {};
-            const songsPlayed   = Math.max(0, Math.min(100,         Math.floor(Number(stats.songsPlayed)    || 0)));
-            const correct       = Math.max(0, Math.min(songsPlayed, Math.floor(Number(body.correct)         || 0)));
-            const bestStreak    = Math.max(0, Math.min(correct,     Math.floor(Number(body.bestStreak)      || 0)));
-            const settings      = body.settings || {};
-            const categories    = Array.isArray(settings.categories) ? [...new Set(settings.categories.filter(v => ["op", "ed", "in"].includes(v)))] : [];
-
-            if (!categories.length || !["entry", "mc"].includes(settings.mode)) throw new Error("Invalid quiz settings");
-
-            const categoryM = categories.length === 3 ? 1 : categories.length === 2 ? 0.8 : 0.6;
-            const chantingM = settings.chanting === true ? 1 : 0.8;
-            const sound     = Number(settings.sound);
-            const extra     = Number(settings.extra);
-            const timeM     = sound === 20 && extra === 0 ? 1
-                : sound === 15  && extra === 0 ? 1.2
-                : sound === 5   && extra === 0 ? 1.6
-                : sound === 2   && extra === 8 ? 1.4 : null;
-
-            if (timeM === null) throw new Error("Invalid quiz time control");
-
-            const VINTAGE_CHECKPOINTS   = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
-            const DIFF_CHECKPOINTS      = [20, 25, 30, 35];
-            const DIFF_SPAN_MODS        = [0.6, 0.3, 0, -0.3, -0.6];
-
-            const vMin = settings.vintageMin === null || settings.vintageMin === undefined ? null : Number(settings.vintageMin);
-            const vMax = settings.vintageMax === null || settings.vintageMax === undefined ? null : Number(settings.vintageMax);
-
-            if ((vMin   !== null && !VINTAGE_CHECKPOINTS.includes(vMin)) || (vMax !== null && !VINTAGE_CHECKPOINTS.includes(vMax))) throw new Error("Invalid vintage settings");
-            if (vMin    !== null && vMax !== null && vMin >= vMax)                                                                  throw new Error("Invalid vintage range");
-
-            const dMin = settings.diffMin === null || settings.diffMin === undefined ? null : Number(settings.diffMin);
-            const dMax = settings.diffMax === null || settings.diffMax === undefined ? null : Number(settings.diffMax);
-
-            if ((dMin   !== null && !DIFF_CHECKPOINTS.includes(dMin)) || (dMax !== null && !DIFF_CHECKPOINTS.includes(dMax)))   throw new Error("Invalid difficulty settings");
-            if (dMin    !== null && dMax !== null && dMin >= dMax)                                                              throw new Error("Invalid difficulty range");
-
-            const quizSongs     = await getQuizSongsMeta();
-            let validSongCount  = 0;
-
-            for (const [cat, hasChanting, year, diff] of quizSongs) {
-                if (!categories.includes(cat))                  continue;
-                if (settings.chanting !== true && hasChanting)  continue;
-
-                if (vMin !== null || vMax !== null) {
-                    if (year === null)                      continue;
-                    if (vMin !== null && year <     vMin)   continue;
-                    if (vMax !== null && year >=    vMax)   continue;
-                }
-
-                if (dMin !== null || dMax !== null) {
-                    if (diff === null)                      continue;
-                    if (dMin !== null && diff <     dMin)   continue;
-                    if (dMax !== null && diff >=    dMax)   continue;
-                }
-
-                validSongCount++;
+            for (let i = pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pool[i], pool[j]] = [pool[j], pool[i]];
             }
 
-            if (validSongCount < 100) throw new Error("Quiz pool must include at least 100 valid songs");
+            const selected      = pool.slice(0, settings.count);
+            const privateSongs  = selected.map(song => ({video_url: song.video_url, acceptedAnswers: [song.romaji, song.english, ...song.alts].filter(Boolean), chanting: song.chanting}));
+            const expiresAt     = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-            const vStart    = vMin === null ? 0                                 : VINTAGE_CHECKPOINTS.indexOf(vMin) + 1;
-            const vEnd      = vMax === null ? VINTAGE_CHECKPOINTS.length + 1    : VINTAGE_CHECKPOINTS.indexOf(vMax) + 1;
+            const {data: session, error} = await adminClient
+                .from("quiz_sessions")
+                .insert({
+                    user_id     : userId,
+                    quiz_date   : dailyBanners.jstDate,
+                    settings,
+                    songs       : privateSongs,
+                    expires_at  : expiresAt
+                })
+                .select("id")
+                .single();
 
-            const vintageM  = Math.max(0.5, Number((1 - (11 - (vEnd - vStart)) * 0.05).toFixed(2)));
+            if (error || !session) {
+                console.error("Quiz session creation failed:", error);
+                throw new Error("Could not create quiz session");
+            }
 
-            const dStart  = dMin === null ? 0                           : DIFF_CHECKPOINTS.indexOf(dMin) + 1;
-            const dEnd    = dMax === null ? DIFF_CHECKPOINTS.length + 1 : DIFF_CHECKPOINTS.indexOf(dMax) + 1;
+            return new Response(JSON.stringify({
+                quizId      : session.id,
+                songUrls    : selected.map(song => song.video_url),
+                expiresAt
+            }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+        }
 
-            let diffMod = 0;
-            for (let i = dStart; i < dEnd; i++) diffMod += DIFF_SPAN_MODS[i];
-            const diffM = Math.max(0.2, Number((1 + diffMod / (dEnd - dStart)).toFixed(2)));
+        if (action === "QUIZ_MISSION_PROGRESS") throw new Error("Client-submitted quiz mission progress is disabled");
 
-            const modeM             = settings.mode === "entry" ? 1 : 0.4;
-            const streakM           = bestStreak >= 15 ? 1.6 : bestStreak >= 10 ? 1.4 : bestStreak >= 5 ? 1.2 : 1;
-            const multiplier        = categoryM * chantingM * timeM * modeM * streakM * vintageM * diffM;
-            const requestedReward   = Math.max(0, Math.round(correct * multiplier));
-            const quizReward        = Math.min(requestedReward, Math.max(0, 120 - daily.quizEarned));
+        if (action === "QUIZ_COMPLETE") {
+            const quizId = String(body.quizId || "");
+            if (!/^[0-9a-f-]{36}$/i.test(quizId)) throw new Error("Invalid quiz session");
 
-            daily.quizEarned    += quizReward;
-            save.stars          += quizReward;
+            const {data: session, error: sessionError} = await adminClient
+                .from           ("quiz_sessions")
+                .select         ("*")
+                .eq             ("id", quizId)
+                .eq             ("user_id", userId)
+                .maybeSingle    ();
 
-            daily.completedQuizIds.push(quizId);
+            if (sessionError || !session)       throw new Error("Quiz session not found");
+            if (session.status !== "active")    throw new Error("Quiz session has already been submitted");
 
-            const chantingCorrect   = Math.max(0,           Math.min(correct,   Math.floor(Number(stats.chantingCorrect)    || 0)));
-            const roundSongs        = Math.max(songsPlayed, Math.min(100,       Math.floor(Number(stats.roundSongs)         || songsPlayed)));
+            if (new Date(session.expires_at).getTime() < Date.now()) {
+                await adminClient
+                    .from   ("quiz_sessions")
+                    .update ({status: "expired"})
+                    .eq     ("id", quizId)
+                    .eq     ("status", "active");
 
-            const prevSynced = daily.activeQuizProgress?.[quizId] || {songsPlayed: 0, correct: 0, chantingCorrect: 0};
-            if (daily.activeQuizProgress) delete daily.activeQuizProgress[quizId];
+                throw new Error("Quiz session expired");
+            }
 
-            const roundPct = roundSongs >= 20 ? Math.floor((correct / roundSongs) * 100) : 0;
-            const progress = daily.progress;
+            if (session.quiz_date !== dailyBanners.jstDate) throw new Error("Quiz session belongs to another day");
+            const submitted = body.answers;
 
-            progress.songsPlayed        +=  Math.max(0, songsPlayed      - prevSynced.songsPlayed);
-            progress.correct            +=  Math.max(0, correct          - prevSynced.correct);
-            progress.bestStreak         =   Math.max(progress.bestStreak, bestStreak);
-            progress.chantingCorrect    +=  Math.max(0, chantingCorrect  - prevSynced.chantingCorrect);
-            progress.bestRoundPct       =   Math.max(progress.bestRoundPct || 0, roundPct);
+            if (!Array.isArray(submitted) || submitted.length < 1 || submitted.length > session.songs.length) throw new Error("Invalid submitted answers");
+            const privateSongs = session.songs;
 
-            progress.allCategoriesQuiz  =   progress.allCategoriesQuiz  || (stats.allCategoriesQuiz === true && stats.completed === true);
-            progress.entryQuiz          =   progress.entryQuiz          || (stats.entryQuiz         === true && stats.completed === true);
-            progress.shortTimeQuiz      =   progress.shortTimeQuiz      || (stats.shortTimeQuiz     === true && stats.completed === true);
-            progress.allOptionsQuiz     =   progress.allOptionsQuiz     || (stats.allOptionsQuiz    === true && stats.completed === true);
+            let correct         = 0;
+            let bestStreak      = 0;
+            let currentStreak   = 0;
+            let chantingCorrect = 0;
 
-            for (const [missionId, mission] of Object.entries(QUIZ_MISSIONS)) {if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
-                daily.claimedMissions.push(missionId);
+            for (let i = 0; i < submitted.length; i++) {
+                const answer    = submitted     [i];
+                const expected  = privateSongs  [i];
 
-                daily.missionEarned += mission.reward;
-                save.stars          += mission.reward;
-            }}
+                if (!answer || answer.video_url !== expected.video_url || typeof answer.skipped !== "boolean") throw new Error("Invalid quiz answer sequence");
 
-            const conflictResponse = await persistPlayerSave();
-            if (conflictResponse) return conflictResponse;
+                const normalized    = normalizeQuizAnswer(answer.answer);
+                const accepted      = expected.acceptedAnswers.map(normalizeQuizAnswer);
+                const isCorrect     = !answer.skipped && normalized.length > 0 && accepted.includes(normalized);
 
-            return new Response(JSON.stringify({save, quizReward, requestedReward, multiplier, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+                if (isCorrect) {
+                    correct++;
+                    currentStreak++;
+
+                    bestStreak = Math.max(bestStreak, currentStreak);
+                    if (expected.chanting) chantingCorrect++;
+                } else currentStreak = 0;
+            }
+
+            const {data: claimed, error: claimError} = await adminClient
+                .from           ("quiz_sessions")
+                .update         ({status: "processing"})
+                .eq             ("id", quizId)
+                .eq             ("user_id", userId)
+                .eq             ("status", "active")
+                .select         ("id")
+                .maybeSingle    ();
+
+            if (claimError || !claimed) throw new Error("Quiz session has already been claimed");
+            let saveCommitted = false;
+
+            try {
+                saveCommitted       = true;
+                const settings      = session.settings;
+                const songsPlayed   = submitted.length;
+                const roundSongs    = privateSongs.length;
+                const daily         = save.quizDaily;
+
+                if (daily.completedQuizIds.includes(quizId)) throw new Error("Quiz already completed");
+
+                const categoryM = settings.categories.length === 3 ? 1 : settings.categories.length === 2 ? 0.8 : 0.6;
+                const chantingM = settings.chanting ? 1 : 0.8;
+                const sound     = Number(settings.sound);
+                const extra     = Number(settings.extra);
+                const timeM     = sound === 20 && extra === 0 ? 1 : sound === 15 && extra === 0 ? 1.2 : sound === 5 && extra === 0 ? 1.6 : sound === 2 && extra === 8 ? 1.4 : null;
+
+                if (timeM === null) throw new Error("Invalid quiz time control");
+
+                const VINTAGE_CHECKPOINTS   = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
+                const DIFF_CHECKPOINTS      = [20, 25, 30, 35];
+                const DIFF_SPAN_MODS        = [0.6, 0.3, 0, -0.3, -0.6];
+
+                const vMin = settings.vintageMin;
+                const vMax = settings.vintageMax;
+                const dMin = settings.diffMin;
+                const dMax = settings.diffMax;
+
+                const vStart    = vMin === null ? 0                                 : VINTAGE_CHECKPOINTS.indexOf(vMin) + 1;
+                const vEnd      = vMax === null ? VINTAGE_CHECKPOINTS.length + 1    : VINTAGE_CHECKPOINTS.indexOf(vMax) + 1;
+
+                const vintageM = Math.max(0.5, Number((1 - (11 - (vEnd - vStart)) * 0.05).toFixed(2)));
+
+                const dStart    = dMin === null ? 0                             : DIFF_CHECKPOINTS.indexOf(dMin) + 1;
+                const dEnd      = dMax === null ? DIFF_CHECKPOINTS.length + 1   : DIFF_CHECKPOINTS.indexOf(dMax) + 1;
+
+                let diffMod = 0;
+                for (let i = dStart; i < dEnd; i++) diffMod += DIFF_SPAN_MODS[i];
+
+                const diffM             = Math.max(0.2, Number((1 + diffMod / (dEnd - dStart)).toFixed(2)));
+                const modeM             = settings.mode === "entry" ? 1 : 0.4;
+                const streakM           = bestStreak >= 15 ? 1.6 : bestStreak >= 10 ? 1.4 : bestStreak >= 5 ? 1.2 : 1;
+                const multiplier        = categoryM * chantingM * timeM * modeM * streakM * vintageM * diffM;
+                const requestedReward   = Math.max(0, Math.round(correct * multiplier));
+                const quizReward        = Math.min(requestedReward, Math.max(0, 120 - daily.quizEarned));
+
+                daily.quizEarned    += quizReward;
+                save.stars          += quizReward;
+
+                daily.completedQuizIds.push(quizId);
+
+                const roundPct = roundSongs >= 20 ? Math.floor((correct / roundSongs) * 100) : 0;
+                const progress = daily.progress;
+
+                progress.songsPlayed        += songsPlayed;
+                progress.correct            += correct;
+                progress.chantingCorrect    += chantingCorrect;
+
+                progress.bestStreak     = Math.max(progress.bestStreak, bestStreak);
+                progress.bestRoundPct   = Math.max(progress.bestRoundPct || 0, roundPct);
+                const completed         = songsPlayed === roundSongs;
+
+                progress.allCategoriesQuiz  ||= (completed && settings.categories.length === 3);
+                progress.entryQuiz          ||= (completed && settings.mode === "entry");
+                progress.shortTimeQuiz      ||= (completed && (sound !== 20 || extra !== 0));
+
+                progress.allOptionsQuiz ||= (
+                    completed                           &&
+                    settings.categories.length === 3    &&
+                    settings.chanting                   &&
+                    settings.vintageMin === null        &&
+                    settings.vintageMax === null        &&
+                    settings.diffMin    === null        &&
+                    settings.diffMax    === null
+                );
+
+                let missionReward = 0;
+
+                for (const [missionId, mission] of Object.entries(QUIZ_MISSIONS)) {
+                    if (!daily.claimedMissions.includes(missionId) && mission.ready(progress) && daily.missionEarned + mission.reward <= 120) {
+                        daily.claimedMissions.push(missionId);
+
+                        daily.missionEarned += mission.reward;
+                        save.stars          += mission.reward;
+                        missionReward       += mission.reward;
+                    }
+                }
+
+                const conflictResponse = await persistPlayerSave();
+
+                if (conflictResponse) {
+                    await adminClient
+                        .from   ("quiz_sessions")
+                        .update ({status: "active"})
+                        .eq     ("id", quizId)
+                        .eq     ("status", "processing");
+
+                    return conflictResponse;
+                }
+
+                const {error: finishError} = await adminClient
+                    .from   ("quiz_sessions")
+                    .update ({
+                        status          : "completed",
+                        completed_at    : new Date().toISOString(),
+                        result          : {songsPlayed, correct, bestStreak, chantingCorrect, quizReward, missionReward}
+                    })
+                    .eq     ("id", quizId)
+                    .eq     ("status", "processing");
+
+                if (finishError) {
+                    console.error("Quiz session finalization failed:", finishError);
+                    throw new Error("Could not finalize quiz session");
+                }
+
+                return new Response(JSON.stringify({save, quizReward, missionReward, requestedReward, multiplier, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+
+            } catch (error) {
+                if (!saveCommitted) {await adminClient
+                    .from   ("quiz_sessions")
+                    .update ({status: "active"})
+                    .eq     ("id", quizId)
+                    .eq     ("status", "processing");
+                }
+
+                throw error;
+            }
         } else if (action === "QUIZ_CLAIM_MISSION") {
             const missionId = String(body.missionId || "");
 
