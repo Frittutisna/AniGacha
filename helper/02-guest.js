@@ -95,7 +95,10 @@ function handleGuestGachaAction(payload) {
             const tier              = selectClientRarityTier(guaranteeTier, customRarities);
             const pool              = isCategorySlot ? categoryTierMap[tier] : globalBuckets[tier];
             const chosen            = pool[Math.floor(Math.random() * pool.length)];
-            const count             = (inventory[chosen.uniqueKey] || 0) + 1;
+            const prevCount         = inventory[chosen.uniqueKey] || 0;
+            const isMaxed           = prevCount >= 6;
+            const autoSoldStars     = isMaxed ? chosen.rarity.sellValue : 0;
+            const count             = isMaxed ? prevCount : prevCount + 1;
 
             inventory[chosen.uniqueKey] = count;
             if (AUTO_LOCK_TIERS.has(tier)) lockedCards.add(chosen.uniqueKey);
@@ -108,7 +111,7 @@ function handleGuestGachaAction(payload) {
             else if (isHOF)         hofPulls++;
             else                    totalPulls++;
 
-            rolledResults.push({ uniqueKey: chosen.uniqueKey, occurrenceCount: count });
+            rolledResults.push({uniqueKey: chosen.uniqueKey, occurrenceCount: count, autoSoldStars});
         }
     } else if (action === "SELL") {
         const key = payload.uniqueKey;
@@ -120,8 +123,9 @@ function handleGuestGachaAction(payload) {
         const char                      = characterMap.get(uniqueKey);
         const sparkKey                  = ALL_THEMED_KEYS.includes(bannerType) ? "THEMED" : bannerType;
 
-        if (!char || !isCharacterSparkableInBanner(char, bannerType))   return null;
-        if ((sparkPoints[sparkKey] || 0) < char.rarity.sparkCost)       return null;
+        if (!char || (inventory[uniqueKey] || 0) >= 6)              return null;
+        if (!isCharacterSparkableInBanner(char, bannerType))        return null;
+        if ((sparkPoints[sparkKey] || 0) < char.rarity.sparkCost)   return null;
 
         sparkPoints[sparkKey]   -=  char.rarity.sparkCost;
         inventory[uniqueKey]    =   (inventory[uniqueKey] || 0) + 1;

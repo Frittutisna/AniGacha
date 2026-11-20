@@ -196,14 +196,28 @@ function resolveRootAnime(animeId, animeMap) {
 }
 
 function getMinSparkCost(bannerKey) {
-    if (!databaseReady              || characterPool.length === 0)      return Infinity;
-    if (bannerKey === "STANDARD"    || bannerKey            === "HOF")  return Math.min(...RARITIES.map(r => r.sparkCost));
+    if (!databaseReady || characterPool.length === 0) return Infinity;
+
+    if (bannerKey === "STANDARD" || bannerKey === "HOF") {
+        let minCost = Infinity;
+
+        for (const char of characterPool) {
+            if ((inventory[char.uniqueKey] || 0) < 6 && char.rarity.sparkCost < minCost) {
+                minCost = char.rarity.sparkCost;
+                if (minCost === 10) break;
+            }
+        }
+
+        return minCost;
+    }
 
     if (bannerKey === "LIST") {
         if (!anilistUsername || anilistEligibleKeys.size === 0) return Infinity;
         let minCost = Infinity;
 
         for (const key of anilistEligibleKeys) {
+            if ((inventory[key] || 0) >= 6) continue;
+
             const char = characterMap.get(key);
             if (char && char.rarity.sparkCost < minCost) minCost = char.rarity.sparkCost;
         }
@@ -217,6 +231,8 @@ function getMinSparkCost(bannerKey) {
     let minCost = Infinity;
 
     for (const key of themed.active.eligibleKeys) {
+        if ((inventory[key] || 0) >= 6) continue;
+
         const char = characterMap.get(key);
         if (char && char.rarity.sparkCost < minCost) minCost = char.rarity.sparkCost;
     }

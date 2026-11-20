@@ -772,20 +772,25 @@ serve(async (req) => {
                 const tier                  = selectRarityTier(guaranteeTier, customRarities);
                 const pool                  = isCategorySlot ? categoryTierMap[tier] : gameData.globalBuckets[tier];
                 const chosenKey             = pool[Math.floor(Math.random() * pool.length)];
-                const count                 = (save.inventory[chosenKey] || 0) + 1;
-                save.inventory[chosenKey]   = count;
+                const prevCount             = save.inventory[chosenKey] || 0;
+                const isMaxed               = prevCount >= 6;
+                const autoSoldStars         = isMaxed ? rarityInfoMap.get(tier).sellValue : 0;
+                const count                 = isMaxed ? prevCount : prevCount + 1;
 
-                if (AUTO_LOCK_TIERS.has(tier)) lockedSet.add(chosenKey);
+                save.inventory[chosenKey] = count;
 
-                const sparkKey = isThemed ? "THEMED" : bannerType;
-                save.sparkPoints[sparkKey] = (save.sparkPoints[sparkKey] || 0) + 1;
+                if (autoSoldStars > 0)          save.stars += autoSoldStars;
+                if (AUTO_LOCK_TIERS.has(tier))  lockedSet.add(chosenKey);
+
+                const sparkKey              = isThemed ? "THEMED" : bannerType;
+                save.sparkPoints[sparkKey]  = (save.sparkPoints[sparkKey] || 0) + 1;
 
                 if      (isThemed)      save.themedPulls[bannerType]    = (save.themedPulls[bannerType] || 0) + 1;
                 else if (isListBanner)  save.listPulls                  = (save.listPulls               || 0) + 1;
-                else if (isHOF)         save.hofPulls++;
-                else                    save.totalPulls++;
+                else if (isHOF)         save.hofPulls                   = (save.hofPulls                || 0) + 1;
+                else                    save.totalPulls                 = (save.totalPulls              || 0) + 1;
 
-                rolledResults.push({uniqueKey: chosenKey, occurrenceCount: count});
+                rolledResults.push({uniqueKey: chosenKey, occurrenceCount: count, autoSoldStars});
             }
         } else if (action === "SELL") {
             const key   = body.uniqueKey;
@@ -827,7 +832,9 @@ serve(async (req) => {
             const cost      = char ? rarityInfoMap.get(char.tier).sparkCost : Infinity;
             const sparkKey  = isThemed ? "THEMED" : bannerType;
 
-            if (!char || (save.sparkPoints[sparkKey] || 0) < cost) throw new Error("Not enough spark points");
+            if (!char)                                      throw new Error("Invalid character");
+            if ((save.inventory[uniqueKey]  || 0) >= 6)     throw new Error("Character is already maxed out");
+            if ((save.sparkPoints[sparkKey] || 0) < cost)   throw new Error("Not enough spark points");
 
             save.sparkPoints[sparkKey]  -=  cost;
             save.inventory[uniqueKey]   =   (save.inventory[uniqueKey] || 0) + 1;

@@ -14,12 +14,21 @@ async function performSummon(_, bannerType = "STANDARD") {
         return;
     }
 
-    const res = await sendGachaAction({ action: "SUMMON", bannerType });
+    const res = await sendGachaAction({action: "SUMMON", bannerType});
     if (!res) return;
+
+    if (activeSparkBanner) exitSparkMode();
+
+    if (!isSharedView) {
+        document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"});
+        currentPage = 1;
+        renderInventory();
+    }
 
     const results = res.rolledResults.map(r => ({
         char            : characterMap.get(r.uniqueKey),
-        occurrenceCount : r.occurrenceCount
+        occurrenceCount : r.occurrenceCount,
+        autoSoldStars   : r.autoSoldStars || 0
     }));
 
     lastResults     = results;
@@ -34,7 +43,8 @@ function createCardHTML(char, {
     extraClass      = "",
     showSparkButton = false,
     canAffordSpark  = false,
-    showSellButton  = false
+    showSellButton  = false,
+    autoSoldStars   = 0
 } = {}) {
     const r             = char.rarity;
     const safeName      = escapeHTML(char.name);
@@ -86,12 +96,12 @@ function createCardHTML(char, {
         ? "bg-white hover:bg-slate-200 text-black"
         : "bg-slate-950/80 hover:bg-slate-950 text-white";
 
-    const sellFooterHtml = showSellButton
+    const autoSoldFooterHtml = autoSoldStars > 0
         ? `<div class="px-1.5 pb-1.5">
-            <button type="button" data-sell-key="${escapeHTML(char.uniqueKey)}" ${isLocked || sellInFlight ? "disabled" : ""}
-                class="sell-card-btn w-full py-1 rounded text-[11px] font-bold ${sellBtnColors} disabled:opacity-40 disabled:cursor-not-allowed transition">
-                Sell: ★ ${sellTotal}
-            </button>
+            <div title="Already maxed (Level 3) — automatically sold for ★ ${autoSoldStars}"
+                class="w-full py-1 rounded text-[11px] font-bold text-center ${sellBtnColors}">
+                Sold: ★ ${autoSoldStars}
+            </div>
         </div>`
         : "";
 
@@ -124,7 +134,7 @@ function createCardHTML(char, {
             </div>
             </div>
             ${sparkFooterHtml}
-            ${sellFooterHtml}
+            ${autoSoldFooterHtml}
         </div>
         </div>
     `;
@@ -156,7 +166,8 @@ function renderResults(results, animate = false, bannerType = lastBannerType) {
         const cardHTML = createCardHTML(res.char, {
             duplicateCount  : res.occurrenceCount > 1 ? res.occurrenceCount : null,
             animateDelay    : animate ? idx * 60 : 0,
-            extraClass      : `${cardWidthClass} shrink-0`
+            extraClass      : `${cardWidthClass} shrink-0`,
+            autoSoldStars   : res.autoSoldStars || 0
         });
 
         if (idx === 0) return `<div class="w-full flex justify-center sm:contents">${cardHTML}</div>${separatorHTML}`;
@@ -395,6 +406,7 @@ function renderInventory(useCache = false) {
             }
 
             if (isSparkMode) {
+                if ((inventory[c.uniqueKey] || 0) >= 6)                     return false;
                 if (!isCharacterSparkableInBanner(c, activeSparkBanner))    return false;
                 if (availableSpark < c.rarity.sparkCost)                    return false;
             } else {
