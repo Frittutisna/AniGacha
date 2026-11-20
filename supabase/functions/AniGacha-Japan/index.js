@@ -739,7 +739,7 @@ serve(async (req) => {
             if (isListBanner && !save.anilistUsername) throw new Error("Link your AniList account first");
 
             const isFreeStandard    = bannerType === "STANDARD" && save.lastFreeSummonDate !== dailyBanners.jstDate;
-            const cost              = isFreeStandard ? 0 : (COSTS[bannerType] ?? 60);
+            const cost              = isFreeStandard ? 0 : (COSTS[bannerType] ?? 80);
 
             if (save.stars < cost) throw new Error("Not enough stars");
 
