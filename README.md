@@ -1,4 +1,6 @@
-# AniGacha v0.4.4-beta
+# AniGacha v0.4.5-beta
 
+## Changelog
 1. Moved helper file import to HTML
 2. Pre-compiled JSON payload
+3. Defer quiz data fetching until necessary
