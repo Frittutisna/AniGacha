@@ -119,7 +119,6 @@ function renderDeckSlotsGrid() {
         if (char) {
             const r                 = char.rarity;
             const safeName          = escapeHTML(char.name);
-            const safeAnime         = escapeHTML(getAnimeTitle(char));
             const listPrefix        = isListCharacter(char) ? "L" : "";
             const duplicateCount    = inventory[char.uniqueKey] || 1;
             const dupLevel          = duplicateCount >= 6 ? "3" : duplicateCount >= 3 ? "2" : duplicateCount === 2 ? "1" : "";
@@ -163,12 +162,9 @@ function renderDeckSlotsGrid() {
                             </span>
                             ${lockBadgeHtml}
                         </div>
-                        <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5">
+                        <div class="p-1 flex-1 flex flex-col justify-center text-center">
                             <div class="font-bold text-xs leading-tight line-clamp-1">
                                 ${safeName}
-                            </div>
-                            <div class="text-[10px] leading-tight line-clamp-1">
-                                ${safeAnime}
                             </div>
                         </div>
                     </div>
@@ -192,12 +188,9 @@ function renderDeckSlotsGrid() {
                             ${escapeHTML(rankLabel)}
                         </span>
                     </div>
-                    <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5 ${emptyStyle.footerBg} text-white">
+                    <div class="p-1 flex-1 flex flex-col justify-center text-center ${emptyStyle.footerBg} text-white">
                         <div class="font-bold text-xs leading-tight line-clamp-1">
                             None
-                        </div>
-                        <div class="text-[10px] leading-tight line-clamp-1 text-white/90">
-                            ${escapeHTML(fullRankSuit)}
                         </div>
                     </div>
                 </div>

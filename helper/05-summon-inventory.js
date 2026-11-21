@@ -51,8 +51,7 @@ function createCardHTML(char, {
 } = {}) {
     const r             = char.rarity;
     const safeName      = escapeHTML(char.name);
-    const safeAnime     = escapeHTML(getAnimeTitle(char));
-    const fullTooltip   = `${safeName}\n${safeAnime}`;
+    const fullTooltip   = `${safeName}\n${escapeHTML(getAnimeTitle(char))}`;
     const listPrefix    = isListCharacter(char) ? "L" : "";
     const dupLevel      = duplicateCount >= 6 ? "3" : duplicateCount >= 3 ? "2" : duplicateCount === 2 ? "1" : "";
     const deckRank      = char.deckRank || "2";
@@ -154,12 +153,9 @@ function createCardHTML(char, {
             </span>
             ${lockBadgeHtml}
             </div>
-            <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5">
+            <div class="p-1 flex-1 flex flex-col justify-center text-center">
             <div class="font-bold text-xs leading-tight line-clamp-1">
                 ${safeName}
-            </div>
-            <div class="text-[10px] leading-tight line-clamp-1">
-                ${safeAnime}
             </div>
             </div>
             ${sparkFooterHtml}
