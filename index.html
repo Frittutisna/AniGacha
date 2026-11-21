@@ -473,11 +473,11 @@
                 </div>
                 <div class="col-span-2 flex items-center gap-1.5 sm:contents">
                     <button id="deck-builder-btn" type="button" data-tooltip-title="Deck Builder"
-                        title="Construct a deck of cards from characters you own" aria-label="Deck Builder"
-                        class="sm:order-3 w-9 h-9 sm:w-7 sm:h-7 shrink-0 flex items-center justify-center rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-200 transition">
-                        <svg class="w-4 h-4 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="6" y="3" width="12" height="18" rx="2"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9l2.5 3-2.5 3-2.5-3L12 9z"/>
+                        title="Construct a 56-card deck from characters you own" aria-label="Deck Builder"
+                        class="sm:order-3 w-9 h-9 sm:w-7 sm:h-7 shrink-0 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                        <svg class="w-4 h-4 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <rect x="3" y="4" width="12" height="16" rx="2" opacity="0.45" transform="rotate(-8 9 12)"/>
+                            <rect x="8" y="4" width="12" height="16" rx="2" transform="rotate(6 14 12)"/>
                         </svg>
                     </button>
                     <div class="relative flex-1 min-w-0 sm:flex-none sm:order-4 sm:w-80">
@@ -909,71 +909,57 @@
     </div>
     <div id="deck-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-            <div class="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
-                <div class="flex items-center gap-2">
-                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Deck Builder</h2>
-                    <span class="px-2 py-0.5 rounded-md text-xs font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 tabular-nums">
-                        <span id="deck-filled-count">0</span>/56
-                    </span>
-                </div>
+            <div class="px-3 py-2.5 flex items-center justify-between gap-2 shrink-0">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white">Deck Builder</h2>
                 <div class="flex items-center gap-1.5">
                     <button id="deck-auto-btn" type="button"
                         class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-                        Auto-Fill
+                        Auto
                     </button>
                     <button id="deck-clear-btn" type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600/15 hover:bg-rose-600/25 text-rose-700 dark:text-rose-300 border border-rose-500/30 transition">
+                        class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Clear
                     </button>
                     <button id="deck-save-btn" type="button" disabled
                         class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Save
                     </button>
-                    <button id="deck-close-btn" type="button" aria-label="Close Deck Builder"
-                        class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-sm font-bold transition">
-                        &times;
-                    </button>
                 </div>
             </div>
-            <div class="p-2.5 sm:p-3 overflow-y-auto space-y-3 flex-1">
+            <div class="px-2.5 pb-2.5 sm:px-3 sm:pb-3 overflow-y-auto space-y-2.5 flex-1">
                 <div id="deck-suit-tabs" class="grid grid-cols-4 gap-1.5">
-                    <button type="button" data-deck-suit="Spades" class="deck-suit-tab py-1.5 px-2 rounded-lg border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
-                        <span class="text-violet-600">♠</span>
-                        <span class="hidden sm:inline">Spades</span>
-                        <span class="deck-suit-count tabular-nums text-[11px] opacity-80">0/14</span>
+                    <button type="button" data-deck-suit="Spades" title="Spades"
+                        class="deck-suit-tab py-1.5 px-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
+                        <span>♠</span>
+                        <span class="deck-suit-count tabular-nums">0/14</span>
                     </button>
-                    <button type="button" data-deck-suit="Hearts" class="deck-suit-tab py-1.5 px-2 rounded-lg border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
-                        <span class="text-indigo-600">♥</span>
-                        <span class="hidden sm:inline">Hearts</span>
-                        <span class="deck-suit-count tabular-nums text-[11px] opacity-80">0/14</span>
+                    <button type="button" data-deck-suit="Hearts" title="Hearts"
+                        class="deck-suit-tab py-1.5 px-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
+                        <span>♥</span>
+                        <span class="deck-suit-count tabular-nums">0/14</span>
                     </button>
-                    <button type="button" data-deck-suit="Diamonds" class="deck-suit-tab py-1.5 px-2 rounded-lg border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
-                        <span class="text-blue-600">♦</span>
-                        <span class="hidden sm:inline">Diamonds</span>
-                        <span class="deck-suit-count tabular-nums text-[11px] opacity-80">0/14</span>
+                    <button type="button" data-deck-suit="Diamonds" title="Diamonds"
+                        class="deck-suit-tab py-1.5 px-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
+                        <span>♦</span>
+                        <span class="deck-suit-count tabular-nums">0/14</span>
                     </button>
-                    <button type="button" data-deck-suit="Clubs" class="deck-suit-tab py-1.5 px-2 rounded-lg border text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
-                        <span class="text-emerald-600">♣</span>
-                        <span class="hidden sm:inline">Clubs</span>
-                        <span class="deck-suit-count tabular-nums text-[11px] opacity-80">0/14</span>
+                    <button type="button" data-deck-suit="Clubs" title="Clubs"
+                        class="deck-suit-tab py-1.5 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition">
+                        <span>♣</span>
+                        <span class="deck-suit-count tabular-nums">0/14</span>
                     </button>
                 </div>
                 <div id="deck-slots-grid" class="grid grid-cols-4 sm:grid-cols-7 gap-1.5"></div>
-                <div id="deck-picker-panel" class="hidden border-t border-slate-200 dark:border-slate-800 pt-2.5 space-y-2">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="text-xs font-bold text-slate-700 dark:text-slate-200">
-                            Slot: <span id="deck-picker-slot-label" class="text-indigo-600 dark:text-indigo-400"></span>
-                        </div>
-                        <div class="flex items-center gap-1.5 flex-1 sm:flex-none justify-end">
-                            <input id="deck-picker-search" type="text" placeholder="Filter owned characters..."
-                                class="w-full sm:w-56 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-indigo-500"/>
-                            <button id="deck-unassign-slot-btn" type="button"
-                                class="hidden shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-500 transition">
-                                Remove
-                            </button>
-                        </div>
+                <div id="deck-picker-panel" class="hidden space-y-2">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <input id="deck-picker-search" type="text" placeholder="Search owned characters..."
+                            class="w-full sm:w-80 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-indigo-500"/>
+                        <button id="deck-unassign-slot-btn" type="button"
+                            class="hidden shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition">
+                            Remove
+                        </button>
                     </div>
-                    <div id="deck-picker-grid" class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 max-h-56 overflow-y-auto p-0.5"></div>
+                    <div id="deck-picker-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 max-h-56 overflow-y-auto no-scrollbar p-1 border border-slate-200 dark:border-slate-800 rounded-lg"></div>
                 </div>
             </div>
         </div>
