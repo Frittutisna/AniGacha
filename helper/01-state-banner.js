@@ -159,6 +159,7 @@ let fiftyFifty = {
 
 let activeSparkBanner       = null;
 let activeFiftyFiftyBanner  = null;
+let preFiftyFiftyViewState  = null;
 
 const THEMED_BANNERS = {
     ERA: {
@@ -505,7 +506,7 @@ function applyDailyBanners(dailyBanners) {
                 banner.secondHoverLine.replace(/^The first/, "First"),
                 "Auto-locks sparks and S+ summons",
                 "Rotates 00:00 JST",
-                "Shares Spark points across all themed banners",
+                "Sparks are pooled across all themed banners",
                 "",
                 ...otherLabels
             ].join("\n"));
@@ -526,9 +527,9 @@ function applyDailyBanners(dailyBanners) {
 
             listPillEl.setAttribute("data-tooltip", [
                 "First summon is guaranteed to be a B-tier or better",
-                "First 5 summons are from your AniList",
+                "All 10 summons are from your AniList",
                 "Auto-locks sparks and S+ summons",
-                "Sparks stay within the same banner type"
+                "Sparks stay in this banner"
             ].join("\n"));
 
             listPillEl.removeAttribute  ("title");

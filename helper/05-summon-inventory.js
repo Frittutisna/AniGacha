@@ -168,7 +168,7 @@ function hideResultsSection() {document.getElementById("results-section")?.class
 function renderResults(results, animate = false, bannerType = lastBannerType) {
     const section           = document.getElementById("results-section");
     const grid              = document.getElementById("results-grid");
-    const isThemedBanner    = Boolean(THEMED_BANNERS[bannerType]) || bannerType === "LIST";
+    const isThemedBanner    = Boolean(THEMED_BANNERS[bannerType]);
 
     const sortBatchByRarity = (batch) => batch.slice().sort((a, b) => compareHighestRarity(a.char, b.char) || popularityTiebreaker(a.char, b.char));
 

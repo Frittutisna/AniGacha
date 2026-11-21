@@ -385,11 +385,25 @@ function exitSparkMode(shouldRender = true) {
 function enterFiftyFiftyMode(bannerKey) {
     if (activeSparkBanner) exitSparkMode(false);
 
+    if (!activeFiftyFiftyBanner) preFiftyFiftyViewState = {
+        entity  : document.getElementById("sort-entity")?.value || "CHARACTER",
+        field   : document.getElementById("sort-field")?.value || "RARITY",
+        dir     : document.getElementById("sort-dir-btn")?.dataset.dir || "DESC",
+        rarity  : getCheckedValues("#filter-rarity-group"),
+        own     : getCheckedValues("#filter-own-group"),
+        lock    : getCheckedValues("#filter-lock-group"),
+        list    : getCheckedValues("#filter-list-group"),
+        search  : document.getElementById("search-input")?.value || "",
+        page    : currentPage
+    };
+
     hideResultsSection();
     activeFiftyFiftyBanner = bannerKey;
 
     setSortControlState     ("CHARACTER", "RARITY", "DESC");
     clearFilterCheckboxes   (["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
+
+    document.querySelectorAll('#filter-rarity-group input[type="checkbox"]').forEach(cb => {cb.closest("label")?.classList.toggle("hidden", !FIFTY_FIFTY_TIERS.has(cb.value))});
 
     document.getElementById("sell-all-btn")         .classList.add("hidden");
     document.getElementById("filter-lock-section")  .classList.add("hidden");
@@ -411,13 +425,35 @@ function enterFiftyFiftyMode(bannerKey) {
 
 function exitFiftyFiftyMode(shouldRender = true) {
     activeFiftyFiftyBanner = null;
+    document.querySelectorAll('#filter-rarity-group input[type="checkbox"]').forEach(cb => {cb.closest("label")?.classList.remove("hidden")});
 
     document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
     document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
     document.getElementById("fifty-mode-indicator") .classList.add      ("hidden");
 
+    const saved             = preFiftyFiftyViewState;
+    preFiftyFiftyViewState  = null;
+
+    if (saved) {
+        setSortControlState(saved.entity, saved.field, saved.dir);
+        const restoreCheckboxes = (selector, values) => {document.querySelectorAll(`${selector} input[type="checkbox"]`).forEach(cb => {cb.checked = values.has(cb.value)})};
+
+        restoreCheckboxes("#filter-rarity-group",   saved.rarity);
+        restoreCheckboxes("#filter-own-group",      saved.own);
+        restoreCheckboxes("#filter-lock-group",     saved.lock);
+        restoreCheckboxes("#filter-list-group",     saved.list);
+
+        const searchEl = document.getElementById("search-input");
+        const clearBtn = document.getElementById("clear-search");
+
+        if (searchEl) {
+            searchEl.value = saved.search;
+            clearBtn?.classList.toggle("hidden", saved.search === "");
+        }
+    }
+
     if (shouldRender) {
-        currentPage = 1;
+        currentPage = saved ? saved.page : 1;
         renderInventory();
     }
 }

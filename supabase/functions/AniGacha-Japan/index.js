@@ -336,7 +336,7 @@ function getDailyThemedBanners(gameData) {
     return {jstDate, activeCategories, activeEntries};
 }
 
-function buildTierMapFromKeys(keys, gameData) {
+function buildTierMapFromKeys(keys, gameData, downwardOnly = false) {
     const tierMap = {};
     RARITIES.forEach(r => tierMap[r.tier] = []);
 
@@ -352,6 +352,11 @@ function buildTierMapFromKeys(keys, gameData) {
             tierMap[r.tier] = tierMap[RARITIES[d].tier];
             return;
         }}
+
+        if (downwardOnly) {
+            tierMap[r.tier] = gameData.globalBuckets[r.tier];
+            return;
+        }
 
         for (let u = idx - 1; u >= 0; u--) {if (tierMap[RARITIES[u].tier].length > 0) {
             tierMap[r.tier] = tierMap[RARITIES[u].tier];
@@ -1027,7 +1032,7 @@ serve(async (req) => {
             else if (isListBanner) {
                 const listKeys = getKeysForAnimeIds(save.anilistAnimeIds, gameData);
                 if (listKeys.length === 0) throw new Error("No characters in the database matched your AniList");
-                categoryTierMap = buildTierMapFromKeys(listKeys, gameData);
+                categoryTierMap = buildTierMapFromKeys(listKeys, gameData, true);
             }
 
             let activeFiftyKey = null;
@@ -1048,7 +1053,7 @@ serve(async (req) => {
 
             for (let i = 0; i < 10; i++) {
                 const guaranteeTier     = i === 0 ? (isHOF ? "A" : "B") : null;
-                const isCategorySlot    = Boolean(categoryTierMap && i < 5);
+                const isCategorySlot    = Boolean(categoryTierMap && (isListBanner || i < 5));
                 const tier              = selectRarityTier(guaranteeTier, customRarities);
                 const pool              = isCategorySlot ? categoryTierMap[tier] : gameData.globalBuckets[tier];
 

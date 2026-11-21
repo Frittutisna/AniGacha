@@ -8,7 +8,7 @@ function buildClientGlobalBuckets() {
     return buckets;
 }
 
-function buildClientTierMapFromKeys(eligibleKeys, globalBuckets) {
+function buildClientTierMapFromKeys(eligibleKeys, globalBuckets, downwardOnly = false) {
     const tierMap = {};
     RARITIES.forEach(r => { tierMap[r.tier] = []; });
 
@@ -25,6 +25,11 @@ function buildClientTierMapFromKeys(eligibleKeys, globalBuckets) {
                 tierMap[r.tier] = tierMap[RARITIES[d].tier];
                 return;
             }
+        }
+
+        if (downwardOnly) {
+            tierMap[r.tier] = globalBuckets[r.tier];
+            return;
         }
 
         for (let u = idx - 1; u >= 0; u--) {
@@ -87,7 +92,7 @@ function handleGuestGachaAction(payload) {
 
         const categoryTierMap = isThemed
             ? buildClientTierMapFromKeys(THEMED_BANNERS[bannerType].active.eligibleKeys, globalBuckets)
-            : (isListBanner ? buildClientTierMapFromKeys(anilistEligibleKeys, globalBuckets) : null);
+            : (isListBanner ? buildClientTierMapFromKeys(anilistEligibleKeys, globalBuckets, true) : null);
 
         const todayJst      = activeDailyJstDate || getCurrentJstDate();
         let activeFiftyKey  = null;
@@ -108,7 +113,7 @@ function handleGuestGachaAction(payload) {
 
         for (let i = 0; i < 10; i++) {
             const guaranteeTier     = i === 0 ? (isHOF ? "A" : "B") : null;
-            const isCategorySlot    = Boolean(categoryTierMap && i < 5);
+            const isCategorySlot    = Boolean(categoryTierMap && (isListBanner || i < 5));
             const tier              = selectClientRarityTier(guaranteeTier, customRarities);
             const pool              = isCategorySlot ? categoryTierMap[tier] : globalBuckets[tier];
 
