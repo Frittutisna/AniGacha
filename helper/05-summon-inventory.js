@@ -216,13 +216,17 @@ function getCharacterLevel(ownedCount) {
     return 0;
 }
 
-const RARITY_ORDER = new Map(RARITIES.map((r, idx) => [r.tier, idx]));
+const RARITY_ORDER      = new Map(RARITIES.map((r, idx) => [r.tier, idx]));
+const DECK_RANK_ORDER   = new Map(["R", "A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"].map((rank, idx) => [rank, idx]));
 
-function compareHighestRarity(a, b) {return (RARITY_ORDER.get(a.rarity.tier) ?? 99) - (RARITY_ORDER.get(b.rarity.tier) ?? 99);}
-function popularityTiebreaker(a, b) {return (b.count - a.count) || compareHighestRarity(a, b) || (b.animeCount - a.animeCount)}
+function compareHighestRarity   (a, b) {return (RARITY_ORDER.get(a.rarity.tier) ?? 99) - (RARITY_ORDER.get(b.rarity.tier) ?? 99)}
+function compareHighestRank     (a, b) {return (DECK_RANK_ORDER.get(a.deckRank || "2") ?? 99) - (DECK_RANK_ORDER.get(b.deckRank || "2") ?? 99)}
+function popularityTiebreaker   (a, b) {return (b.count - a.count) || compareHighestRarity(a, b) || (b.animeCount - a.animeCount)}
 
 function sortCharacters(list, sortMode) {return list.slice().sort((a, b) => {switch (sortMode) {
     case "RARITY_ASC"       : return -compareHighestRarity(a, b)    ||  popularityTiebreaker(a, b);
+    case "RANK_DESC"        : return compareHighestRank(a, b)       ||  popularityTiebreaker(a, b);
+    case "RANK_ASC"         : return -compareHighestRank(a, b)      ||  popularityTiebreaker(a, b);
     case "CHAR_COUNT_DESC"  : return                                    popularityTiebreaker(a, b);
     case "CHAR_COUNT_ASC"   : return (a.count - b.count)            ||  popularityTiebreaker(a, b);
 
@@ -393,6 +397,8 @@ function renderInventory(useCache = false) {
     if (characterPool.length === 0) return;
 
     const selectedRarities  = getCheckedValues("#filter-rarity-group");
+    const selectedRanks     = getCheckedValues("#filter-rank-group");
+    const selectedSuits     = getCheckedValues("#filter-suit-group");
     const selectedOwn       = getCheckedValues("#filter-own-group");
     const selectedLock      = getCheckedValues("#filter-lock-group");
     const selectedList      = getCheckedValues("#filter-list-group");
@@ -422,6 +428,8 @@ function renderInventory(useCache = false) {
         sortMode,
         rawQuery,
         Array.from(selectedRarities)    .sort().join(","),
+        Array.from(selectedRanks)       .sort().join(","),
+        Array.from(selectedSuits)       .sort().join(","),
         Array.from(selectedOwn)         .sort().join(","),
         Array.from(selectedLock)        .sort().join(","),
         Array.from(selectedList)        .sort().join(",")
@@ -445,13 +453,13 @@ function renderInventory(useCache = false) {
             }
 
             if (isSparkMode) {
-                if ((inventory[c.uniqueKey] || 0) >= 6)                         return false;
-                if (!isCharacterSparkableInBanner(c, activeSparkBanner))        return false;
-                if (availableSpark < c.rarity.sparkCost)                        return false;
+                if ((inventory[c.uniqueKey] || 0) >= 6)                                             return false;
+                if (!isCharacterSparkableInBanner(c, activeSparkBanner))                            return false;
+                if (availableSpark < c.rarity.sparkCost)                                            return false;
             } else if (isFiftyMode) {
-                if ((inventory[c.uniqueKey] || 0) >= 6)                         return false;
-                if (!FIFTY_FIFTY_TIERS.has(c.rarity.tier))                      return false;
-                if (!isCharacterEligibleForBanner(c, activeFiftyFiftyBanner))   return false;
+                if ((inventory[c.uniqueKey] || 0) >= 6)                                             return false;
+                if (!FIFTY_FIFTY_TIERS.has(c.rarity.tier))                                          return false;
+                if (!isCharacterEligibleForBanner(c, activeFiftyFiftyBanner))                       return false;
             } else {
                 if (selectedLock.size > 0) {
                     const lockMatch = (selectedLock.has("LOCKED") && isLocked) || (selectedLock.has("UNLOCKED") && isOwned && !isLocked);
@@ -459,7 +467,9 @@ function renderInventory(useCache = false) {
                 }
             }
 
-            if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity.tier)) return false;
+            if (selectedRarities    .size > 0 && !selectedRarities  .has(c.rarity.tier))            return false;
+            if (selectedRanks       .size > 0 && !selectedRanks     .has(c.deckRank || "2"))        return false;
+            if (selectedSuits       .size > 0 && !selectedSuits     .has(c.deckSuit || "Spades"))   return false;
 
             if (isAnilistLinked && selectedList.size > 0) {
                 const onList    = isListCharacter(c);

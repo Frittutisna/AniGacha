@@ -382,6 +382,7 @@
                                 <div class="custom-select-wrapper relative w-auto shrink-0" data-target="sort-field">
                                     <select id="sort-field" class="sr-only" aria-hidden="true" tabindex="-1">
                                         <option value="RARITY">Rarity</option>
+                                        <option value="RANK">Rank</option>
                                         <option value="POPULARITY">Popularity</option>
                                         <option value="LEVEL">Level</option>
                                         <option value="NAME">Name</option>
@@ -401,21 +402,51 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="space-y-1">
-                            <div class="text-[11px] font-bold text-slate-400">Rarity</div>
-                            <div id="filter-rarity-group" class="grid grid-cols-3 w-fit gap-x-3 gap-y-1">
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="SSR" class="rounded accent-indigo-600"><span>SSR</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="SR" class="rounded accent-indigo-600"><span>SR</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="S" class="rounded accent-indigo-600"><span>S</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="A" class="rounded accent-indigo-600"><span>A</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="B" class="rounded accent-indigo-600"><span>B</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="C" class="rounded accent-indigo-600"><span>C</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="D" class="rounded accent-indigo-600"><span>D</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="E" class="rounded accent-indigo-600"><span>E</span></label>
-                                <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="F" class="rounded accent-indigo-600"><span>F</span></label>
+                        <div class="flex flex-wrap items-start gap-4">
+                            <div class="space-y-1">
+                                <div class="text-[11px] font-bold text-slate-400">Rarity</div>
+                                <div id="filter-rarity-group" class="grid grid-cols-3 w-fit gap-x-3 gap-y-1">
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="SSR" class="rounded accent-indigo-600"><span>SSR</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="SR" class="rounded accent-indigo-600"><span>SR</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="S" class="rounded accent-indigo-600"><span>S</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="A" class="rounded accent-indigo-600"><span>A</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="B" class="rounded accent-indigo-600"><span>B</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="C" class="rounded accent-indigo-600"><span>C</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="D" class="rounded accent-indigo-600"><span>D</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="E" class="rounded accent-indigo-600"><span>E</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" value="F" class="rounded accent-indigo-600"><span>F</span></label>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="text-[11px] font-bold text-slate-400">Rank</div>
+                                <div id="filter-rank-group" class="grid grid-cols-5 w-fit gap-x-2.5 gap-y-1">
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="R" class="rounded accent-indigo-600"><span>R</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="A" class="rounded accent-indigo-600"><span>A</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="K" class="rounded accent-indigo-600"><span>K</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="Q" class="rounded accent-indigo-600"><span>Q</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="J" class="rounded accent-indigo-600"><span>J</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="10" class="rounded accent-indigo-600"><span>10</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="9" class="rounded accent-indigo-600"><span>9</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="8" class="rounded accent-indigo-600"><span>8</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="7" class="rounded accent-indigo-600"><span>7</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="6" class="rounded accent-indigo-600"><span>6</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="5" class="rounded accent-indigo-600"><span>5</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="4" class="rounded accent-indigo-600"><span>4</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="3" class="rounded accent-indigo-600"><span>3</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="2" class="rounded accent-indigo-600"><span>2</span></label>
+                                </div>
                             </div>
                         </div>
-                        <div id="filter-status-row" class="flex items-start gap-4">
+                        <div id="filter-status-row" class="flex flex-wrap items-start gap-4">
+                            <div id="filter-suit-section" class="space-y-1">
+                                <div class="text-[11px] font-bold text-slate-400">Suit</div>
+                                <div id="filter-suit-group" class="grid grid-cols-2 w-fit gap-x-3 gap-y-1">
+                                    <label title="Spades" class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="Spades" class="rounded accent-indigo-600"><span class="font-bold text-sm leading-none text-violet-600">♠</span></label>
+                                    <label title="Hearts" class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="Hearts" class="rounded accent-indigo-600"><span class="font-bold text-sm leading-none text-indigo-600">♥</span></label>
+                                    <label title="Diamonds" class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="Diamonds" class="rounded accent-indigo-600"><span class="font-bold text-sm leading-none text-blue-600">♦</span></label>
+                                    <label title="Clubs" class="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap"><input type="checkbox" value="Clubs" class="rounded accent-indigo-600"><span class="font-bold text-sm leading-none text-emerald-600">♣</span></label>
+                                </div>
+                            </div>
                             <div id="filter-own-section" class="space-y-1">
                                 <div class="text-[11px] font-bold text-slate-400">Ownership</div>
                                 <div id="filter-own-group" class="space-y-1">

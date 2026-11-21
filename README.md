@@ -1,4 +1,4 @@
-# AniGacha v0.7.2.2-beta
+# AniGacha v0.7.2.3-beta
 
 ## Changelog
 1. Changed Sort/Filter to only show S+ rarity checkboxes when selecting 50/50s
@@ -7,3 +7,4 @@
 4. Started deck-of-cards implementation
     1. Moved rarity indicator to bottom-left
     2. Added deck-of-cards indicator to top-left
+    3. Added Rank and Suit to Sort/Filter

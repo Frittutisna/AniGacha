@@ -347,7 +347,7 @@ function enterSparkMode(bannerKey) {
     activeSparkBanner = bannerKey;
 
     setSortControlState     ("CHARACTER", "POPULARITY", "DESC");
-    clearFilterCheckboxes   (["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
+    clearFilterCheckboxes   (["#filter-rarity-group", "#filter-rank-group", "#filter-suit-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
 
     document.getElementById("sell-all-btn")         .classList.add      ("hidden");
     document.getElementById("filter-lock-section")  .classList.add      ("hidden");
@@ -401,7 +401,7 @@ function enterFiftyFiftyMode(bannerKey) {
     activeFiftyFiftyBanner = bannerKey;
 
     setSortControlState     ("CHARACTER", "RARITY", "DESC");
-    clearFilterCheckboxes   (["#filter-rarity-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
+    clearFilterCheckboxes   (["#filter-rarity-group", "#filter-rank-group", "#filter-suit-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
 
     document.querySelectorAll('#filter-rarity-group input[type="checkbox"]').forEach(cb => {cb.closest("label")?.classList.toggle("hidden", !FIFTY_FIFTY_TIERS.has(cb.value))});
 

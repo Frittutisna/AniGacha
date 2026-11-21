@@ -20,6 +20,7 @@ langToggleBtn.addEventListener("click", () => {
 const SORT_FIELDS_BY_ENTITY = {
     CHARACTER: [
         {value: "RARITY",       label: "Rarity"},
+        {value: "RANK",         label: "Rank"},
         {value: "POPULARITY",   label: "Popularity"},
         {value: "LEVEL",        label: "Level"},
         {value: "NAME",         label: "Name"}
@@ -162,6 +163,7 @@ function getResolvedSortMode() {
 
     if (entity === "CHARACTER") {
         if (field === "RARITY")     return dir === "ASC" ? "RARITY_ASC"         : "RARITY_DESC";
+        if (field === "RANK")       return dir === "ASC" ? "RANK_ASC"           : "RANK_DESC";
         if (field === "POPULARITY") return dir === "ASC" ? "CHAR_COUNT_ASC"     : "CHAR_COUNT_DESC";
         if (field === "LEVEL")      return dir === "ASC" ? "LEVEL_ASC"          : "LEVEL_DESC";
         if (field === "NAME")       return dir === "ASC" ? "CHAR_ZA"            : "CHAR_AZ";
