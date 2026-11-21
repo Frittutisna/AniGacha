@@ -35,8 +35,8 @@ const COSTS = {
     SOURCE      : 100,
     STUDIO      : 100,
     TAG         : 100,
-    HOF         : 120,
-    LIST        : 140
+    HOF         : 140,
+    LIST        : 120
 };
 
 const GUARANTEED_B_PLUS = new Set(["SSR", "SR", "S", "A", "B"]);
