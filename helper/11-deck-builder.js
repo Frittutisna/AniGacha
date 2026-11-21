@@ -299,10 +299,9 @@ function autoFillDeck() {
     renderDeckModal();
 }
 
-document.getElementById("deck-builder-btn")?.addEventListener("click", openDeckModal);
-document.getElementById("deck-modal")?.addEventListener("click", (e) => {
-    if (e.target.id === "deck-modal") document.getElementById("deck-modal").classList.add("hidden");
-});
+document.getElementById("deck-builder-btn")?.   addEventListener("click", openDeckModal);
+document.getElementById("deck-close-btn")?.     addEventListener("click", ()    => {document.getElementById("deck-modal").classList.add("hidden")});
+document.getElementById("deck-modal")?.         addEventListener("click", (e)   => {if (e.target.id === "deck-modal") document.getElementById("deck-modal").classList.add("hidden")});
 
 document.getElementById("deck-suit-tabs")?.addEventListener("click", (e) => {
     const tab = e.target.closest("[data-deck-suit]");

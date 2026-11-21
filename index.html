@@ -911,18 +911,24 @@
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-5xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden shadow-2xl">
             <div class="px-3 py-2.5 flex items-center justify-between gap-2 shrink-0">
                 <h2 id="deck-modal-title" class="text-base font-bold text-slate-900 dark:text-white">Deck Builder</h2>
-                <div id="deck-modal-actions" class="flex items-center gap-1.5">
-                    <button id="deck-auto-btn" type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-                        Auto
-                    </button>
-                    <button id="deck-clear-btn" type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
-                        Clear
-                    </button>
-                    <button id="deck-save-btn" type="button" disabled
-                        class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
-                        Save
+                <div class="flex items-center gap-1.5">
+                    <div id="deck-modal-actions" class="flex items-center gap-1.5">
+                        <button id="deck-auto-btn" type="button"
+                            class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                            Auto
+                        </button>
+                        <button id="deck-clear-btn" type="button"
+                            class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Clear
+                        </button>
+                        <button id="deck-save-btn" type="button" disabled
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                            Save
+                        </button>
+                    </div>
+                    <button id="deck-close-btn" type="button"
+                        class="sm:hidden px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition">
+                        Close
                     </button>
                 </div>
             </div>
