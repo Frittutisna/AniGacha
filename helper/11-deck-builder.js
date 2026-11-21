@@ -4,12 +4,13 @@ let selectedDeckSlot    = null;
 
 function getSanitizedDeck(sourceDeck = playerDeck) {
     const clean     = {};
-    const usedKeys  = new Set();
+    const usedKey   = new Set();
 
     for (const suit of DECK_SUITS) {
         for (const rank of DECK_RANKS) {
             const slotId    = `${suit}:${rank}`;
             const key       = sourceDeck?.[slotId];
+
             if (!key || usedKeys.has(key) || !(inventory[key] > 0)) continue;
 
             const char = characterMap.get(key);
@@ -40,31 +41,27 @@ const DECK_SUIT_TAB_BG = {
 };
 
 const DECK_EMPTY_CARD_STYLES = {
-    Spades      : {cardBg: "bg-violet-600",  border: "border-2 border-violet-500",  footerBg: "bg-violet-700/80"},
-    Hearts      : {cardBg: "bg-indigo-600",  border: "border-2 border-indigo-500",  footerBg: "bg-indigo-700/80"},
-    Diamonds    : {cardBg: "bg-blue-600",    border: "border-2 border-blue-500",    footerBg: "bg-blue-700/80"},
-    Clubs       : {cardBg: "bg-emerald-600", border: "border-2 border-emerald-500", footerBg: "bg-emerald-700/80"}
+    Spades      : {cardBg: "bg-violet-600",     border: "border-2 border-violet-500",   footerBg: "bg-violet-700/80"},
+    Hearts      : {cardBg: "bg-indigo-600",     border: "border-2 border-indigo-500",   footerBg: "bg-indigo-700/80"},
+    Diamonds    : {cardBg: "bg-blue-600",       border: "border-2 border-blue-500",     footerBg: "bg-blue-700/80"},
+    Clubs       : {cardBg: "bg-emerald-600",    border: "border-2 border-emerald-500",  footerBg: "bg-emerald-700/80"}
 };
 
 const DECK_PIP_COORDS = {
     "2" : [[50, 30], [50, 70]],
     "3" : [[50, 26], [50, 50], [50, 74]],
-    "4" : [[35, 30], [65, 30], [35, 70], [65, 70]],
-    "5" : [[35, 30], [65, 30], [50, 50], [35, 70], [65, 70]],
-    "6" : [[35, 27], [65, 27], [35, 50], [65, 50], [35, 73], [65, 73]],
-    "7" : [[35, 27], [65, 27], [50, 38.5], [35, 50], [65, 50], [35, 73], [65, 73]],
-    "8" : [[35, 27], [65, 27], [50, 38.5], [35, 50], [65, 50], [50, 61.5], [35, 73], [65, 73]],
-    "9" : [[35, 24], [65, 24], [35, 41], [65, 41], [50, 50], [35, 59], [65, 59], [35, 76], [65, 76]],
-    "10": [[35, 24], [65, 24], [50, 32.5], [35, 41], [65, 41], [35, 59], [65, 59], [50, 67.5], [35, 76], [65, 76]]
+    "4" : [[35, 30], [65, 30], [35, 70],    [65, 70]],
+    "5" : [[35, 30], [65, 30], [50, 50],    [35, 70], [65, 70]],
+    "6" : [[35, 27], [65, 27], [35, 50],    [65, 50], [35, 73], [65, 73]],
+    "7" : [[35, 27], [65, 27], [50, 38.5],  [35, 50], [65, 50], [35, 73],   [65, 73]],
+    "8" : [[35, 27], [65, 27], [50, 38.5],  [35, 50], [65, 50], [50, 61.5], [35, 73], [65, 73]],
+    "9" : [[35, 24], [65, 24], [35, 41],    [65, 41], [50, 50], [35, 59],   [65, 59], [35, 76],     [65, 76]],
+    "10": [[35, 24], [65, 24], [50, 32.5],  [35, 41], [65, 41], [35, 59],   [65, 59], [50, 67.5],   [35, 76], [65, 76]]
 };
 
 function renderPlayingCardCenter(rank, symbol) {
-    if (rank === "A") {
-        return `<span class="text-5xl sm:text-6xl leading-none text-white/95">${symbol}</span>`;
-    }
-    if (rank === "R" || rank === "K" || rank === "Q" || rank === "J") {
-        return `<span class="text-5xl sm:text-6xl font-extrabold leading-none text-white/95">${rank}</span>`;
-    }
+    if (rank === "A")                                                   return `<span class="text-5xl sm:text-6xl leading-none text-white/95">${symbol}</span>`;
+    if (rank === "R" || rank === "K" || rank === "Q" || rank === "J")   return `<span class="text-5xl sm:text-6xl font-extrabold leading-none text-white/95">${rank}</span>`;
 
     const coords    = DECK_PIP_COORDS[rank] || [[50, 50]];
     const pipSize   = coords.length >= 8 ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl";
@@ -83,8 +80,9 @@ function renderPlayingCardCenter(rank, symbol) {
 
 function updateDeckHeaderAndTabs() {
     const totalFilled = Object.keys(draftDeck).length;
-    document.getElementById("deck-clear-btn").disabled  = totalFilled === 0;
-    document.getElementById("deck-save-btn").disabled   = actionInFlight || !isDeckDirty();
+
+    document.getElementById("deck-clear-btn")   .disabled = totalFilled === 0;
+    document.getElementById("deck-save-btn")    .disabled = actionInFlight || !isDeckDirty();
 
     document.querySelectorAll(".deck-suit-tab").forEach(btn => {
         const suit      = btn.getAttribute("data-deck-suit");
@@ -92,9 +90,7 @@ function updateDeckHeaderAndTabs() {
         const bgClass   = DECK_SUIT_TAB_BG[suit] || DECK_SUIT_TAB_BG.Spades;
         let suitCount   = 0;
 
-        for (const rank of DECK_RANKS) {
-            if (draftDeck[`${suit}:${rank}`]) suitCount++;
-        }
+        for (const rank of DECK_RANKS) {if (draftDeck[`${suit}:${rank}`]) suitCount++}
 
         const countEl = btn.querySelector(".deck-suit-count");
         if (countEl) countEl.textContent = `${suitCount}/14`;
@@ -222,8 +218,8 @@ function renderDeckPicker() {
         if (!query)                                         return true;
 
         return c.name.toLowerCase().includes(query) ||
-               (c.animeRomaji  && c.animeRomaji.toLowerCase().includes(query)) ||
-               (c.animeEnglish && c.animeEnglish.toLowerCase().includes(query));
+               (c.animeRomaji   && c.animeRomaji    .toLowerCase().includes(query)) ||
+               (c.animeEnglish  && c.animeEnglish   .toLowerCase().includes(query));
     });
 
     if (eligible.length === 0) {
@@ -232,8 +228,9 @@ function renderDeckPicker() {
     }
 
     grid.innerHTML = eligible.map(c => {
-        const selected  = currentKey === c.uniqueKey ? "ring-2 ring-indigo-500" : "";
-        const imgHtml   = c.imageUrl
+        const selected = currentKey === c.uniqueKey ? "ring-2 ring-indigo-500" : "";
+
+        const imgHtml = c.imageUrl
             ? `<img src="${c.imageUrl}" alt="${escapeHTML(c.name)}" loading="lazy" class="w-full h-full object-cover object-top"/>`
             : `<div class="w-full h-full flex items-center justify-center text-[10px] font-bold text-slate-500 p-1 text-center">No Image</div>`;
 
@@ -282,9 +279,9 @@ function autoFillDeck() {
             if (next[slotId]) continue;
 
             const match = characterPool.find(c =>
-                (inventory[c.uniqueKey] > 0) &&
-                c.deckSuit === suit &&
-                c.deckRank === rank &&
+                (inventory[c.uniqueKey] > 0)    &&
+                c.deckSuit === suit             &&
+                c.deckRank === rank             &&
                 !usedKeys.has(c.uniqueKey)
             );
 
@@ -331,8 +328,9 @@ document.getElementById("deck-picker-grid")?.addEventListener("click", (e) => {
     if (!pickBtn || !selectedDeckSlot) return;
 
     const key = pickBtn.getAttribute("data-deck-pick");
-    if (draftDeck[selectedDeckSlot] === key) delete draftDeck[selectedDeckSlot];
-    else draftDeck[selectedDeckSlot] = key;
+
+    if (draftDeck[selectedDeckSlot] === key)    delete draftDeck[selectedDeckSlot];
+    else                                        draftDeck[selectedDeckSlot] = key;
 
     renderDeckModal();
 });
@@ -359,6 +357,7 @@ document.getElementById("deck-save-btn")?.addEventListener("click", async () => 
     if (res) {
         playerDeck  = {...cleanDeck};
         draftDeck   = {...cleanDeck};
+
         renderDeckModal();
     }
 });
