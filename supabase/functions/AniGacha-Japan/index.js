@@ -335,7 +335,7 @@ function getDailyThemedBanners(gameData) {
     return {jstDate, activeCategories, activeEntries};
 }
 
-function buildTierMapFromKeys(keys, gameData, downwardOnly = false) {
+function buildTierMapFromKeys(keys, gameData) {
     const tierMap = {};
     RARITIES.forEach(r => tierMap[r.tier] = []);
 
@@ -352,17 +352,7 @@ function buildTierMapFromKeys(keys, gameData, downwardOnly = false) {
             return;
         }}
 
-        if (downwardOnly) {
-            tierMap[r.tier] = gameData.globalBuckets[r.tier];
-            return;
-        }
-
-        for (let u = idx - 1; u >= 0; u--) {if (tierMap[RARITIES[u].tier].length > 0) {
-            tierMap[r.tier] = tierMap[RARITIES[u].tier];
-            return;
-        }}
-
-        tierMap[r.tier] = keys.length > 0 ? keys : gameData.globalBuckets[r.tier];
+        tierMap[r.tier] = gameData.globalBuckets[r.tier];
     });
 
     return tierMap;
@@ -1036,7 +1026,7 @@ serve(async (req) => {
             else if (isListBanner) {
                 const listKeys = getKeysForAnimeIds(save.anilistAnimeIds, gameData);
                 if (listKeys.length === 0) throw new Error("No characters in the database matched your AniList");
-                categoryTierMap = buildTierMapFromKeys(listKeys, gameData, true);
+                categoryTierMap = buildTierMapFromKeys(listKeys, gameData);
             }
 
             let activeFiftyKey = null;

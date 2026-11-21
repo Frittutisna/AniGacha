@@ -8,7 +8,7 @@ function buildClientGlobalBuckets() {
     return buckets;
 }
 
-function buildClientTierMapFromKeys(eligibleKeys, globalBuckets, downwardOnly = false) {
+function buildClientTierMapFromKeys(eligibleKeys, globalBuckets) {
     const tierMap = {};
     RARITIES.forEach(r => { tierMap[r.tier] = []; });
 
@@ -20,24 +20,10 @@ function buildClientTierMapFromKeys(eligibleKeys, globalBuckets, downwardOnly = 
     RARITIES.forEach((r, idx) => {
         if (tierMap[r.tier].length > 0) return;
 
-        for (let d = idx + 1; d < RARITIES.length; d++) {
-            if (tierMap[RARITIES[d].tier].length > 0) {
-                tierMap[r.tier] = tierMap[RARITIES[d].tier];
-                return;
-            }
-        }
-
-        if (downwardOnly) {
-            tierMap[r.tier] = globalBuckets[r.tier];
+        for (let d = idx + 1; d < RARITIES.length; d++) {if (tierMap[RARITIES[d].tier].length > 0) {
+            tierMap[r.tier] = tierMap[RARITIES[d].tier];
             return;
-        }
-
-        for (let u = idx - 1; u >= 0; u--) {
-            if (tierMap[RARITIES[u].tier].length > 0) {
-                tierMap[r.tier] = tierMap[RARITIES[u].tier];
-                return;
-            }
-        }
+        }}
 
         tierMap[r.tier] = globalBuckets[r.tier];
     });
@@ -92,7 +78,7 @@ function handleGuestGachaAction(payload) {
 
         const categoryTierMap = isThemed
             ? buildClientTierMapFromKeys(THEMED_BANNERS[bannerType].active.eligibleKeys, globalBuckets)
-            : (isListBanner ? buildClientTierMapFromKeys(anilistEligibleKeys, globalBuckets, true) : null);
+            : (isListBanner ? buildClientTierMapFromKeys(anilistEligibleKeys, globalBuckets) : null);
 
         const todayJst      = activeDailyJstDate || getCurrentJstDate();
         let activeFiftyKey  = null;
