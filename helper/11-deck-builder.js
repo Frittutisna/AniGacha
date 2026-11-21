@@ -57,7 +57,7 @@ function updateDeckHeaderAndTabs() {
         const countEl = btn.querySelector(".deck-suit-count");
         if (countEl) countEl.textContent = `${suitCount}/14`;
 
-        btn.className = `deck-suit-tab py-1.5 px-2 rounded-lg ${bgClass} text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition ${isActive ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ring-slate-900 dark:ring-white" : "opacity-65 hover:opacity-100"}`;
+        btn.className = `deck-suit-tab py-1.5 px-2 rounded-lg ${bgClass} text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition ${isActive ? "opacity-100" : "opacity-65 hover:opacity-100"}`;
     });
 }
 
@@ -134,17 +134,35 @@ function renderDeckSlotsGrid() {
             `;
         }
 
+        const suitTextColor = suitStyle.badge.split(" ").find(c => c.startsWith("text-")) || "text-slate-700 dark:text-slate-200";
+
         return `
             <button type="button" data-deck-slot="${slotId}"
                 title="${escapeHTML(`${fullRankSuit}: None`)}"
-                class="rounded-lg border-2 border-dashed ${isSelected ? "border-indigo-500 bg-indigo-500/10" : "border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 hover:border-slate-400 dark:hover:border-slate-600"} flex flex-col justify-between p-1.5 transition">
-                <div class="aspect-[3/4] w-full flex flex-col items-center justify-center gap-1">
-                    <span class="px-1.5 py-0.5 rounded text-xs font-bold ${suitStyle.badge}">
-                        ${escapeHTML(rankLabel)}
-                    </span>
-                    <span class="text-[10px] font-semibold text-slate-400">+ Assign</span>
+                class="rounded-lg overflow-hidden bg-white dark:bg-slate-900 border-2 ${isSelected ? "border-indigo-500 ring-2 ring-indigo-500" : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600"} flex flex-col text-left transition hover:-translate-y-0.5">
+                <div class="overflow-hidden flex flex-col w-full h-full">
+                    <div class="relative aspect-[3/4] w-full bg-slate-50 dark:bg-slate-950 flex items-center justify-center select-none">
+                        <div class="absolute top-1.5 left-1.5 flex flex-col items-center leading-none font-bold ${suitTextColor}">
+                            <span class="text-xs">${escapeHTML(rank)}</span>
+                            <span class="text-[11px]">${suitStyle.symbol}</span>
+                        </div>
+                        <span class="text-3xl sm:text-4xl leading-none opacity-85 ${suitTextColor}">
+                            ${suitStyle.symbol}
+                        </span>
+                        <div class="absolute bottom-1.5 right-1.5 flex flex-col items-center leading-none font-bold rotate-180 ${suitTextColor}">
+                            <span class="text-xs">${escapeHTML(rank)}</span>
+                            <span class="text-[11px]">${suitStyle.symbol}</span>
+                        </div>
+                    </div>
+                    <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5 bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
+                        <div class="font-bold text-xs leading-tight line-clamp-1">
+                            Empty
+                        </div>
+                        <div class="text-[10px] leading-tight line-clamp-1">
+                            ${escapeHTML(fullRankSuit)}
+                        </div>
+                    </div>
                 </div>
-                <div class="text-[10px] font-semibold text-slate-400 text-center truncate">None</div>
             </button>
         `;
     }).join("");
@@ -178,7 +196,7 @@ function renderDeckPicker() {
     });
 
     if (eligible.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-6 text-xs text-slate-500">No ${escapeHTML(getDeckRankFullName(rank))} of ${escapeHTML(suit)}</div>`;
+        grid.innerHTML = `<div class="col-span-full h-full flex items-center justify-center text-xs text-slate-500">No ${escapeHTML(getDeckRankFullName(rank))} of ${escapeHTML(suit)}</div>`;
         return;
     }
 
