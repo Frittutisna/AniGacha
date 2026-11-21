@@ -458,68 +458,22 @@ serve(async (req) => {
                 Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
             );
 
-            const RATE_LIMITS = {
-                INIT                    : 10,
-                SUMMON                  : 100,
-                SPARK                   : 100,
-                SELL                    : 100,
-                SELL_ALL                : 10,
-                SET_PROFILE             : 10,
-                LINK_ANILIST            : 10,
-                UNLINK_ANILIST          : 10,
-                SET_FIFTY_FIFTY         : 100,
-                TOGGLE_LOCK             : 100,
-                CLAIM_DAILY_STARS       : 10,
-                QUIZ_COMPLETE           : 10,
-                QUIZ_MISSION_PROGRESS   : 100,
-                QUIZ_CLAIM_MISSION      : 100
-            };
-
-            const actionLimit = RATE_LIMITS[action] ?? 10;
-
-            const {data: rateAllowed, error: rateError} = await adminClient.rpc("check_api_rate_limit", {
-                p_user_id       : userId,
-                p_action        : action,
-                p_max_requests  : actionLimit
-            });
-
-            if (rateError) {
-                console.error("Rate limiter database error:", rateError);
-
-                return new Response(JSON.stringify({error: "Request validation temporarily unavailable"}), {
-                    status  : 503,
-                    headers : {...corsHeaders, "Content-Type": "application/json"}
-                });
-            }
-
-            if (rateAllowed !== true) {return new Response(JSON.stringify({
-                error   : "Too many requests. Please wait before trying again.",
-                code    : "RATE_LIMITED"
-            }), {
-                status  : 429,
-                headers : {
-                    ...corsHeaders,
-                    "Content-Type"  : "application/json",
-                    "Retry-After"   : "60"
-                }
-            })}
-
             const {data: row, error} = await adminClient.from("player_saves").select("save_data").eq("user_id", targetUserId).maybeSingle();
 
             if (error || !row?.save_data) return new Response(JSON.stringify({error: "Shared collection not found"}), {
                 status  : 404,
-                headers : {...corsHeaders, "Content-Type": "application/json"},
+                header  : {...corsHeaders, "Content-Type": "application/json"},
             });
 
             const s = row.save_data;
 
             return new Response(JSON.stringify({profile: {
-                    displayName:     s.displayName || "Player",
-                    profilePhoto:    s.profilePhoto || null,
-                    anilistUsername: s.anilistUsername || null,
-                    anilistAnimeIds: Array.isArray(s.anilistAnimeIds) ? s.anilistAnimeIds : [],
-                    inventory:       s.inventory || {},
-                    lockedCards:     Array.isArray(s.lockedCards) ? s.lockedCards : [],
+                    displayName     : s.displayName || "Player",
+                    profilePhoto    : s.profilePhoto || null,
+                    anilistUsername : s.anilistUsername || null,
+                    anilistAnimeIds : Array.isArray(s.anilistAnimeIds) ? s.anilistAnimeIds : [],
+                    inventory       : s.inventory || {},
+                    lockedCards     : Array.isArray(s.lockedCards) ? s.lockedCards : [],
             }}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
@@ -542,6 +496,53 @@ serve(async (req) => {
             Deno.env.get("SUPABASE_URL"),
             Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
         );
+
+        const RATE_LIMITS = {
+            INIT                    : 10,
+            SUMMON                  : 100,
+            SPARK                   : 100,
+            SELL                    : 100,
+            SELL_ALL                : 10,
+            SET_PROFILE             : 10,
+            LINK_ANILIST            : 10,
+            UNLINK_ANILIST          : 10,
+            SET_FIFTY_FIFTY         : 100,
+            TOGGLE_LOCK             : 100,
+            CLAIM_DAILY_STARS       : 10,
+            QUIZ_START              : 10,
+            QUIZ_COMPLETE           : 10,
+            QUIZ_MISSION_PROGRESS   : 100,
+            QUIZ_CLAIM_MISSION      : 100
+        };
+
+        const actionLimit = RATE_LIMITS[action] ?? 10;
+
+        const {data: rateAllowed, error: rateError} = await adminClient.rpc("check_api_rate_limit", {
+            p_user_id       : userId,
+            p_action        : action,
+            p_max_requests  : actionLimit
+        });
+
+        if (rateError) {
+            console.error("Rate limiter database error:", rateError);
+
+            return new Response(JSON.stringify({error: "Request validation temporarily unavailable"}), {
+                status  : 503,
+                headers : {...corsHeaders, "Content-Type": "application/json"}
+            });
+        }
+
+        if (rateAllowed !== true) {return new Response(JSON.stringify({
+            error   : "Too many requests. Please wait before trying again.",
+            code    : "RATE_LIMITED"
+        }), {
+            status  : 429,
+            headers : {
+                ...corsHeaders,
+                "Content-Type"  : "application/json",
+                "Retry-After"   : "60"
+            }
+        })}
 
         const [gameData, { data: existing, error: loadError }] = await Promise.all([
             getGameData(adminClient),
@@ -680,7 +681,7 @@ serve(async (req) => {
 
             const selected      = pool.slice(0, settings.count);
             const privateSongs  = selected.map(song => ({video_url: song.video_url, acceptedAnswers: [song.romaji, song.english, ...song.alts].filter(Boolean), chanting: song.chanting}));
-            const expiresAt     = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+            const expiresAt     = new Date(Date.now() + 120 * 60 * 1000).toISOString();
 
             const {data: session, error} = await adminClient
                 .from("quiz_sessions")
