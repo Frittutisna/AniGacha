@@ -908,7 +908,7 @@
         </div>
     </div>
     <div id="deck-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-5xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden shadow-2xl">
             <div class="px-3 py-2.5 flex items-center justify-between gap-2 shrink-0">
                 <h2 id="deck-modal-title" class="text-base font-bold text-slate-900 dark:text-white">Deck Builder</h2>
                 <div id="deck-modal-actions" class="flex items-center gap-1.5">
@@ -959,7 +959,7 @@
                             Remove
                         </button>
                     </div>
-                    <div id="deck-picker-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 h-[4.625rem] sm:h-[6.375rem] overflow-y-auto no-scrollbar p-1 border border-slate-200 dark:border-slate-800 rounded-lg"></div>
+                    <div id="deck-picker-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-1.5 h-[calc((100vw-4.375rem)/5+0.625rem)] sm:h-[calc((min(100vw-2rem,64rem)-6.625rem)/10+0.625rem)] overflow-y-auto no-scrollbar p-1 border border-slate-200 dark:border-slate-800 rounded-lg"></div>
                 </div>
             </div>
         </div>

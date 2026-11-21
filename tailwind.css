@@ -493,6 +493,15 @@
   .h-\[4\.625rem\] {
     height: 4.625rem;
   }
+  .h-\[90dvh\] {
+    height: 90dvh;
+  }
+  .h-\[95dvh\] {
+    height: 95dvh;
+  }
+  .h-\[calc\(\(100vw-4\.375rem\)\/5\+0\.625rem\)\] {
+    height: calc((100vw - 4.375rem) / 5 + 0.625rem);
+  }
   .h-full {
     height: 100%;
   }
@@ -502,11 +511,26 @@
   .max-h-56 {
     max-height: calc(var(--spacing) * 56);
   }
+  .max-h-\[90dvh\] {
+    max-height: 90dvh;
+  }
   .max-h-\[92vh\] {
     max-height: 92vh;
   }
+  .max-h-\[95dvh\] {
+    max-height: 95dvh;
+  }
+  .max-h-\[calc\(\(100vw-3rem\)\/5\)\] {
+    max-height: calc((100vw - 3rem) / 5);
+  }
+  .max-h-\[calc\(100dvh-1rem\)\] {
+    max-height: calc(100dvh - 1rem);
+  }
   .max-h-\[min\(calc\(100vw-3\.5rem\)\,26rem\)\] {
     max-height: min(calc(100vw - 3.5rem), 26rem);
+  }
+  .min-h-\[4\.625rem\] {
+    min-height: 4.625rem;
   }
   .min-h-full {
     min-height: 100%;
@@ -1884,8 +1908,29 @@
     .sm\:h-\[6\.375rem\] {
       height: 6.375rem;
     }
+    .sm\:h-\[calc\(\(min\(100vw-2rem\,64rem\)-6\.625rem\)\/10\+0\.625rem\)\] {
+      height: calc((min(100vw - 2rem, 64rem) - 6.625rem) / 10 + 0.625rem);
+    }
     .sm\:h-auto {
       height: auto;
+    }
+    .sm\:max-h-\[90vh\] {
+      max-height: 90vh;
+    }
+    .sm\:max-h-\[92vh\] {
+      max-height: 92vh;
+    }
+    .sm\:max-h-\[calc\(\(min\(100vw\,64rem\)-3\.5rem\)\/10\)\] {
+      max-height: calc((min(100vw, 64rem) - 3.5rem) / 10);
+    }
+    .sm\:max-h-\[calc\(100dvh-1\.5rem\)\] {
+      max-height: calc(100dvh - 1.5rem);
+    }
+    .sm\:max-h-\[calc\(100dvh-2rem\)\] {
+      max-height: calc(100dvh - 2rem);
+    }
+    .sm\:min-h-\[6\.375rem\] {
+      min-height: 6.375rem;
     }
     .sm\:w-3\.5 {
       width: calc(var(--spacing) * 3.5);
