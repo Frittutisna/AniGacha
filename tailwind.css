@@ -321,6 +321,9 @@
   .right-2\.5 {
     right: calc(var(--spacing) * 2.5);
   }
+  .bottom-1\.5 {
+    bottom: calc(var(--spacing) * 1.5);
+  }
   .left-0 {
     left: 0px;
   }

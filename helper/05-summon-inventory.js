@@ -141,7 +141,7 @@ function createCardHTML(char, {
                     listPrefix ? "From your AniList" : null,
                     duplicateCount > 1 ? `${duplicateCount - 1} extra ${duplicateCount - 1 === 1 ? "copy" : "copies"}` : "Base copy"
                 ].filter(Boolean).join("\n")}"
-                class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold cursor-help ${r.badge}">
+                class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold cursor-help ${r.badge}">
                 ${listPrefix}${r.tier}${dupLevel}
             </span>
             ${lockBadgeHtml}
