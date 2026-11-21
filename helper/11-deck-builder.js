@@ -47,33 +47,27 @@ const DECK_EMPTY_CARD_STYLES = {
 };
 
 const DECK_PIP_COORDS = {
-    "2" : [[50, 22], [50, 78]],
-    "3" : [[50, 20], [50, 50], [50, 80]],
-    "4" : [[34, 22], [66, 22], [34, 78], [66, 78]],
-    "5" : [[34, 22], [66, 22], [50, 50], [34, 78], [66, 78]],
-    "6" : [[34, 22], [66, 22], [34, 50], [66, 50], [34, 78], [66, 78]],
-    "7" : [[34, 22], [66, 22], [50, 36], [34, 50], [66, 50], [34, 78], [66, 78]],
-    "8" : [[34, 22], [66, 22], [50, 36], [34, 50], [66, 50], [50, 64], [34, 78], [66, 78]],
-    "9" : [[34, 20], [66, 20], [34, 40], [66, 40], [50, 50], [34, 60], [66, 60], [34, 80], [66, 80]],
-    "10": [[34, 20], [66, 20], [50, 30], [34, 40], [66, 40], [34, 60], [66, 60], [50, 70], [34, 80], [66, 80]]
+    "2" : [[50, 30], [50, 70]],
+    "3" : [[50, 26], [50, 50], [50, 74]],
+    "4" : [[35, 30], [65, 30], [35, 70], [65, 70]],
+    "5" : [[35, 30], [65, 30], [50, 50], [35, 70], [65, 70]],
+    "6" : [[35, 27], [65, 27], [35, 50], [65, 50], [35, 73], [65, 73]],
+    "7" : [[35, 27], [65, 27], [50, 38.5], [35, 50], [65, 50], [35, 73], [65, 73]],
+    "8" : [[35, 27], [65, 27], [50, 38.5], [35, 50], [65, 50], [50, 61.5], [35, 73], [65, 73]],
+    "9" : [[35, 24], [65, 24], [35, 41], [65, 41], [50, 50], [35, 59], [65, 59], [35, 76], [65, 76]],
+    "10": [[35, 24], [65, 24], [50, 32.5], [35, 41], [65, 41], [35, 59], [65, 59], [50, 67.5], [35, 76], [65, 76]]
 };
 
 function renderPlayingCardCenter(rank, symbol) {
     if (rank === "A") {
-        return `<span class="text-3xl sm:text-4xl leading-none text-white/95">${symbol}</span>`;
+        return `<span class="text-5xl sm:text-6xl leading-none text-white/95">${symbol}</span>`;
     }
     if (rank === "R" || rank === "K" || rank === "Q" || rank === "J") {
-        const badgeText = rank === "R" ? "★" : rank;
-        return `
-            <div class="w-10 h-14 sm:w-12 sm:h-16 rounded border border-white/40 bg-white/10 flex flex-col items-center justify-center leading-none text-white">
-                <span class="text-base sm:text-lg font-extrabold">${badgeText}</span>
-                <span class="text-xs sm:text-sm mt-0.5">${symbol}</span>
-            </div>
-        `;
+        return `<span class="text-5xl sm:text-6xl font-extrabold leading-none text-white/95">${rank}</span>`;
     }
 
     const coords    = DECK_PIP_COORDS[rank] || [[50, 50]];
-    const pipSize   = coords.length >= 8 ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm";
+    const pipSize   = coords.length >= 8 ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl";
 
     return `
         <div class="relative w-full h-full">
@@ -156,7 +150,7 @@ function renderDeckSlotsGrid() {
 
             return `
                 <button type="button" data-deck-slot="${slotId}"
-                    title="${escapeHTML(`${fullRankSuit}: ${char.name}\n${getAnimeTitle(char)}`)}"
+                    title="${escapeHTML(`${fullRankSuit}\n${char.name}\n${getAnimeTitle(char)}`)}"
                     class="rounded-lg overflow-hidden bg-white dark:bg-slate-900 ${r.border} ${ringClass} flex flex-col text-left transition hover:-translate-y-0.5">
                     <div class="${r.badge} !border-0 overflow-hidden flex flex-col w-full h-full">
                         <div class="relative aspect-[3/4] w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
@@ -186,19 +180,17 @@ function renderDeckSlotsGrid() {
 
         return `
             <button type="button" data-deck-slot="${slotId}"
-                title="${escapeHTML(`None, ${fullRankSuit}`)}"
+                title="${escapeHTML(`${fullRankSuit}\nNone`)}"
                 class="rounded-lg overflow-hidden ${emptyStyle.cardBg} ${emptyStyle.border} ${ringClass} text-white flex flex-col text-left transition hover:-translate-y-0.5">
                 <div class="overflow-hidden flex flex-col w-full h-full">
                     <div class="relative aspect-[3/4] w-full flex items-center justify-center select-none">
-                        <div class="absolute top-1.5 left-1.5 flex flex-col items-center leading-none font-bold text-white">
-                            <span class="text-xs">${escapeHTML(rank)}</span>
-                            <span class="text-[11px]">${suitStyle.symbol}</span>
-                        </div>
+                        <span class="absolute top-1.5 left-1 px-1 py-0.5 rounded text-[10px] font-bold text-white leading-none">
+                            ${escapeHTML(rankLabel)}
+                        </span>
                         ${renderPlayingCardCenter(rank, suitStyle.symbol)}
-                        <div class="absolute bottom-1.5 right-1.5 flex flex-col items-center leading-none font-bold rotate-180 text-white">
-                            <span class="text-xs">${escapeHTML(rank)}</span>
-                            <span class="text-[11px]">${suitStyle.symbol}</span>
-                        </div>
+                        <span class="absolute bottom-1.5 right-1 px-1 py-0.5 rounded text-[10px] font-bold text-white leading-none rotate-180">
+                            ${escapeHTML(rankLabel)}
+                        </span>
                     </div>
                     <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5 ${emptyStyle.footerBg} text-white">
                         <div class="font-bold text-xs leading-tight line-clamp-1">
