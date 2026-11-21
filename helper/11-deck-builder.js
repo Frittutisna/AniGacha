@@ -4,7 +4,7 @@ let selectedDeckSlot    = null;
 
 function getSanitizedDeck(sourceDeck = playerDeck) {
     const clean     = {};
-    const usedKey   = new Set();
+    const usedKeys  = new Set();
 
     for (const suit of DECK_SUITS) {
         for (const rank of DECK_RANKS) {
@@ -264,9 +264,10 @@ function openDeckModal() {
     selectedDeckSlot    = isSharedView ? null : "Spades:R";
 
     document.getElementById("deck-picker-search").value = "";
-
     renderDeckModal();
+
     document.getElementById("deck-modal").classList.remove("hidden");
+    document.getElementById("deck-slots-grid").scrollTop = 0;
 }
 
 function autoFillDeck() {
@@ -297,7 +298,6 @@ function autoFillDeck() {
 }
 
 document.getElementById("deck-builder-btn")?.   addEventListener("click", openDeckModal);
-document.getElementById("deck-close-btn")?.     addEventListener("click", ()    => {document.getElementById("deck-modal").classList.add("hidden")});
 document.getElementById("deck-modal")?.         addEventListener("click", (e)   => {if (e.target.id === "deck-modal") document.getElementById("deck-modal").classList.add("hidden")});
 
 document.getElementById("deck-suit-tabs")?.addEventListener("click", (e) => {
@@ -309,6 +309,7 @@ document.getElementById("deck-suit-tabs")?.addEventListener("click", (e) => {
     selectedDeckSlot    = `${activeDeckSuit}:${currentRank}`;
 
     renderDeckModal();
+    document.getElementById("deck-slots-grid").scrollTop = 0;
 });
 
 document.getElementById("deck-slots-grid")?.addEventListener("click", (e) => {
