@@ -111,7 +111,7 @@ function renderDeckSlotsGrid() {
         const slotId        = `${activeDeckSuit}:${rank}`;
         const assignedKey   = draftDeck[slotId] || null;
         const char          = assignedKey ? characterMap.get(assignedKey) : null;
-        const isSelected    = selectedDeckSlot === slotId;
+        const isSelected    = !isSharedView && selectedDeckSlot === slotId;
         const ringClass     = isSelected ? "ring-2 ring-indigo-500" : "";
         const rankLabel     = `${rank} ${suitStyle.symbol}`;
         const fullRankSuit  = `${getDeckRankFullName(rank)} of ${activeDeckSuit}`;
@@ -212,7 +212,7 @@ function renderDeckPicker() {
     const unassignBtn   = document.getElementById("deck-unassign-slot-btn");
     const query         = document.getElementById("deck-picker-search").value.trim().toLowerCase();
 
-    if (!selectedDeckSlot) {
+    if (isSharedView || !selectedDeckSlot) {
         panel.classList.add("hidden");
         return;
     }
@@ -260,13 +260,21 @@ function renderDeckModal() {
 }
 
 function openDeckModal() {
-    if (!databaseReady || isSharedView) return;
+    if (!databaseReady) return;
+
+    const titleEl       = document.getElementById("deck-modal-title");
+    const actionsEl     = document.getElementById("deck-modal-actions");
+    const playerLabel   = document.getElementById("shared-username")?.textContent?.trim() || "Player";
+
+    titleEl.textContent = isSharedView ? `${playerLabel}'s Deck Collection` : "Deck Builder";
+    actionsEl.classList.toggle("hidden", isSharedView);
 
     draftDeck           = getSanitizedDeck(playerDeck);
     activeDeckSuit      = "Spades";
-    selectedDeckSlot    = "Spades:R";
+    selectedDeckSlot    = isSharedView ? null : "Spades:R";
 
     document.getElementById("deck-picker-search").value = "";
+
     renderDeckModal();
     document.getElementById("deck-modal").classList.remove("hidden");
 }
@@ -315,6 +323,8 @@ document.getElementById("deck-suit-tabs")?.addEventListener("click", (e) => {
 });
 
 document.getElementById("deck-slots-grid")?.addEventListener("click", (e) => {
+    if (isSharedView) return;
+
     const slotBtn = e.target.closest("[data-deck-slot]");
     if (!slotBtn) return;
 

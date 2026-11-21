@@ -10,6 +10,7 @@ async function loadSharedCollection(targetUserId) {
     const profile   = data.profile;
     inventory       = profile.inventory                 || {};
     lockedCards     = new Set(profile.lockedCards       || []);
+    playerDeck      = profile.deck && typeof profile.deck === "object" && !Array.isArray(profile.deck) ? {...profile.deck} : {};
     anilistUsername = profile.anilistUsername           || null;
     anilistAnimeIds = new Set((profile.anilistAnimeIds  || []).map(v => normalizeId(v)).filter(Boolean));
 
@@ -20,13 +21,23 @@ async function loadSharedCollection(targetUserId) {
     topSection.classList.add    ("hidden");
     topSection.classList.remove ("flex", "lg:grid");
 
-    document.getElementById("deck-builder-btn")?.   classList.add("hidden");
-    document.getElementById("sell-all-btn").        classList.add("hidden");
-    document.getElementById("filter-own-section")?. classList.add("hidden");
+    document.getElementById("deck-builder-btn")?.   classList.remove    ("hidden");
+    document.getElementById("sell-all-btn").        classList.add       ("hidden");
+    document.getElementById("filter-own-section")?. classList.add       ("hidden");
 
-    const sharedBanner = document.getElementById("shared-view-banner");
+    const sharedBanner  = document.getElementById("shared-view-banner");
+    const playerLabel   = profile.displayName || "Player";
+
     sharedBanner.classList.remove("hidden");
-    document.getElementById("shared-username").textContent = profile.displayName || "Player";
+    document.getElementById("shared-username").textContent = playerLabel;
+
+    const deckBtn = document.getElementById("deck-builder-btn");
+
+    if (deckBtn) {
+        deckBtn.setAttribute("data-tooltip-title",  "Deck Collection");
+        deckBtn.setAttribute("aria-label",          "Deck Collection");
+        deckBtn.setAttribute("title",               `See ${playerLabel}'s 56-card deck`);
+    }
 
     const anilistLink = document.getElementById("shared-anilist-link");
 
@@ -70,9 +81,18 @@ async function exitSharedCollection() {
     const cleanUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, "", cleanUrl);
 
-    document.getElementById("shared-view-banner")?. classList.add       ("hidden");
-    document.getElementById("deck-builder-btn")?.   classList.remove    ("hidden");
-    document.getElementById("filter-own-section")?. classList.remove    ("hidden");
+    document.getElementById("shared-view-banner")?.classList.add("hidden");
+    const deckBtn = document.getElementById("deck-builder-btn");
+
+    if (deckBtn) {
+        deckBtn.classList.remove("hidden");
+
+        deckBtn.setAttribute("data-tooltip-title",  "Deck Builder");
+        deckBtn.setAttribute("aria-label",          "Deck Builder");
+        deckBtn.setAttribute("title",               "Construct a 56-card deck from characters you own");
+    }
+
+    document.getElementById("filter-own-section")?.classList.remove("hidden");
 
     const topSection = document.getElementById("gacha-top-section");
 
@@ -114,7 +134,8 @@ async function exitSharedCollection() {
             anilistUsername             : null,
             anilistAnimeIds             : [],
             linkedAnilistHistory        : [],
-            lastAnilistChangeJstYear    : null
+            lastAnilistChangeJstYear    : null,
+            deck                        : {}
         });
 
         if (databaseReady) applyDailyBanners(getClientDailyBanners());

@@ -473,6 +473,7 @@ serve(async (req) => {
                     anilistAnimeIds : Array.isArray(s.anilistAnimeIds) ? s.anilistAnimeIds : [],
                     inventory       : s.inventory || {},
                     lockedCards     : Array.isArray(s.lockedCards) ? s.lockedCards : [],
+                    deck            : s.deck && typeof s.deck === "object" && !Array.isArray(s.deck) ? s.deck : {},
             }}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
