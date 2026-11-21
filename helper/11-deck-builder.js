@@ -39,6 +39,54 @@ const DECK_SUIT_TAB_BG = {
     Clubs       : "bg-emerald-600 hover:bg-emerald-500"
 };
 
+const DECK_EMPTY_CARD_STYLES = {
+    Spades      : {cardBg: "bg-violet-600",  border: "border-2 border-violet-500",  footerBg: "bg-violet-700/80"},
+    Hearts      : {cardBg: "bg-indigo-600",  border: "border-2 border-indigo-500",  footerBg: "bg-indigo-700/80"},
+    Diamonds    : {cardBg: "bg-blue-600",    border: "border-2 border-blue-500",    footerBg: "bg-blue-700/80"},
+    Clubs       : {cardBg: "bg-emerald-600", border: "border-2 border-emerald-500", footerBg: "bg-emerald-700/80"}
+};
+
+const DECK_PIP_COORDS = {
+    "2" : [[50, 22], [50, 78]],
+    "3" : [[50, 20], [50, 50], [50, 80]],
+    "4" : [[34, 22], [66, 22], [34, 78], [66, 78]],
+    "5" : [[34, 22], [66, 22], [50, 50], [34, 78], [66, 78]],
+    "6" : [[34, 22], [66, 22], [34, 50], [66, 50], [34, 78], [66, 78]],
+    "7" : [[34, 22], [66, 22], [50, 36], [34, 50], [66, 50], [34, 78], [66, 78]],
+    "8" : [[34, 22], [66, 22], [50, 36], [34, 50], [66, 50], [50, 64], [34, 78], [66, 78]],
+    "9" : [[34, 20], [66, 20], [34, 40], [66, 40], [50, 50], [34, 60], [66, 60], [34, 80], [66, 80]],
+    "10": [[34, 20], [66, 20], [50, 30], [34, 40], [66, 40], [34, 60], [66, 60], [50, 70], [34, 80], [66, 80]]
+};
+
+function renderPlayingCardCenter(rank, symbol) {
+    if (rank === "A") {
+        return `<span class="text-3xl sm:text-4xl leading-none text-white/95">${symbol}</span>`;
+    }
+    if (rank === "R" || rank === "K" || rank === "Q" || rank === "J") {
+        const badgeText = rank === "R" ? "★" : rank;
+        return `
+            <div class="w-10 h-14 sm:w-12 sm:h-16 rounded border border-white/40 bg-white/10 flex flex-col items-center justify-center leading-none text-white">
+                <span class="text-base sm:text-lg font-extrabold">${badgeText}</span>
+                <span class="text-xs sm:text-sm mt-0.5">${symbol}</span>
+            </div>
+        `;
+    }
+
+    const coords    = DECK_PIP_COORDS[rank] || [[50, 50]];
+    const pipSize   = coords.length >= 8 ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm";
+
+    return `
+        <div class="relative w-full h-full">
+            ${coords.map(([x, y]) => `
+                <span style="left:${x}%; top:${y}%"
+                    class="absolute -translate-x-1/2 -translate-y-1/2 leading-none text-white/95 ${pipSize} ${y > 50 ? "rotate-180" : ""}">
+                    ${symbol}
+                </span>
+            `).join("")}
+        </div>
+    `;
+}
+
 function updateDeckHeaderAndTabs() {
     const totalFilled = Object.keys(draftDeck).length;
     document.getElementById("deck-clear-btn").disabled  = totalFilled === 0;
@@ -134,31 +182,29 @@ function renderDeckSlotsGrid() {
             `;
         }
 
-        const suitTextColor = suitStyle.badge.split(" ").find(c => c.startsWith("text-")) || "text-slate-700 dark:text-slate-200";
+        const emptyStyle = DECK_EMPTY_CARD_STYLES[activeDeckSuit] || DECK_EMPTY_CARD_STYLES.Spades;
 
         return `
             <button type="button" data-deck-slot="${slotId}"
-                title="${escapeHTML(`${fullRankSuit}: None`)}"
-                class="rounded-lg overflow-hidden bg-white dark:bg-slate-900 border-2 ${isSelected ? "border-indigo-500 ring-2 ring-indigo-500" : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600"} flex flex-col text-left transition hover:-translate-y-0.5">
+                title="${escapeHTML(`None, ${fullRankSuit}`)}"
+                class="rounded-lg overflow-hidden ${emptyStyle.cardBg} ${emptyStyle.border} ${ringClass} text-white flex flex-col text-left transition hover:-translate-y-0.5">
                 <div class="overflow-hidden flex flex-col w-full h-full">
-                    <div class="relative aspect-[3/4] w-full bg-slate-50 dark:bg-slate-950 flex items-center justify-center select-none">
-                        <div class="absolute top-1.5 left-1.5 flex flex-col items-center leading-none font-bold ${suitTextColor}">
+                    <div class="relative aspect-[3/4] w-full flex items-center justify-center select-none">
+                        <div class="absolute top-1.5 left-1.5 flex flex-col items-center leading-none font-bold text-white">
                             <span class="text-xs">${escapeHTML(rank)}</span>
                             <span class="text-[11px]">${suitStyle.symbol}</span>
                         </div>
-                        <span class="text-3xl sm:text-4xl leading-none opacity-85 ${suitTextColor}">
-                            ${suitStyle.symbol}
-                        </span>
-                        <div class="absolute bottom-1.5 right-1.5 flex flex-col items-center leading-none font-bold rotate-180 ${suitTextColor}">
+                        ${renderPlayingCardCenter(rank, suitStyle.symbol)}
+                        <div class="absolute bottom-1.5 right-1.5 flex flex-col items-center leading-none font-bold rotate-180 text-white">
                             <span class="text-xs">${escapeHTML(rank)}</span>
                             <span class="text-[11px]">${suitStyle.symbol}</span>
                         </div>
                     </div>
-                    <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5 bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
+                    <div class="p-1 flex-1 flex flex-col justify-center text-center gap-0.5 ${emptyStyle.footerBg} text-white">
                         <div class="font-bold text-xs leading-tight line-clamp-1">
-                            Empty
+                            None
                         </div>
-                        <div class="text-[10px] leading-tight line-clamp-1">
+                        <div class="text-[10px] leading-tight line-clamp-1 text-white/90">
                             ${escapeHTML(fullRankSuit)}
                         </div>
                     </div>
