@@ -349,8 +349,10 @@ function enterSparkMode(bannerKey) {
     setSortControlState     ("CHARACTER", "POPULARITY", "DESC");
     clearFilterCheckboxes   (["#filter-rarity-group", "#filter-rank-group", "#filter-suit-group", "#filter-own-group", "#filter-lock-group", "#filter-list-group"]);
 
-    document.getElementById("sell-all-btn")         .classList.add      ("hidden");
-    document.getElementById("filter-lock-section")  .classList.add      ("hidden");
+    document.getElementById("sell-all-btn").            classList.add("hidden");
+    document.getElementById("deck-builder-btn")?.       classList.add("hidden");
+    document.getElementById("share-collection-btn")?.   classList.add("hidden");
+    document.getElementById("filter-lock-section").     classList.add("hidden");
 
     const sortWrapper = document.getElementById("sort-filter-wrapper");
 
@@ -370,9 +372,11 @@ function enterSparkMode(bannerKey) {
 function exitSparkMode(shouldRender = true) {
     activeSparkBanner = null;
 
-    document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
-    document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
-    document.getElementById("spark-mode-indicator") .classList.add      ("hidden");
+    document.getElementById("deck-builder-btn")?.       classList.remove    ("hidden");
+    document.getElementById("share-collection-btn")?.   classList.toggle   ("hidden", !currentUser || isSharedView);
+    document.getElementById("filter-own-section").      classList.toggle   ("hidden", isSharedView);
+    document.getElementById("filter-lock-section").     classList.remove   ("hidden");
+    document.getElementById("spark-mode-indicator").    classList.add      ("hidden");
 
     if (!isSharedView) document.querySelectorAll('#filter-own-group input[type="checkbox"]').forEach(cb => {cb.checked = cb.value === "OWNED"})
 
@@ -405,8 +409,10 @@ function enterFiftyFiftyMode(bannerKey) {
 
     document.querySelectorAll('#filter-rarity-group input[type="checkbox"]').forEach(cb => {cb.closest("label")?.classList.toggle("hidden", !FIFTY_FIFTY_TIERS.has(cb.value))});
 
-    document.getElementById("sell-all-btn")         .classList.add("hidden");
-    document.getElementById("filter-lock-section")  .classList.add("hidden");
+    document.getElementById("sell-all-btn").            classList.add("hidden");
+    document.getElementById("deck-builder-btn")?.       classList.add("hidden");
+    document.getElementById("share-collection-btn")?.   classList.add("hidden");
+    document.getElementById("filter-lock-section").     classList.add("hidden");
 
     const sortWrapper = document.getElementById("sort-filter-wrapper");
 
@@ -427,9 +433,11 @@ function exitFiftyFiftyMode(shouldRender = true) {
     activeFiftyFiftyBanner = null;
     document.querySelectorAll('#filter-rarity-group input[type="checkbox"]').forEach(cb => {cb.closest("label")?.classList.remove("hidden")});
 
-    document.getElementById("filter-own-section")   .classList.toggle   ("hidden", isSharedView);
-    document.getElementById("filter-lock-section")  .classList.remove   ("hidden");
-    document.getElementById("fifty-mode-indicator") .classList.add      ("hidden");
+    document.getElementById("deck-builder-btn")?.       classList.remove   ("hidden");
+    document.getElementById("share-collection-btn")?.   classList.toggle   ("hidden", !currentUser || isSharedView);
+    document.getElementById("filter-own-section").      classList.toggle   ("hidden", isSharedView);
+    document.getElementById("filter-lock-section").     classList.remove    ("hidden");
+    document.getElementById("fifty-mode-indicator").    classList.add      ("hidden");
 
     const saved             = preFiftyFiftyViewState;
     preFiftyFiftyViewState  = null;
