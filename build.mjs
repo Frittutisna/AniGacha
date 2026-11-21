@@ -260,9 +260,101 @@ const rawCharByKey = new Map(rawChars.map((row, idx) => {
     return [uniqueKey, [name, img]];
 }));
 
+const DECK_RANK_CURVE = [
+    {rank: "R",  dist: 0.010},
+    {rank: "A",  dist: 0.015},
+    {rank: "K",  dist: 0.020},
+    {rank: "Q",  dist: 0.025},
+    {rank: "J",  dist: 0.030},
+    {rank: "10", dist: 0.035},
+    {rank: "9",  dist: 0.040},
+    {rank: "8",  dist: 0.045},
+    {rank: "7",  dist: 0.050},
+    {rank: "6",  dist: 0.075},
+    {rank: "5",  dist: 0.100},
+    {rank: "4",  dist: 0.125},
+    {rank: "3",  dist: 0.150},
+    {rank: "2",  dist: 0.280}
+];
+
+const DECK_SUITS            = ["Spades", "Hearts", "Diamonds", "Clubs"];
+const RARITY_RANK_PRIORITY  = new Map(RARITIES.map((r, idx) => [r.tier, idx]));
+
+function shuffleInPlace(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+
+    return arr;
+}
+
+function buildBalancedDeckMeta(charList) {
+    const totalCount = charList.length;
+
+    const deckByKey = new Map();
+    if (totalCount === 0) return deckByKey;
+
+    const rankByIdx     = new Array(totalCount);
+    const jokerEntry    = DECK_RANK_CURVE.find(entry => entry.rank === "R");
+    const jokerDist     = jokerEntry ? jokerEntry.dist : 0.010;
+    const jokerCount    = Math.min(totalCount, Math.round(totalCount * jokerDist));
+    const randomIndices = shuffleInPlace(charList.map((_, i) => i));
+    const jokerSet      = new Set(randomIndices.slice(0, jokerCount));
+
+    for (const idx of jokerSet) rankByIdx[idx] = "R";
+    const nonJokerCurve = DECK_RANK_CURVE.filter(entry => entry.rank !== "R");
+
+    const remainingIndices = charList
+        .map((_, i) => i)
+        .filter(i => !jokerSet.has(i))
+        .sort((a, b) => {
+            const tierDiff = (RARITY_RANK_PRIORITY.get(charList[a].tier) ?? 99) - (RARITY_RANK_PRIORITY.get(charList[b].tier) ?? 99);
+            if (tierDiff !== 0) return tierDiff;
+
+            return (charList[b].count - charList[a].count) || a - b;
+        });
+
+    const remainingTotal    = remainingIndices.length;
+    let cursor              = 0;
+
+    nonJokerCurve.forEach((entry, idx) => {
+        const isLast    = idx === nonJokerCurve.length - 1;
+        const size      = isLast ? remainingTotal - cursor : Math.min(remainingTotal - cursor, Math.round(remainingTotal * entry.dist));
+
+        for (let k = 0; k < size; k++) rankByIdx[remainingIndices[cursor++]] = entry.rank;
+    });
+
+    while (cursor < remainingTotal) rankByIdx[remainingIndices[cursor++]] = "2";
+
+    const suitIndices       = shuffleInPlace(charList.map((_, i) => i));
+    const basePerSuit       = Math.floor(totalCount / DECK_SUITS.length);
+    const remainderSuits    = totalCount % DECK_SUITS.length;
+    const suitByIdx         = new Array(totalCount);
+    let sCursor             = 0;
+
+    DECK_SUITS.forEach((suitName, sIdx) => {
+        const size = basePerSuit + (sIdx < remainderSuits ? 1 : 0);
+        for (let k = 0; k < size; k++) suitByIdx[suitIndices[sCursor++]] = suitName;
+    });
+
+    charList.forEach((c, idx) => {
+        deckByKey.set(c.uniqueKey, {
+            rank: rankByIdx[idx] || "2",
+            suit: suitByIdx[idx] || "Spades"
+        });
+    });
+
+    return deckByKey;
+}
+
+const deckMetaByKey = buildBalancedDeckMeta(chars);
+
 const clientChars = chars.map(c => {
-    const [name, img] = rawCharByKey.get(c.uniqueKey) || ["Unknown", null];
-    return [c.uniqueKey, name, c.animeId, img, c.count, c.tier];
+    const [name, img]   = rawCharByKey.get(c.uniqueKey) || ["Unknown", null];
+    const deck          = deckMetaByKey.get(c.uniqueKey) || {rank: "2", suit: "Spades"};
+
+    return [c.uniqueKey, name, c.animeId, img, c.count, c.tier, deck.rank, deck.suit];
 });
 
 const clientEraOptions = rawEras.map((row, i) => {

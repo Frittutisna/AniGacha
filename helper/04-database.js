@@ -22,7 +22,7 @@ async function initDatabase() {
             source      : a[9]
         });
 
-        const chars = rawChars.map(([uniqueKey, name, animeId, imgSuffix, count, tier]) => {
+        const chars = rawChars.map(([uniqueKey, name, animeId, imgSuffix, count, tier, deckRank, deckSuit]) => {
             const a         = animeId   ? hydratedAnimes.get(animeId)                                                               : null;
             const imageUrl  = imgSuffix ? (imgSuffix.startsWith("http") ? imgSuffix : IMAGE_PREFIX + imgSuffix.replace(/^\/+/, "")) : null;
 
@@ -43,7 +43,9 @@ async function initDatabase() {
                 tags            : a ? a.tags                :   new Set(),
                 studios         : a ? a.studios             :   new Set(),
                 source          : a ? a.source              :   null,
-                rarity          : rarityByTier.get(tier)    ||  fallbackRarity
+                rarity          : rarityByTier.get(tier)    ||  fallbackRarity,
+                deckRank        : deckRank                  ||  "2",
+                deckSuit        : deckSuit                  ||  "Spades"
             };
         });
 

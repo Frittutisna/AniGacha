@@ -55,6 +55,10 @@ function createCardHTML(char, {
     const fullTooltip   = `${safeName}\n${safeAnime}`;
     const listPrefix    = isListCharacter(char) ? "L" : "";
     const dupLevel      = duplicateCount >= 6 ? "3" : duplicateCount >= 3 ? "2" : duplicateCount === 2 ? "1" : "";
+    const deckRank      = char.deckRank || "2";
+    const deckSuit      = char.deckSuit || "Spades";
+    const deckRankFull  = getDeckRankFullName(deckRank);
+    const suitStyle     = getDeckSuitStyle(deckSuit);
 
     const imgHtml = char.imageUrl
         ? `<img src="${char.imageUrl}" alt="${safeName}" loading="lazy"
@@ -132,6 +136,10 @@ function createCardHTML(char, {
         <div class="${r.badge} !border-0 overflow-hidden flex flex-col h-full">
             <div class="relative aspect-[3/4] w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
             ${imgHtml}
+            <span title="${escapeHTML(`${deckRankFull} of ${deckSuit}`)}"
+                class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold cursor-help ${suitStyle.badge}">
+                ${escapeHTML(`${deckRank} ${suitStyle.symbol}`)}
+            </span>
             <span data-tooltip-title="${[
                     listPrefix ? "AniList" : null,
                     r.tier,

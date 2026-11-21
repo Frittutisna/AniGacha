@@ -310,6 +310,33 @@ function getRarityBorderClass(tier) {
     return found ? found.border : "border-2 border-slate-400";
 }
 
+const DECK_SUIT_STYLES = {
+    Spades      : {symbol: "♠", badge: "bg-violet-600 text-white"},
+    Hearts      : {symbol: "♥", badge: "bg-indigo-600 text-white"},
+    Diamonds    : {symbol: "♦", badge: "bg-blue-600 text-white"},
+    Clubs       : {symbol: "♣", badge: "bg-emerald-600 text-white"}
+};
+
+const DECK_RANK_NAMES = {
+    R       : "Joker",
+    A       : "Ace",
+    K       : "King",
+    Q       : "Queen",
+    J       : "Jack",
+    "10"    : "10",
+    "9"     : "9",
+    "8"     : "8",
+    "7"     : "7",
+    "6"     : "6",
+    "5"     : "5",
+    "4"     : "4",
+    "3"     : "3",
+    "2"     : "2"
+};
+
+function getDeckRankFullName    (rank) {return DECK_RANK_NAMES  [rank] || rank || "2"}
+function getDeckSuitStyle       (suit) {return DECK_SUIT_STYLES [suit] || DECK_SUIT_STYLES.Spades}
+
 function getRarityBgClass(tier) {
     const found = RARITIES.find(r => r.tier === tier);
     return found ? found.badge.split(" ")[0] : "bg-slate-200 dark:bg-slate-800";
