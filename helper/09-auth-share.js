@@ -20,6 +20,7 @@ async function loadSharedCollection(targetUserId) {
     topSection.classList.add    ("hidden");
     topSection.classList.remove ("flex", "lg:grid");
 
+    document.getElementById("deck-builder-btn")?.   classList.add("hidden");
     document.getElementById("sell-all-btn").        classList.add("hidden");
     document.getElementById("filter-own-section")?. classList.add("hidden");
 
@@ -69,8 +70,9 @@ async function exitSharedCollection() {
     const cleanUrl = window.location.origin + window.location.pathname;
     window.history.replaceState({}, "", cleanUrl);
 
-    document.getElementById("shared-view-banner")?.classList.add("hidden");
-    document.getElementById("filter-own-section")?.classList.remove("hidden");
+    document.getElementById("shared-view-banner")?. classList.add       ("hidden");
+    document.getElementById("deck-builder-btn")?.   classList.remove    ("hidden");
+    document.getElementById("filter-own-section")?. classList.remove    ("hidden");
 
     const topSection = document.getElementById("gacha-top-section");
 

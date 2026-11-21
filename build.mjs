@@ -229,9 +229,6 @@ const themedOptions = {
     }).filter(Boolean),
 };
 
-const compactChars = chars.map(c => [c.uniqueKey, c.tier, c.animeId]);
-fs.writeFileSync("./supabase/functions/AniGacha-Japan/server-data.json", JSON.stringify({chars: compactChars, themedOptions}));
-
 const clientAnimes = {};
 
 for (const [id, a] of animeMap.entries()) {
@@ -349,6 +346,13 @@ function buildBalancedDeckMeta(charList) {
 }
 
 const deckMetaByKey = buildBalancedDeckMeta(chars);
+
+const compactChars = chars.map(c => {
+    const deck = deckMetaByKey.get(c.uniqueKey) || {rank: "2", suit: "Spades"};
+    return [c.uniqueKey, c.tier, c.animeId, deck.rank, deck.suit];
+});
+
+fs.writeFileSync("./supabase/functions/AniGacha-Japan/server-data.json", JSON.stringify({chars: compactChars, themedOptions}));
 
 const clientChars = chars.map(c => {
     const [name, img]   = rawCharByKey.get(c.uniqueKey) || ["Unknown", null];

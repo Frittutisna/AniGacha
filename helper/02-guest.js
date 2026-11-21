@@ -149,9 +149,20 @@ function handleGuestGachaAction(payload) {
         }
     } else if (action === "SELL") {
         const key = payload.uniqueKey;
-        if (inventory[key] > 0 && !lockedCards.has(key)) delete inventory[key];
+
+        if (inventory[key] > 0 && !lockedCards.has(key)) {
+            delete inventory[key];
+            for (const [slotId, assignedKey] of Object.entries(playerDeck)) {if (assignedKey === key) delete playerDeck[slotId]}
+        }
     } else if (action === "SELL_ALL") {
-        for (const [key, count] of Object.entries(inventory)) {if (count > 0 && !lockedCards.has(key)) delete inventory[key]}
+        for (const [key, count] of Object.entries(inventory)) {
+            if (count > 0 && !lockedCards.has(key)) {
+                delete inventory[key];
+                for (const [slotId, assignedKey] of Object.entries(playerDeck)) {if (assignedKey === key) delete playerDeck[slotId]}
+            }
+        }
+    } else if (action === "SAVE_DECK") {
+        playerDeck = payload.deck && typeof payload.deck === "object" ? {...payload.deck} : {};
     } else if (action === "SPARK") {
         const {bannerType, uniqueKey}   = payload;
         const char                      = characterMap.get(uniqueKey);

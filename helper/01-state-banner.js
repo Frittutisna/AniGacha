@@ -105,6 +105,8 @@ const GUARANTEED_B_PLUS         = new Set(["SSR", "SR", "S", "A", "B"]);
 const GUARANTEED_A_PLUS         = new Set(["SSR", "SR", "S", "A"]);
 const AUTO_LOCK_TIERS           = new Set(["SSR", "SR", "S"]);
 const FIFTY_FIFTY_TIERS         = new Set(["SSR", "SR", "S"]);
+const DECK_SUITS                = ["Spades", "Hearts", "Diamonds", "Clubs"];
+const DECK_RANKS                = ["R", "A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
 let characterPool               = [];
 let characterMap                = new Map();
 let inventory                   = {};
@@ -130,6 +132,7 @@ let anilistEligibleKeys         = new Set();
 let linkedAnilistHistory        = new Set();
 let lastAnilistChangeJstYear    = null;
 let listPulls                   = 0;
+let playerDeck                  = {};
 
 const SUMMON_COSTS = {
     STANDARD    : 80,
@@ -402,6 +405,7 @@ function applySaveState(data) {
     totalPulls      = typeof data.totalPulls === "number" ? data.totalPulls : 0;
     hofPulls        = typeof data.hofPulls === "number" ? data.hofPulls : 0;
     listPulls       = typeof data.listPulls === "number" ? data.listPulls : 0;
+    playerDeck      = data.deck && typeof data.deck === "object" && !Array.isArray(data.deck) ? {...data.deck} : {};
     anilistUsername = viewerAnilistUsername;
     anilistAnimeIds = new Set(Array.isArray(data.anilistAnimeIds) ? data.anilistAnimeIds.map(v => normalizeId(v)).filter(Boolean) : []);
 

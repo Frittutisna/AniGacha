@@ -69,10 +69,9 @@ function getGameData(adminClient) {
 
         RARITIES.forEach(r => globalBuckets[r.tier] = []);
 
-        for (const [uniqueKey, tier, animeId = null] of charList) {
+        for (const [uniqueKey, tier, animeId = null, deckRank = "2", deckSuit = "Spades"] of charList) {
             const normAnimeId = animeId ? String(animeId).trim() : null;
-
-            charMap.set(uniqueKey, {uniqueKey, tier, animeId: normAnimeId});
+            charMap.set(uniqueKey, {uniqueKey, tier, animeId: normAnimeId, deckRank, deckSuit});
             globalBuckets[tier].push(uniqueKey);
 
             if (normAnimeId) {
@@ -504,6 +503,7 @@ serve(async (req) => {
             SELL                    : 100,
             SELL_ALL                : 10,
             SET_PROFILE             : 10,
+            SAVE_DECK               : 10,
             LINK_ANILIST            : 10,
             UNLINK_ANILIST          : 10,
             SET_FIFTY_FIFTY         : 100,
@@ -576,10 +576,12 @@ serve(async (req) => {
             anilistAnimeIds             : [],
             linkedAnilistHistory        : [],
             lastAnilistChangeJstYear    : null,
+            deck                        : {},
         };
 
-        if (!save.sparkPoints)                              save.sparkPoints        = {};
-        if (typeof save.sparkPoints.THEMED  !== "number")   save.sparkPoints.THEMED = 0;
+        if (!save.deck || typeof save.deck !== "object" || Array.isArray(save.deck))    save.deck                   = {};
+        if (!save.sparkPoints)                                                          save.sparkPoints            = {};
+        if (typeof save.sparkPoints.THEMED  !== "number")                               save.sparkPoints.THEMED     = 0;
 
         for (const k of THEMED_KEYS) {
             if (typeof save.sparkPoints[k] === "number") {
@@ -588,11 +590,11 @@ serve(async (req) => {
             }
         }
 
-        if (typeof save.sparkPoints.LIST    !== "number")               save.sparkPoints.LIST       = 0;
-        if (typeof save.listPulls           !== "number")               save.listPulls              = 0;
-        if (!Array.isArray(save.anilistAnimeIds))                       save.anilistAnimeIds        = [];
-        if (!Array.isArray(save.linkedAnilistHistory))                  save.linkedAnilistHistory   = [];
-        if (!save.fiftyFifty || typeof save.fiftyFifty !== "object")    save.fiftyFifty             = {STANDARD: null, HOF: null, LIST: null, THEMED: {}};
+        if (typeof save.sparkPoints.LIST    !== "number")                               save.sparkPoints.LIST       = 0;
+        if (typeof save.listPulls           !== "number")                               save.listPulls              = 0;
+        if (!Array.isArray(save.anilistAnimeIds))                                       save.anilistAnimeIds        = [];
+        if (!Array.isArray(save.linkedAnilistHistory))                                  save.linkedAnilistHistory   = [];
+        if (!save.fiftyFifty || typeof save.fiftyFifty !== "object")                    save.fiftyFifty             = {STANDARD: null, HOF: null, LIST: null, THEMED: {}};
 
         const dailyBanners = getDailyThemedBanners(gameData);
 
@@ -1096,9 +1098,9 @@ serve(async (req) => {
             const char  = gameData.charMap.get(key);
 
             if (!char || count <= 0 || lockedSet.has(key)) throw new Error("Cannot sell card");
-
             save.stars += rarityInfoMap.get(char.tier).sellValue * getSellMultiplier(count);
             delete save.inventory[key];
+            for (const [slotId, assignedKey] of Object.entries(save.deck)) {if (assignedKey === key) delete save.deck[slotId]}
         } else if (action === "SELL_ALL") {
             for (const [key, count] of Object.entries(save.inventory)) {
                 if (count > 0 && !lockedSet.has(key)) {
@@ -1107,9 +1109,41 @@ serve(async (req) => {
                     if (char) {
                         save.stars += rarityInfoMap.get(char.tier).sellValue * getSellMultiplier(count);
                         delete save.inventory[key];
+                        for (const [slotId, assignedKey] of Object.entries(save.deck)) {
+                            if (assignedKey === key) delete save.deck[slotId];
+                        }
                     }
                 }
             }
+        } else if (action === "SAVE_DECK") {
+            const VALID_SUITS   = new Set(["Spades", "Hearts", "Diamonds", "Clubs"]);
+            const VALID_RANKS   = new Set(["R", "A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"]);
+            const incoming      = body.deck;
+
+            if (!incoming || typeof incoming !== "object" || Array.isArray(incoming))   throw new Error("Invalid deck payload");
+
+            const nextDeck  = {};
+            const usedChars = new Set();
+
+            for (const [slotId, uniqueKey] of Object.entries(incoming)) {
+                if (!uniqueKey) continue;
+                const [suit, rank] = String(slotId).split(":");
+
+                if (!VALID_SUITS.has(suit) || !VALID_RANKS.has(rank))                   throw new Error(`Invalid deck slot: ${slotId}`);
+                if (typeof uniqueKey !== "string")                                      throw new Error("Invalid character key");
+                if (usedChars.has(uniqueKey))                                           throw new Error("Duplicate character in deck");
+                if (!(save.inventory[uniqueKey] > 0))                                   throw new Error("You must own every character in your deck");
+
+                const char = gameData.charMap.get(uniqueKey);
+
+                if (!char)                                                              throw new Error("Character not found");
+                if (char.deckSuit !== suit || char.deckRank !== rank)                   throw new Error(`${uniqueKey} does not match ${rank} of ${suit}`);
+
+                usedChars.add(uniqueKey);
+                nextDeck[slotId] = uniqueKey;
+            }
+
+            save.deck = nextDeck;
         } else if (action === "SPARK") {
             const {bannerType, uniqueKey}   = body;
             const isThemed                  = THEMED_KEYS.includes(bannerType);

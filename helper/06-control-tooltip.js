@@ -248,6 +248,7 @@ function initSortFilterDropdown() {
             return;
         }
 
+        document.getElementById("deck-modal")?.     classList.add("hidden");
         document.getElementById("share-modal")?.    classList.add("hidden");
         document.getElementById("photo-modal")?.    classList.add("hidden");
         document.getElementById("quiz-end-modal")?. classList.add("hidden");
