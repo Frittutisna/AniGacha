@@ -515,7 +515,7 @@ document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
 
 const CASINO_RULES_TEXT = {
     BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
-    SYNERGY     : `Requires at least 28 owned cards\nYou draw 7 random owned cards (sorted by rarity) and may swap 1 card at a time for a random owned card\nDealer draws 14 cards (sorted by rarity) with at least 1 card from each rarity\nSwap costs increase by ${SYNERGY_SWAP_STEP} (5, 10, 15...) and deduct from Total Hand Synergy\nHighest (Total Hand Synergy - Swap Cost) wins 2× bet; ties lose`,
+    SYNERGY     : `Requires at least 28 owned cards\nPlayer draws 7 cards and may swap for other cards\nDealer draws 14 cards with at least 1 card from each rarity\nSwap cost increases by ${SYNERGY_SWAP_STEP} and deduct from Net Synergy\nGet the higher Net Synergy to win 1:1\nDealer wins in a tie`,
     ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1",
     FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers automatically at ≤15% margin\nSettle anytime before 05:00 or hold until market close"
 };
