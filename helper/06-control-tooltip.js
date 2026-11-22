@@ -354,12 +354,16 @@ function initGlobalTooltips() {
 
         if (customTitle) {
             titleEl.textContent = customTitle;
+            titleEl.className   = "whitespace-nowrap";
+
             headerEl.classList.remove("hidden");
 
             bodyEl.className = "mt-1 text-[11px] leading-snug text-slate-600 dark:text-slate-300 space-y-0.5";
             bodyEl.innerHTML = descLines.map(l => `<p class="${lineClass}">${escapeHTML(l)}</p>`).join("");
         } else if (descLines.length > 1) {
             titleEl.textContent = descLines[0];
+            titleEl.className   = "whitespace-nowrap";
+
             headerEl.classList.remove("hidden");
 
             bodyEl.className = "mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400 space-y-0.5";

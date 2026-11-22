@@ -78,11 +78,261 @@ function renderPlayingCardCenter(rank, symbol) {
     `;
 }
 
+const SYNERGY_RARITY_POINTS = {
+    SSR : 128,
+    SR  : 64,
+    S   : 32,
+    A   : 16,
+    B   : 8,
+    C   : 4,
+    D   : 3,
+    E   : 2,
+    F   : 1
+};
+
+function getCharacterEraKey(char) {
+    if (!char || !char.animeYear)   return null;
+    if (char.animeYear < 2000)      return "Pre-2000s";
+    if (char.animeYear < 2010)      return "2000s";
+
+    const start = Math.floor(char.animeYear / 5) * 5;
+    return `${start}-${start + 4}`;
+}
+
+function evaluateGroupSynergy(chars, maxSlots, {
+    slotBase        = 10,
+    fullBonus       = 50,
+    franchiseWeight = 24,
+    studioWeight    = 14,
+    sourceWeight    = 8,
+    eraWeight       = 10,
+    genreWeight     = 6,
+    tagWeight       = 6
+} = {}) {
+    const filled = chars.length;
+
+    if (filled === 0) return {
+        score           : 0,
+        filled          : 0,
+        maxSlots,
+        completionPts   : 0,
+        powerPts        : 0,
+        franchisePts    : 0,
+        studioPts       : 0,
+        sourcePts       : 0,
+        eraPts          : 0,
+        genrePts        : 0,
+        tagPts          : 0,
+        highlights      : []
+    };
+
+    const isFull        = filled === maxSlots;
+    const completionPts = filled * slotBase + (isFull ? fullBonus : 0);
+    let powerPts        = 0;
+
+    const franchiseCounts   = new Map();
+    const studioCounts      = new Map();
+    const sourceCounts      = new Map();
+    const eraCounts         = new Map();
+    const genreCounts       = new Map();
+    const tagCounts         = new Map();
+
+    for (const c of chars) {
+        const tierPts   = SYNERGY_RARITY_POINTS[c.rarity?.tier]     || 1;
+        const level     = getCharacterLevel(inventory[c.uniqueKey]  || 1);
+
+        powerPts += tierPts + level * 4;
+
+        if (c.rootAnimeId) {
+            const label = getAnimeTitle(c);
+            const prev  = franchiseCounts.get(c.rootAnimeId) || {count: 0, label};
+
+            prev.count++;
+            franchiseCounts.set(c.rootAnimeId, prev);
+        }
+
+        if (c.source) sourceCounts.set(c.source, (sourceCounts.get(c.source) || 0) + 1);
+
+        const eraKey = getCharacterEraKey(c);
+        if (eraKey) eraCounts.set(eraKey, (eraCounts.get(eraKey) || 0) + 1);
+
+        for (const s of c.studios   || []) studioCounts .set(s, (studioCounts   .get(s) || 0) + 1);
+        for (const g of c.genres    || []) genreCounts  .set(g, (genreCounts    .get(g) || 0) + 1);
+        for (const t of c.tags      || []) tagCounts    .set(t, (tagCounts      .get(t) || 0) + 1);
+    }
+
+    const calcPairSum = (countMap, weight, maxItems = Infinity) => {
+        const entries = Array.from(countMap.entries())
+            .map    (([k, v])   => typeof v === "object" ? {key: k, label: v.label, count: v.count} : {key: k, label: k, count: v})
+            .filter (item       => item.count >= 2)
+            .sort   ((a, b)     => b.count - a.count);
+
+        let pts = 0;
+        entries.slice(0, maxItems).forEach(item => {pts += ((item.count * (item.count - 1)) / 2) * weight});
+
+        return {pts: Math.round(pts), top: entries[0] || null};
+    };
+
+    const franchiseRes  = calcPairSum(franchiseCounts,  franchiseWeight);
+    const studioRes     = calcPairSum(studioCounts,     studioWeight);
+    const sourceRes     = calcPairSum(sourceCounts,     sourceWeight);
+    const eraRes        = calcPairSum(eraCounts,        eraWeight);
+    const genreRes      = calcPairSum(genreCounts,      genreWeight,    3);
+    const tagRes        = calcPairSum(tagCounts,        tagWeight,      3);
+    const score         = completionPts + powerPts + franchiseRes.pts + studioRes.pts + sourceRes.pts + eraRes.pts + genreRes.pts + tagRes.pts;
+
+    return {
+        score,
+        filled,
+        maxSlots,
+        completionPts,
+        powerPts,
+        franchisePts    : franchiseRes  .pts,
+        studioPts       : studioRes     .pts,
+        sourcePts       : sourceRes     .pts,
+        eraPts          : eraRes        .pts,
+        genrePts        : genreRes      .pts,
+        tagPts          : tagRes        .pts
+    };
+}
+
+function computeDeckSynergies(deckObj = draftDeck, suit = activeDeckSuit, rank = null) {
+    const activeRank    = rank || (selectedDeckSlot ? selectedDeckSlot.split(":")[1] : "R");
+    const suitChars     = [];
+    const rankChars     = [];
+    const allChars      = [];
+
+    for (const r of DECK_RANKS) {
+        const key   = deckObj[`${suit}:${r}`];
+        const c     = key ? characterMap.get(key) : null;
+
+        if (c) suitChars.push(c);
+    }
+
+    for (const s of DECK_SUITS) {
+        const key   = deckObj[`${s}:${activeRank}`];
+        const c     = key ? characterMap.get(key) : null;
+
+        if (c) rankChars.push(c);
+    }
+
+    for (const s of DECK_SUITS) {
+        for (const r of DECK_RANKS) {
+            const key   = deckObj[`${s}:${r}`];
+            const c     = key ? characterMap.get(key) : null;
+
+            if (c) allChars.push(c);
+        }
+    }
+
+    const suitSyn = evaluateGroupSynergy(suitChars, 14, {
+        slotBase        : 10,
+        fullBonus       : 60,
+        franchiseWeight : 26,
+        studioWeight    : 15,
+        sourceWeight    : 8,
+        eraWeight       : 10,
+        genreWeight     : 6,
+        tagWeight       : 6
+    });
+
+    const rankSyn = evaluateGroupSynergy(rankChars, 4, {
+        slotBase        : 12,
+        fullBonus       : 40,
+        franchiseWeight : 36,
+        studioWeight    : 22,
+        sourceWeight    : 12,
+        eraWeight       : 14,
+        genreWeight     : 8,
+        tagWeight       : 8
+    });
+
+    const totalBase = evaluateGroupSynergy(allChars, 56, {
+        slotBase        : 8,
+        fullBonus       : 200,
+        franchiseWeight : 18,
+        studioWeight    : 10,
+        sourceWeight    : 5,
+        eraWeight       : 6,
+        genreWeight     : 4,
+        tagWeight       : 4
+    });
+
+    let completedSuits = 0;
+    let completedRanks = 0;
+
+    for (const s of DECK_SUITS) {if (DECK_RANKS.every(r => Boolean(deckObj[`${s}:${r}`]))) completedSuits++}
+    for (const r of DECK_RANKS) {if (DECK_SUITS.every(s => Boolean(deckObj[`${s}:${r}`]))) completedRanks++}
+
+    const setBonusPts   = completedSuits * 50 + completedRanks * 20;
+    const totalScore    = totalBase.score + setBonusPts;
+
+    return {
+        suit    : suitSyn,
+        rank    : rankSyn,
+        activeRank,
+        total   : {
+            ...totalBase,
+            score: totalScore,
+            setBonusPts,
+            completedSuits,
+            completedRanks
+        }
+    };
+}
+
+function formatSynergyTooltipLines(syn, extraLines = []) {
+    return [
+        `Slots: ${syn.filled}/${syn.maxSlots} (${syn.completionPts})`,
+        `Power: ${syn.powerPts}`,
+        syn.franchisePts    > 0 ? `Franchise: ${syn.franchisePts}`  : null,
+        syn.studioPts       > 0 ? `Studio: ${syn.studioPts}`        : null,
+        syn.eraPts          > 0 ? `Era: ${syn.eraPts}`              : null,
+        syn.sourcePts       > 0 ? `Source: ${syn.sourcePts}`        : null,
+        syn.genrePts        > 0 ? `Genre: ${syn.genrePts}`          : null,
+        syn.tagPts          > 0 ? `Tag: ${syn.tagPts}`              : null,
+        ...extraLines
+    ].filter(Boolean).join("\n");
+}
+
 function updateDeckHeaderAndTabs() {
-    const totalFilled = Object.keys(draftDeck).length;
+    const totalFilled   = Object.keys(draftDeck).length;
+    const synergies     = computeDeckSynergies(draftDeck, activeDeckSuit);
 
     document.getElementById("deck-clear-btn")   .disabled = totalFilled === 0;
     document.getElementById("deck-save-btn")    .disabled = actionInFlight || !isDeckDirty();
+
+    const syncSynergyPills = (ids, label, tooltipTitle, tooltipBody) => {for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.textContent = label;
+
+        el.setAttribute("data-tooltip-title",   tooltipTitle);
+        el.setAttribute("data-tooltip",         tooltipBody);
+    }};
+
+    syncSynergyPills(
+        ["deck-suit-synergy-pill", "deck-suit-synergy-pill-mobile"],
+        `${activeDeckSuit}: ${synergies.suit.score.toLocaleString()}`,
+        `${activeDeckSuit} Synergy`,
+        formatSynergyTooltipLines(synergies.suit)
+    );
+
+    const rankFull = getDeckRankFullName(synergies.activeRank);
+
+    syncSynergyPills(
+        ["deck-rank-synergy-pill", "deck-rank-synergy-pill-mobile"],
+        `${rankFull}: ${synergies.rank.score.toLocaleString()}`,
+        `${rankFull} Synergy`,
+        formatSynergyTooltipLines(synergies.rank)
+    );
+
+    syncSynergyPills(
+        ["deck-total-synergy-pill", "deck-total-synergy-pill-mobile"],
+        `Total: ${synergies.total.score.toLocaleString()}`,
+        "Total Synergy",
+        formatSynergyTooltipLines(synergies.total, [synergies.total.setBonusPts > 0 ? `Sets: ${synergies.total.setBonusPts}` : null])
+    );
 
     document.querySelectorAll(".deck-suit-tab").forEach(btn => {
         const suit      = btn.getAttribute("data-deck-suit");
@@ -227,15 +477,34 @@ function renderDeckPicker() {
         return;
     }
 
-    grid.innerHTML = eligible.map(c => {
+    const baseDraft = {...draftDeck};
+    delete baseDraft[selectedDeckSlot];
+
+    const baseSyn = computeDeckSynergies(baseDraft, suit, rank);
+
+    const scoredEligible = eligible.map(c => {
+        const testDeck  = {...baseDraft, [selectedDeckSlot]: c.uniqueKey};
+        const nextSyn   = computeDeckSynergies(testDeck, suit, rank);
+
+        return {
+            char        : c,
+            suitDelta   : nextSyn.suit  .score - baseSyn.suit   .score,
+            rankDelta   : nextSyn.rank  .score - baseSyn.rank   .score,
+            totalDelta  : nextSyn.total .score - baseSyn.total  .score
+        };
+    }).sort((a, b) => (b.totalDelta + b.suitDelta + b.rankDelta) - (a.totalDelta + a.suitDelta + a.rankDelta) || popularityTiebreaker(a.char, b.char));
+
+    grid.innerHTML = scoredEligible.map(({char: c, suitDelta, rankDelta, totalDelta}) => {
         const selected = currentKey === c.uniqueKey ? "ring-2 ring-indigo-500" : "";
 
         const imgHtml = c.imageUrl
             ? `<img src="${c.imageUrl}" alt="${escapeHTML(c.name)}" loading="lazy" class="w-full h-full object-cover object-top"/>`
             : `<div class="w-full h-full flex items-center justify-center text-[10px] font-bold text-slate-500 p-1 text-center">No Image</div>`;
 
+        const tooltipText = `${c.name}\n${getAnimeTitle(c)}\nSuit +${suitDelta} • Rank +${rankDelta} • Total +${totalDelta}`;
+
         return `
-            <button type="button" data-deck-pick="${escapeHTML(c.uniqueKey)}" title="${escapeHTML(`${c.name}\n${getAnimeTitle(c)}`)}"
+            <button type="button" data-deck-pick="${escapeHTML(c.uniqueKey)}" title="${escapeHTML(tooltipText)}"
                 class="aspect-square rounded-lg overflow-hidden ${c.rarity.border} ${selected} bg-slate-200 dark:bg-slate-800 hover:scale-105 transition">
                 ${imgHtml}
             </button>
@@ -261,7 +530,7 @@ function openDeckModal() {
 
     draftDeck           = getSanitizedDeck(playerDeck);
     activeDeckSuit      = "Spades";
-    selectedDeckSlot    = isSharedView ? null : "Spades:R";
+    selectedDeckSlot    = "Spades:R";
 
     document.getElementById("deck-picker-search").value = "";
     renderDeckModal();
@@ -271,25 +540,83 @@ function openDeckModal() {
 }
 
 function autoFillDeck() {
-    const next      = {...draftDeck};
-    const usedKeys  = new Set(Object.values(next));
+    const next          = {...draftDeck};
+    const usedKeys      = new Set(Object.values(next));
+    const emptySlots    = [];
 
     for (const suit of DECK_SUITS) {
         for (const rank of DECK_RANKS) {
             const slotId = `${suit}:${rank}`;
             if (next[slotId]) continue;
 
-            const match = characterPool.find(c =>
+            const candidates = characterPool.filter(c =>
                 (inventory[c.uniqueKey] > 0)    &&
                 c.deckSuit === suit             &&
                 c.deckRank === rank             &&
                 !usedKeys.has(c.uniqueKey)
             );
 
-            if (match) {
-                usedKeys.add(match.uniqueKey);
-                next[slotId] = match.uniqueKey;
+            if (candidates.length > 0) emptySlots.push({slotId, suit, rank, candidates});
+        }
+    }
+
+    emptySlots.sort((a, b) => a.candidates.length - b.candidates.length);
+
+    for (const slot of emptySlots) {
+        let bestChar    = null;
+        let bestScore   = -Infinity;
+
+        for (const cand of slot.candidates) {
+            if (usedKeys.has(cand.uniqueKey)) continue;
+
+            next[slot.slotId]   = cand.uniqueKey;
+            const totalScore    = computeDeckSynergies(next, slot.suit, slot.rank).total.score;
+
+            if (totalScore > bestScore || (totalScore === bestScore && bestChar && popularityTiebreaker(cand, bestChar) < 0)) {
+                bestScore   = totalScore;
+                bestChar    = cand;
             }
+        }
+
+        if (bestChar) {
+            usedKeys.add(bestChar.uniqueKey);
+            next[slot.slotId] = bestChar.uniqueKey;
+        } else delete next[slot.slotId];
+    }
+
+    let improved    = true;
+    let passes      = 0;
+
+    while (improved && passes < 3) {
+        improved = false;
+        passes++;
+
+        for (const slot of emptySlots) {
+            const currentKey = next[slot.slotId];
+            if (!currentKey) continue;
+
+            let bestKey     = currentKey;
+            let bestScore   = computeDeckSynergies(next, slot.suit, slot.rank).total.score;
+
+            for (const cand of slot.candidates) {
+                if (cand.uniqueKey === currentKey || usedKeys.has(cand.uniqueKey)) continue;
+
+                next[slot.slotId]   = cand.uniqueKey;
+                const totalScore    = computeDeckSynergies(next, slot.suit, slot.rank).total.score;
+
+                if (totalScore > bestScore) {
+                    bestScore   = totalScore;
+                    bestKey     = cand.uniqueKey;
+                }
+            }
+
+            if (bestKey !== currentKey) {
+                usedKeys.delete (currentKey);
+                usedKeys.add    (bestKey);
+
+                next[slot.slotId]       = bestKey;
+                improved                = true;
+            } else next[slot.slotId]    = currentKey;
         }
     }
 
@@ -313,8 +640,6 @@ document.getElementById("deck-suit-tabs")?.addEventListener("click", (e) => {
 });
 
 document.getElementById("deck-slots-grid")?.addEventListener("click", (e) => {
-    if (isSharedView) return;
-
     const slotBtn = e.target.closest("[data-deck-slot]");
     if (!slotBtn) return;
 
