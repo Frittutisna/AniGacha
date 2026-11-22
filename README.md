@@ -1,4 +1,4 @@
-# AniGacha v0.7.5.2.1-beta
+# AniGacha v0.7.5.3-beta
 
 ## Changelog
 1. Changed Sort/Filter to only show S+ rarity checkboxes when selecting 50/50s

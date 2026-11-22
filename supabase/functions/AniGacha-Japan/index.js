@@ -169,7 +169,6 @@ function getQuizSongsMeta() {
     return quizSongsLoadPromise;
 }
 
-
 function normalizeQuizAnswer(value) {return String(value || "")
     .normalize      ("NFKD")
     .toLowerCase    ()
@@ -1174,11 +1173,12 @@ serve(async (req) => {
             }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         } else if (action === "CASINO_FX") {
             const FX_CONFIGS = {
-                "USD/JPY": {base: 154.200, vol: 0.00055, drift:  0.00003, jumpProb: 0.09, jumpScale: 0.0024, swapPerTick:  0.000, spread: 0.00012},
-                "AUD/JPY": {base: 100.400, vol: 0.00075, drift:  0.00005, jumpProb: 0.08, jumpScale: 0.0032, swapPerTick:  0.001, spread: 0.00016},
-                "GBP/JPY": {base: 195.800, vol: 0.00125, drift: -0.00004, jumpProb: 0.14, jumpScale: 0.0046, swapPerTick:  0.000, spread: 0.00024},
-                "EUR/CHF": {base: 0.94200, vol: 0.00018, drift:  0.00000, jumpProb: 0.06, jumpScale: 0.0042, swapPerTick: -0.001, spread: 0.00014},
-                "ZAR/JPY": {base: 8.4500,  vol: 0.00080, drift: -0.00028, jumpProb: 0.09, jumpScale: 0.0030, swapPerTick:  0.008, spread: 0.00025}
+                "USD/JPY": {base: 154.200,  vol: 0.00024, drift:  0.000006, jumpProb: 0.020, jumpScale: 0.0022, swapPerTick:  0.0000, spread: 0.00012},
+                "AUD/JPY": {base: 100.400,  vol: 0.00033, drift:  0.000010, jumpProb: 0.018, jumpScale: 0.0030, swapPerTick:  0.0002, spread: 0.00016},
+                "GBP/JPY": {base: 195.800,  vol: 0.00056, drift: -0.000008, jumpProb: 0.032, jumpScale: 0.0044, swapPerTick:  0.0000, spread: 0.00024},
+                "EUR/CHF": {base: 0.94200,  vol: 0.00008, drift:  0.000000, jumpProb: 0.012, jumpScale: 0.0040, swapPerTick: -0.0002, spread: 0.00014},
+                "ZAR/JPY": {base: 8.4500,   vol: 0.00036, drift: -0.000055, jumpProb: 0.020, jumpScale: 0.0028, swapPerTick:  0.0016, spread: 0.00025},
+                "TRY/JPY": {base: 4.3800,   vol: 0.00052, drift: -0.000085, jumpProb: 0.028, jumpScale: 0.0042, swapPerTick:  0.0024, spread: 0.00035}
             };
 
             const subAction = String(body.subAction || "");
@@ -1191,7 +1191,7 @@ serve(async (req) => {
 
                 if (!FX_CONFIGS[pair])                              throw new Error("Invalid currency pair");
                 if (side !== "LONG" && side !== "SHORT")            throw new Error("Invalid trade direction");
-                if (![25, 100, 250, 500].includes(leverage))        throw new Error("Invalid leverage");
+                if (![100, 250, 500, 1000].includes(leverage))      throw new Error("Invalid leverage");
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
                 if (save.stars < bet)                               throw new Error("Not enough stars");
 
@@ -1201,40 +1201,46 @@ serve(async (req) => {
                 const randn     = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
                 const dir       = side === "LONG" ? 1 : -1;
                 const candles   = [];
+                let price       = cfg.base * (1 + dir * cfg.spread);
+                let regime      = 0;
 
-                let price   = cfg.base * (1 + dir * cfg.spread);
-                let regime  = 0;
+                for (let cIdx = 0; cIdx < 60; cIdx++) {
+                    const open  = price;
+                    const ticks = [];
+                    let high    = open;
+                    let low     = open;
+                    let close   = open;
 
-                for (let i = 0; i < 60; i++) {
-                    if (Math.random() < 0.12) regime = (Math.random() - 0.52) * cfg.vol * 1.4;
+                    for (let t = 0; t < 5; t++) {
+                        if (Math.random() < 0.04) regime = (Math.random() - 0.52) * cfg.vol * 1.5;
+                        let ret = cfg.drift + regime + randn() * cfg.vol;
 
-                    let ret = cfg.drift + regime + randn() * cfg.vol;
-                    if (Math.random() < cfg.jumpProb) {
-                        const jumpDir = pair === "EUR/CHF"
-                            ? (Math.random() < 0.58 ? -1 : 1)
-                            : (Math.random() < 0.52 ? -1 : 1);
-                        ret += jumpDir * cfg.jumpScale * (0.6 + Math.random() * 0.9);
+                        if (Math.random() < cfg.jumpProb) {
+                            const jumpDir   =   pair === "EUR/CHF" || pair === "TRY/JPY" ? (Math.random() < 0.58 ? -1 : 1) : (Math.random() < 0.52 ? -1 : 1);
+                            ret             +=  jumpDir * cfg.jumpScale * (0.65 + Math.random() * 0.95);
+                        }
+
+                        close = Math.max(cfg.base * 0.4, close * (1 + ret));
+
+                        if (close > high)   high = close;
+                        if (close < low)    low  = close;
+
+                        ticks.push({high, low, close});
                     }
 
-                    const open  = price;
-                    const close = Math.max(cfg.base * 0.5, open * (1 + ret));
-                    const wick  = Math.abs(randn()) * cfg.vol * open * (pair === "GBP/JPY" ? 1.5 : 0.95);
-                    const high  = Math.max(open, close) + wick * Math.random();
-                    const low   = Math.min(open, close) - wick * Math.random();
-
-                    candles.push({open, high, low, close});
+                    candles.push({open, high, low, close, ticks});
                     price = close;
                 }
 
-                const tradeId   = crypto.randomUUID();
-                save.fxTrade    = {
-                    tradeId,
+                const entryPrice = candles[0].open;
+
+                save.fxSession = {
+                    sessionId   : crypto.randomUUID(),
                     pair,
-                    side,
-                    leverage,
-                    bet,
                     candles,
-                    swapPerTick: cfg.swapPerTick
+                    swapPerTick : cfg.swapPerTick,
+                    totalMargin : bet,
+                    positions   : [{side, leverage, bet, entryPrice, openSec: 0}]
                 };
 
                 const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
@@ -1242,44 +1248,81 @@ serve(async (req) => {
 
                 return new Response(JSON.stringify({
                     save,
-                    trade: save.fxTrade
+                    session: save.fxSession
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            if (subAction === "ADD") {
+                const fxSession = save.fxSession;
+                const sessionId = String(body.sessionId || "");
+                const side      = String(body.side || "").toUpperCase();
+                const leverage  = Number(body.leverage);
+                const bet       = Math.floor(Number(body.bet));
+                const atSec     = Math.min(299, Math.max(0, Math.floor(Number(body.atSec) || 0)));
+
+                if (!fxSession || fxSession.sessionId !== sessionId)    throw new Error("No active Forex session");
+                if (side !== "LONG" && side !== "SHORT")                throw new Error("Invalid trade direction");
+                if (![100, 250, 500, 1000].includes(leverage))          throw new Error("Invalid leverage");
+                if (!Number.isFinite(bet) || bet < 1 || bet > 1000)     throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (save.stars < bet)                                   throw new Error("Not enough stars");
+
+                save.stars -= bet;
+
+                const cIdx      = Math.floor(atSec / 5);
+                const markPrice = fxSession.candles[cIdx].close;
+
+                fxSession.positions.push({side, leverage, bet, entryPrice: markPrice, openSec: atSec});
+                fxSession.totalMargin += bet;
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    session: fxSession
                 }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
             }
 
             if (subAction === "SETTLE") {
-                const trade     = save.fxTrade;
-                const tradeId   = String(body.tradeId || "");
-                const closeTick = Math.floor(Number(body.closeTick));
+                const fxSession = save.fxSession;
+                const sessionId = String(body.sessionId || "");
+                const closeSec  = Math.min(299, Math.max(0, Math.floor(Number(body.closeSec) || 0)));
 
-                if (!trade || trade.tradeId !== tradeId)                        throw new Error("No active Forex position");
-                if (!Number.isInteger(closeTick) || closeTick < 0 || closeTick > 59) throw new Error("Invalid close tick");
+                if (!fxSession || fxSession.sessionId !== sessionId) throw new Error("No active Forex session");
 
-                const entryPrice    = trade.candles[0].open;
-                const dir           = trade.side === "LONG" ? 1 : -1;
-                const marginCut     = trade.bet * 0.15;
-
-                let settledTick = closeTick;
                 let liquidated  = false;
                 let swapTotal   = 0;
-                let rawEquity   = trade.bet;
+                let finalEquity = fxSession.totalMargin;
 
-                for (let t = 0; t <= closeTick; t++) {
-                    const c     = trade.candles[t];
-                    const move  = ((c.close - entryPrice) / entryPrice) * dir;
-                    swapTotal   = Math.round(trade.bet * trade.swapPerTick * (t + 1) * dir);
-                    rawEquity   = trade.bet + trade.bet * trade.leverage * move + swapTotal;
+                for (let s = 0; s <= closeSec; s++) {
+                    const c     = fxSession.candles[Math.floor(s / 5)];
+                    const price = c.ticks?.[s % 5]?.close ?? c.close;
+                    let pnlSum  = 0;
+                    let swapSum = 0;
 
-                    if (rawEquity <= marginCut) {
-                        settledTick = t;
+                    for (const pos of fxSession.positions) {
+                        const dir   =   pos.side === "LONG" ? 1 : -1;
+                        const move  =   ((price - pos.entryPrice) / pos.entryPrice) * dir;
+                        pnlSum      +=  pos.bet * pos.leverage * move;
+                        swapSum     +=  pos.bet * fxSession.swapPerTick * Math.max(0, (s + 1) - pos.openSec) * dir;
+                    }
+
+                    swapTotal   = Math.round(swapSum);
+                    const eq    = fxSession.totalMargin + pnlSum + swapTotal;
+
+                    if (eq <= fxSession.totalMargin * 0.15) {
                         liquidated  = true;
-                        rawEquity   = 0;
+                        finalEquity = 0;
+
                         break;
                     }
+
+                    finalEquity = Math.max(0, Math.round(eq));
                 }
 
-                const payout    = liquidated ? 0 : Math.max(0, Math.round(rawEquity));
-                save.stars     += payout;
-                save.fxTrade    = null;
+                const payout    =   liquidated ? 0 : finalEquity;
+                save.stars      +=  payout;
+                save.fxSession  =   null;
 
                 const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
                 if (conflictResponse) return conflictResponse;
@@ -1287,7 +1330,6 @@ serve(async (req) => {
                 return new Response(JSON.stringify({
                     save,
                     result: {
-                        settledTick,
                         liquidated,
                         swapTotal,
                         payout

@@ -28,11 +28,12 @@ const ROULETTE_RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23,
 const ROULETTE_WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 
 const FX_PAIR_META = {
-    "USD/JPY": {tag: "Fed Pivot",       decimals: 3, desc: "Macro drifts punctuated by sudden liquidity sweep wicks and reversals"},
-    "AUD/JPY": {tag: "Risk Barometer",  decimals: 3, desc: "Smooth risk-on momentum with abrupt commodity risk-off drops"},
-    "GBP/JPY": {tag: "Killer Pair",     decimals: 3, desc: "Extreme whipsaw volatility and massive wicks that hunt high leverage"},
-    "EUR/CHF": {tag: "SNB Peg",         decimals: 5, desc: "Deceptively tight range that can abruptly de-peg, surge, or bleed"},
-    "ZAR/JPY": {tag: "Carry Trap",      decimals: 4, desc: "Pays positive swap yield on Longs while bleeding value over time"}
+    "USD/JPY": {decimals: 3, desc: "Macro drifts, sudden liquidity sweep wicks/reversals"},
+    "AUD/JPY": {decimals: 3, desc: "Smooth risk-on momentum, abrupt risk-off drops"},
+    "GBP/JPY": {decimals: 3, desc: "Extreme volatility, massive wicks against high leverage"},
+    "EUR/CHF": {decimals: 5, desc: "Deceptively tight range, abruptly de-peg/surge/bleed"},
+    "ZAR/JPY": {decimals: 4, desc: "Positive swap yield on Longs, bleeds value over time"},
+    "TRY/JPY": {decimals: 4, desc: "Carry yield on Longs, chaotic slides, violent spikes"}
 };
 
 function syncHeaderNavButtons(currentPage) {
@@ -296,9 +297,9 @@ function renderBlackjackUI() {
             WIN                 : {text: `You Win: Won ★ ${profit          .toLocaleString()}`,    cls: winCls},
             DEALER_BUST         : {text: `Dealer Busts: Won ★ ${profit     .toLocaleString()}`,    cls: winCls},
             PUSH                : {text: `Push: Won ★ 0`,                                          cls: pushCls},
-            BUST                : {text: `Bust: Loss ★ ${bet               .toLocaleString()}`,    cls: lossCls},
-            DEALER_BLACKJACK    : {text: `Dealer Blackjack: Loss ★ ${bet   .toLocaleString()}`,    cls: lossCls},
-            LOSE                : {text: `Dealer Wins: Loss ★ ${bet        .toLocaleString()}`,    cls: lossCls}
+            BUST                : {text: `Bust: Lost ★ ${bet               .toLocaleString()}`,    cls: lossCls},
+            DEALER_BLACKJACK    : {text: `Dealer Blackjack: Lost ★ ${bet   .toLocaleString()}`,    cls: lossCls},
+            LOSE                : {text: `Dealer Wins: Lost ★ ${bet        .toLocaleString()}`,    cls: lossCls}
         };
 
         const info                  = statusMap[status] || statusMap.LOSE;
@@ -761,61 +762,126 @@ async function runRouletteSpin() {
 
 function generateClientFxPath(pair) {
     const configs = {
-        "USD/JPY": {base: 154.200, vol: 0.00055, drift:  0.00003, jumpProb: 0.09, jumpScale: 0.0024, swapPerTick:  0.000},
-        "AUD/JPY": {base: 100.400, vol: 0.00075, drift:  0.00005, jumpProb: 0.08, jumpScale: 0.0032, swapPerTick:  0.001},
-        "GBP/JPY": {base: 195.800, vol: 0.00125, drift: -0.00004, jumpProb: 0.14, jumpScale: 0.0046, swapPerTick:  0.000},
-        "EUR/CHF": {base: 0.94200, vol: 0.00018, drift:  0.00000, jumpProb: 0.06, jumpScale: 0.0042, swapPerTick: -0.001},
-        "ZAR/JPY": {base: 8.4500,  vol: 0.00080, drift: -0.00028, jumpProb: 0.09, jumpScale: 0.0030, swapPerTick:  0.008}
+        "USD/JPY": {base: 154.200,  vol: 0.00024, drift:  0.000006, jumpProb: 0.020, jumpScale: 0.0022, swapPerTick:  0.0000},
+        "AUD/JPY": {base: 100.400,  vol: 0.00033, drift:  0.000010, jumpProb: 0.018, jumpScale: 0.0030, swapPerTick:  0.0002},
+        "GBP/JPY": {base: 195.800,  vol: 0.00056, drift: -0.000008, jumpProb: 0.032, jumpScale: 0.0044, swapPerTick:  0.0000},
+        "EUR/CHF": {base: 0.94200,  vol: 0.00008, drift:  0.000000, jumpProb: 0.012, jumpScale: 0.0040, swapPerTick: -0.0002},
+        "ZAR/JPY": {base: 8.4500,   vol: 0.00036, drift: -0.000055, jumpProb: 0.020, jumpScale: 0.0028, swapPerTick:  0.0016},
+        "TRY/JPY": {base: 4.3800,   vol: 0.00052, drift: -0.000085, jumpProb: 0.028, jumpScale: 0.0042, swapPerTick:  0.0024}
     };
 
     const cfg       = configs[pair] || configs["USD/JPY"];
     const randn     = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
     const candles   = [];
+    let price       = cfg.base;
+    let regime      = 0;
 
-    let price   = cfg.base;
-    let regime  = 0;
+    for (let cIdx = 0; cIdx < 60; cIdx++) {
+        const open  = price;
+        const ticks = [];
+        let high    = open;
+        let low     = open;
+        let close   = open;
 
-    for (let i = 0; i < 60; i++) {
-        if (Math.random() < 0.12) regime = (Math.random() - 0.52) * cfg.vol * 1.4;
+        for (let t = 0; t < 5; t++) {
+            if (Math.random() < 0.04) regime = (Math.random() - 0.52) * cfg.vol * 1.5;
+            let ret = cfg.drift + regime + randn() * cfg.vol;
 
-        let ret = cfg.drift + regime + randn() * cfg.vol;
-        if (Math.random() < cfg.jumpProb) {
-            const dir = pair === "EUR/CHF"
-                ? (Math.random() < 0.58 ? -1 : 1)
-                : (Math.random() < 0.52 ? -1 : 1);
-            ret += dir * cfg.jumpScale * (0.6 + Math.random() * 0.9);
+            if (Math.random() < cfg.jumpProb) {
+                const jumpDir   =   pair === "EUR/CHF" || pair === "TRY/JPY" ? (Math.random() < 0.58 ? -1 : 1) : (Math.random() < 0.52 ? -1 : 1);
+                ret             +=  jumpDir * cfg.jumpScale * (0.65 + Math.random() * 0.95);
+            }
+
+            close = Math.max(cfg.base * 0.4, close * (1 + ret));
+
+            if (close > high) high = close;
+            if (close < low)  low  = close;
+
+            ticks.push({high, low, close});
         }
 
-        const open  = price;
-        const close = Math.max(cfg.base * 0.5, open * (1 + ret));
-        const wick  = Math.abs(randn()) * cfg.vol * open * (pair === "GBP/JPY" ? 1.5 : 0.95);
-        const high  = Math.max(open, close) + wick * Math.random();
-        const low   = Math.min(open, close) - wick * Math.random();
-
-        candles.push({open, high, low, close});
+        candles.push({open, high, low, close, ticks});
         price = close;
     }
 
     return {candles, swapPerTick: cfg.swapPerTick};
 }
 
-function calcFxTickState(run, tickIdx) {
-    const c         = run.candles[tickIdx];
-    const dir       = run.side === "LONG" ? 1 : -1;
-    const pctMove   = ((c.close - run.entryPrice) / run.entryPrice) * dir;
-    const swapTotal = Math.round(run.bet * run.swapPerTick * (tickIdx + 1) * dir);
-    const rawEquity = run.bet + run.bet * run.leverage * pctMove + swapTotal;
-    const marginCut = run.bet * 0.15;
+function getVisibleFxCandles(candles, secIdx) {
+    const clampedSec    = Math.min(299, Math.max(0, secIdx));
+    const candleIdx     = Math.floor(clampedSec / 5);
+    const subIdx        = clampedSec % 5;
+    const visible       = [];
+
+    for (let i = 0; i < candleIdx; i++) visible.push(candles[i]);
+
+    const cur       = candles[candleIdx];
+    const subTick   = cur.ticks?.[subIdx] || cur;
+    let liveHigh    = cur.open;
+    let liveLow     = cur.open;
+
+    for (let s = 0; s <= subIdx; s++) {
+        const pt = cur.ticks?.[s] || cur;
+
+        if (pt.high > liveHigh) liveHigh = pt.high;
+        if (pt.low  < liveLow)  liveLow  = pt.low;
+    }
+
+    visible.push({
+        open    : cur.open,
+        high    : liveHigh,
+        low     : liveLow,
+        close   : subTick.close
+    });
+
+    return visible;
+}
+
+function calcFxPortfolioState(run, secIdx) {
+    const visible   = getVisibleFxCandles(run.candles, secIdx);
+    const price     = visible[visible.length - 1].close;
+    const elapsed   = secIdx + 1;
+    let totalMargin = 0;
+    let totalPnl    = 0;
+    let totalSwap   = 0;
+
+    for (const pos of run.positions) {
+        const dir       = pos.side === "LONG" ? 1 : -1;
+        const move      = ((price - pos.entryPrice) / pos.entryPrice) * dir;
+        const posPnl    = pos.bet * pos.leverage * move;
+        const posSwap   = pos.bet * run.swapPerTick * Math.max(0, elapsed - pos.openSec) * dir;
+
+        totalMargin += pos.bet;
+        totalPnl    += posPnl;
+        totalSwap   += posSwap;
+    }
+
+    const swapTotal     = Math.round(totalSwap);
+    const rawEquity     = totalMargin + totalPnl + swapTotal;
+    const marginCut     = totalMargin * 0.15;
+    let weightedEntry   = 0;
+    let weightedLiq     = 0;
+
+    if (totalMargin > 0) {for (const pos of run.positions) {
+            const dir       =   pos.side === "LONG" ? 1 : -1;
+            const liqPrice  =   pos.entryPrice * (1 - dir * (0.85 / pos.leverage));
+            const w         =   pos.bet / totalMargin;
+            weightedEntry   +=  pos.entryPrice * w;
+            weightedLiq     +=  liqPrice * w;
+    }}
 
     return {
-        candle      : c,
+        price,
+        totalMargin,
         swapTotal,
+        weightedEntry,
+        weightedLiq,
         equity      : Math.max(0, Math.round(rawEquity)),
-        liquidated  : rawEquity <= marginCut
+        liquidated  : totalMargin > 0 && rawEquity <= marginCut
     };
 }
 
-function renderForexChart(candles, entryPrice, liqPrice, side) {
+function renderForexChart(candles, entryPrice, liqPrice, _) {
     const svg = document.getElementById("fx-chart-svg");
     if (!svg) return;
 
@@ -828,8 +894,8 @@ function renderForexChart(candles, entryPrice, liqPrice, side) {
     let maxP = -Infinity;
 
     for (const c of candles) {
-        if (c.low  < minP) minP = c.low;
-        if (c.high > maxP) maxP = c.high;
+        if (c.low   < minP) minP = c.low;
+        if (c.high  > maxP) maxP = c.high;
     }
 
     if (entryPrice != null) {
@@ -837,9 +903,10 @@ function renderForexChart(candles, entryPrice, liqPrice, side) {
         maxP = Math.max(maxP, entryPrice);
     }
 
-    const pad   = (maxP - minP) * 0.12 || maxP * 0.002;
-    minP       -= pad;
-    maxP       += pad;
+    const pad = (maxP - minP) * 0.12 || maxP * 0.002;
+
+    minP -= pad;
+    maxP += pad;
 
     const W     = 600;
     const H     = 240;
@@ -895,9 +962,9 @@ function renderForexUI() {
 
     if (!betInput) return;
 
-    betInput.disabled   = isGuest || casinoBusy || isRunning;
-    longBtn .disabled   = casinoBusy || !databaseReady || isRunning || (!isGuest && stars < 1);
-    shortBtn.disabled   = casinoBusy || !databaseReady || isRunning || (!isGuest && stars < 1);
+    betInput    .disabled = casinoBusy || isGuest;
+    longBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
+    shortBtn    .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
 
     if (isGuest) betInput.value = 0;
 
@@ -905,94 +972,95 @@ function renderForexUI() {
     closeBtn.disabled = casinoBusy || !isRunning;
 
     document.querySelectorAll(".fx-pair-btn").forEach(btn => {
-        const active    = btn.dataset.fxPair === casinoFxPair;
-        btn.disabled    = casinoBusy || isRunning;
-        btn.className   = `fx-pair-btn py-1.5 px-2 rounded-lg border text-left transition ${
-            active
-                ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
-                : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-slate-700 dark:text-slate-300 opacity-75 hover:opacity-100"
+        const active = btn.dataset.fxPair === casinoFxPair;
+        btn.disabled = casinoBusy || isRunning;
+
+        btn.className = `fx-pair-btn py-1.5 px-2 rounded-lg border text-left transition ${active
+            ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
+            : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-slate-700 dark:text-slate-300 opacity-75 hover:opacity-100"
         }`;
     });
 
     document.querySelectorAll(".fx-lev-btn").forEach(btn => {
-        const active    = Number(btn.dataset.fxLev) === casinoFxLeverage;
-        btn.disabled    = casinoBusy || isRunning;
-        btn.className   = `fx-lev-btn py-1.5 rounded-lg border text-xs font-bold tabular-nums transition ${
-            active
-                ? "border-indigo-500 bg-indigo-600 text-white"
-                : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+        const active = Number(btn.dataset.fxLev) === casinoFxLeverage;
+        btn.disabled = casinoBusy;
+
+        btn.className = `fx-lev-btn py-1.5 rounded-lg border text-xs font-bold tabular-nums transition ${active
+            ? "border-indigo-500 bg-indigo-600 text-white"
+            : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
         }`;
     });
 
-    document.getElementById("fx-pair-title").textContent    = casinoFxPair;
-    document.getElementById("fx-pair-tag").textContent      = meta.tag;
-    document.getElementById("fx-pair-desc").textContent     = meta.desc;
+    document.getElementById("fx-pair-title")    .textContent = casinoFxPair;
+    document.getElementById("fx-pair-desc")     .textContent = meta.desc;
 
     if (!casinoFxRun) {
-        document.getElementById("fx-current-price").textContent = "—";
-        document.getElementById("fx-timer-label").textContent   = "05:00";
-        document.getElementById("fx-equity-label").textContent  = "—";
-        document.getElementById("fx-swap-label").textContent    = "★ 0";
-        document.getElementById("fx-liq-price").textContent     = "—";
+        document.getElementById("fx-current-price") .textContent = "—";
+        document.getElementById("fx-timer-label")   .textContent = "05:00";
+        document.getElementById("fx-equity-label")  .textContent = "—";
+        document.getElementById("fx-swap-label")    .textContent = "★ 0";
+        document.getElementById("fx-liq-price")     .textContent = "—";
+        document.getElementById("fx-pos-count")     .textContent = "0";
 
-        overlay?.classList.remove("hidden");
-        banner?.classList.add("hidden");
+        overlay?.   classList.remove    ("hidden");
+        banner?.    classList.add       ("hidden");
+
         renderForexChart([], null, null, "LONG");
         return;
     }
 
     overlay?.classList.add("hidden");
 
-    const shownCandles  = casinoFxRun.candles.slice(0, casinoFxRun.tick + 1);
-    const lastCandle    = shownCandles[shownCandles.length - 1];
-    const remainingSec  = Math.max(0, (59 - casinoFxRun.tick) * 5);
+    const shownCandles  = getVisibleFxCandles(casinoFxRun.candles, casinoFxRun.sec);
+    const remainingSec  = Math.max(0, 299 - casinoFxRun.sec);
     const mm            = String(Math.floor(remainingSec / 60)).padStart(2, "0");
     const ss            = String(remainingSec % 60).padStart(2, "0");
 
-    document.getElementById("fx-current-price").textContent = lastCandle.close.toFixed(meta.decimals);
-    document.getElementById("fx-timer-label").textContent   = `${mm}:${ss}`;
-    document.getElementById("fx-equity-label").textContent  = `★ ${casinoFxRun.equity.toLocaleString()}`;
-    document.getElementById("fx-swap-label").textContent    = `★ ${casinoFxRun.swapTotal >= 0 ? "+" : ""}${casinoFxRun.swapTotal}`;
-    document.getElementById("fx-liq-price").textContent     = casinoFxRun.liqPrice.toFixed(meta.decimals);
+    document.getElementById("fx-current-price") .textContent = casinoFxRun.currentPrice.toFixed(meta.decimals);
+    document.getElementById("fx-timer-label")   .textContent = `${mm}:${ss}`;
+    document.getElementById("fx-equity-label")  .textContent = `★ ${casinoFxRun.equity.toLocaleString()}`;
+    document.getElementById("fx-swap-label")    .textContent = `★ ${casinoFxRun.swapTotal >= 0 ? "+" : ""}${casinoFxRun.swapTotal}`;
+    document.getElementById("fx-liq-price")     .textContent = casinoFxRun.liqPrice ? casinoFxRun.liqPrice.toFixed(meta.decimals) : "—";
+    document.getElementById("fx-pos-count")     .textContent = String(casinoFxRun.positions.length);
 
-    renderForexChart(shownCandles, casinoFxRun.entryPrice, casinoFxRun.liqPrice, casinoFxRun.side);
+    renderForexChart(shownCandles, casinoFxRun.entryPrice, casinoFxRun.liqPrice, "LONG");
 
     if (!casinoFxRun.done) banner?.classList.add("hidden");
     else if (banner) {
-        const profit    = casinoFxRun.payout - casinoFxRun.bet;
+        const profit    = casinoFxRun.payout - casinoFxRun.totalMargin;
         const winCls    = "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
         const lossCls   = "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300";
 
         if (casinoFxRun.liquidated) {
-            banner.textContent  = `Margin Call (Loss-Cut): Lost ★ ${casinoFxRun.bet.toLocaleString()}`;
+            banner.textContent  = `Margin Call (Loss-Cut): Lost ★ ${casinoFxRun.totalMargin.toLocaleString()}`;
             banner.className    = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${lossCls}`;
         } else if (profit >= 0) {
-            banner.textContent  = `Position Closed (${casinoFxRun.side} ${casinoFxRun.leverage}x): Won ★ ${profit.toLocaleString()}`;
+            banner.textContent  = `Closed Early/At Close: Won ★ ${profit.toLocaleString()}`;
             banner.className    = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${winCls}`;
         } else {
-            banner.textContent  = `Position Closed (${casinoFxRun.side} ${casinoFxRun.leverage}x): Lost ★ ${Math.abs(profit).toLocaleString()}`;
+            banner.textContent  = `Closed Early/At Close: Lost ★ ${Math.abs(profit).toLocaleString()}`;
             banner.className    = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${lossCls}`;
         }
     }
 }
 
-async function settleForexPosition(tickIdx) {
+async function settleForexPosition(secIdx) {
     clearInterval(casinoFxTimerId);
     casinoFxTimerId = 0;
 
     if (!casinoFxRun || casinoFxRun.done) return;
 
-    const clampedTick   = Math.min(59, Math.max(0, tickIdx));
-    const tickState     = calcFxTickState(casinoFxRun, clampedTick);
+    const clampedSec            = Math.min(299, Math.max(0, secIdx));
+    const state                 = calcFxPortfolioState(casinoFxRun, clampedSec);
+    casinoFxRun.sec             = clampedSec;
+    casinoFxRun.currentPrice    = state.price;
+    casinoFxRun.equity          = state.equity;
+    casinoFxRun.swapTotal       = state.swapTotal;
+    casinoFxRun.liquidated      = state.liquidated;
+    casinoFxRun.payout          = state.liquidated ? 0 : state.equity;
+    casinoFxRun.done            = true;
 
-    casinoFxRun.tick        = clampedTick;
-    casinoFxRun.equity      = tickState.equity;
-    casinoFxRun.swapTotal   = tickState.swapTotal;
-    casinoFxRun.liquidated  = tickState.liquidated;
-    casinoFxRun.payout      = tickState.liquidated ? 0 : tickState.equity;
-    casinoFxRun.done        = true;
-
-    if (currentUser && casinoFxRun.tradeId) {
+    if (currentUser && casinoFxRun.sessionId) {
         casinoBusy = true;
         renderForexUI();
 
@@ -1000,8 +1068,8 @@ async function settleForexPosition(tickIdx) {
             const res = await sendGachaAction({
                 action      : "CASINO_FX",
                 subAction   : "SETTLE",
-                tradeId     : casinoFxRun.tradeId,
-                closeTick   : clampedTick
+                sessionId   : casinoFxRun.sessionId,
+                closeSec    : clampedSec
             });
 
             if (res?.result) {
@@ -1009,16 +1077,43 @@ async function settleForexPosition(tickIdx) {
                 casinoFxRun.liquidated  = res.result.liquidated;
                 casinoFxRun.swapTotal   = res.result.swapTotal;
             }
-        } finally {
-            casinoBusy = false;
-        }
+        } finally {casinoBusy = false}
     }
 
     renderForexUI();
 }
 
-async function startForexTrade(side) {
-    if (casinoBusy || !databaseReady || (casinoFxRun && !casinoFxRun.done)) return;
+function startFxSecondLoop() {
+    clearInterval(casinoFxTimerId);
+
+    casinoFxTimerId = setInterval(() => {
+        if (!casinoFxRun || casinoFxRun.done) {
+            clearInterval(casinoFxTimerId);
+            return;
+        }
+
+        const nextSec = casinoFxRun.sec + 1;
+
+        if (nextSec > 299) {
+            settleForexPosition(299);
+            return;
+        }
+
+        const state                 = calcFxPortfolioState(casinoFxRun, nextSec);
+        casinoFxRun.sec             = nextSec;
+        casinoFxRun.currentPrice    = state.price;
+        casinoFxRun.equity          = state.equity;
+        casinoFxRun.swapTotal       = state.swapTotal;
+        casinoFxRun.entryPrice      = state.weightedEntry;
+        casinoFxRun.liqPrice        = state.weightedLiq;
+
+        if (state.liquidated) settleForexPosition(nextSec);
+        else renderForexUI();
+    }, 1000);
+}
+
+async function placeForexOrder(side) {
+    if (casinoBusy || !databaseReady) return;
 
     const betInput  = document.getElementById("fx-bet-input");
     const bet       = Math.max(1, Math.floor(Number(betInput.value) || 1));
@@ -1028,83 +1123,116 @@ async function startForexTrade(side) {
             alert("Not enough stars");
             return;
         }
+
         betInput.value = bet;
     }
 
-    clearInterval(casinoFxTimerId);
     casinoBusy = true;
     renderForexUI();
 
     try {
-        let tradeData = null;
+        if (!casinoFxRun || casinoFxRun.done) {
+            if (!currentUser) {
+                const sim       = generateClientFxPath(casinoFxPair);
+                const openPrice = sim.candles[0].open;
 
-        if (!currentUser) {
-            const sim = generateClientFxPath(casinoFxPair);
-            tradeData = {
-                tradeId     : null,
-                pair        : casinoFxPair,
-                side,
-                leverage    : casinoFxLeverage,
-                bet         : 0,
-                candles     : sim.candles,
-                swapPerTick : sim.swapPerTick
-            };
-        } else {
-            const res = await sendGachaAction({
-                action      : "CASINO_FX",
-                subAction   : "OPEN",
-                pair        : casinoFxPair,
-                side,
-                leverage    : casinoFxLeverage,
-                bet
-            });
+                casinoFxRun = {
+                    sessionId       : null,
+                    pair            : casinoFxPair,
+                    candles         : sim.candles,
+                    swapPerTick     : sim.swapPerTick,
+                    sec             : 0,
+                    currentPrice    : openPrice,
+                    positions       : [{side, leverage: casinoFxLeverage, bet: 0, entryPrice: openPrice, openSec: 0}],
+                    totalMargin     : 0,
+                    entryPrice      : openPrice,
+                    liqPrice        : openPrice * (1 - (side === "LONG" ? 1 : -1) * (0.85 / casinoFxLeverage)),
+                    equity          : 0,
+                    swapTotal       : 0,
+                    payout          : 0,
+                    liquidated      : false,
+                    done            : false
+                };
+            } else {
+                const res = await sendGachaAction({
+                    action      : "CASINO_FX",
+                    subAction   : "OPEN",
+                    pair        : casinoFxPair,
+                    side,
+                    leverage    : casinoFxLeverage,
+                    bet
+                });
 
-            if (res?.trade) tradeData = res.trade;
-        }
+                if (!res?.session) return;
 
-        if (!tradeData) return;
+                const s         = res.session;
+                const openPrice = s.candles[0].open;
 
-        const entryPrice    = tradeData.candles[0].open;
-        const dir           = side === "LONG" ? 1 : -1;
-        const liqPrice      = entryPrice * (1 - dir * (0.85 / tradeData.leverage));
+                casinoFxRun = {
+                    sessionId       : s.sessionId,
+                    pair            : s.pair,
+                    candles         : s.candles,
+                    swapPerTick     : s.swapPerTick,
+                    sec             : 0,
+                    currentPrice    : openPrice,
+                    positions       : s.positions,
+                    totalMargin     : s.totalMargin,
+                    entryPrice      : openPrice,
+                    liqPrice        : openPrice * (1 - (side === "LONG" ? 1 : -1) * (0.85 / casinoFxLeverage)),
+                    equity          : s.totalMargin,
+                    swapTotal       : 0,
+                    payout          : 0,
+                    liquidated      : false,
+                    done            : false
+                };
+            }
 
-        casinoFxRun = {
-            ...tradeData,
-            entryPrice,
-            liqPrice,
-            tick        : 0,
-            equity      : tradeData.bet,
-            swapTotal   : 0,
-            payout      : 0,
-            liquidated  : false,
-            done        : false
-        };
+            const initState         = calcFxPortfolioState(casinoFxRun, 0);
+            casinoFxRun.equity      = initState.equity;
+            casinoFxRun.swapTotal   = initState.swapTotal;
+            casinoFxRun.entryPrice  = initState.weightedEntry;
+            casinoFxRun.liqPrice    = initState.weightedLiq;
 
-        const firstTick = calcFxTickState(casinoFxRun, 0);
-        casinoFxRun.equity      = firstTick.equity;
-        casinoFxRun.swapTotal   = firstTick.swapTotal;
-
-        if (firstTick.liquidated) {
-            await settleForexPosition(0);
-            return;
-        }
-
-        casinoFxTimerId = setInterval(() => {
-            if (!casinoFxRun || casinoFxRun.done) {
-                clearInterval(casinoFxTimerId);
+            if (initState.liquidated) {
+                await settleForexPosition(0);
                 return;
             }
 
-            const nextTick  = casinoFxRun.tick + 1;
-            const state     = calcFxTickState(casinoFxRun, nextTick);
+            startFxSecondLoop();
+        } else {
+            const curSec = casinoFxRun.sec;
 
-            casinoFxRun.tick        = nextTick;
-            casinoFxRun.equity      = state.equity;
-            casinoFxRun.swapTotal   = state.swapTotal;
+            if (!currentUser) {casinoFxRun.positions.push({
+                side,
+                leverage    : casinoFxLeverage,
+                bet         : 0,
+                entryPrice  : casinoFxRun.currentPrice,
+                openSec     : curSec
+            })} else {
+                const res = await sendGachaAction({
+                    action      : "CASINO_FX",
+                    subAction   : "ADD",
+                    sessionId   : casinoFxRun.sessionId,
+                    side,
+                    leverage    : casinoFxLeverage,
+                    bet,
+                    atSec       : curSec
+                });
 
-            if (state.liquidated || nextTick >= 59) settleForexPosition(nextTick);
-            else renderForexUI();
-        }, 160);
+                if (!res?.session) return;
+
+                casinoFxRun.positions   = res.session.positions;
+                casinoFxRun.totalMargin = res.session.totalMargin;
+            }
+
+            const nextState         = calcFxPortfolioState(casinoFxRun, curSec);
+            casinoFxRun.equity      = nextState.equity;
+            casinoFxRun.swapTotal   = nextState.swapTotal;
+            casinoFxRun.entryPrice  = nextState.weightedEntry;
+            casinoFxRun.liqPrice    = nextState.weightedLiq;
+
+            if (nextState.liquidated) await settleForexPosition(curSec);
+        }
     } finally {
         casinoBusy = false;
         renderForexUI();
@@ -1178,24 +1306,18 @@ document.getElementById("rl-number-grid")?.addEventListener("click", (e) => {
 
 document.getElementById("rl-spin-btn")?.addEventListener("click", runRouletteSpin);
 
-document.querySelectorAll(".fx-pair-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        if (casinoBusy || (casinoFxRun && !casinoFxRun.done)) return;
-        casinoFxPair = btn.dataset.fxPair;
-        renderForexUI();
-    });
-});
+document.querySelectorAll(".fx-pair-btn").forEach(btn => {btn.addEventListener("click", () => {
+    if (casinoBusy || (casinoFxRun && !casinoFxRun.done)) return;
+    casinoFxPair = btn.dataset.fxPair;
+    renderForexUI();
+})});
 
-document.querySelectorAll(".fx-lev-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
+document.querySelectorAll(".fx-lev-btn").forEach(btn => {btn.addEventListener("click", () => {
         if (casinoBusy || (casinoFxRun && !casinoFxRun.done)) return;
         casinoFxLeverage = Number(btn.dataset.fxLev);
         renderForexUI();
-    });
-});
+})});
 
-document.getElementById("fx-long-btn")?.    addEventListener("click", () => startForexTrade("LONG"));
-document.getElementById("fx-short-btn")?.   addEventListener("click", () => startForexTrade("SHORT"));
-document.getElementById("fx-close-btn")?.   addEventListener("click", () => {
-    if (casinoFxRun && !casinoFxRun.done) settleForexPosition(casinoFxRun.tick);
-});
+document.getElementById("fx-long-btn")?.    addEventListener("click", () => placeForexOrder("LONG"));
+document.getElementById("fx-short-btn")?.   addEventListener("click", () => placeForexOrder("SHORT"));
+document.getElementById("fx-close-btn")?.   addEventListener("click", () => {if (casinoFxRun && !casinoFxRun.done) settleForexPosition(casinoFxRun.sec)});
