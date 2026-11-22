@@ -1032,13 +1032,13 @@ function renderForexUI() {
         const lossCls   = "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300";
 
         if (casinoFxRun.liquidated) {
-            banner.textContent  = `Margin Call (Loss-Cut): Lost ★ ${casinoFxRun.totalMargin.toLocaleString()}`;
+            banner.textContent  = `Margin Call: Lost ★ ${casinoFxRun.totalMargin.toLocaleString()}`;
             banner.className    = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${lossCls}`;
         } else if (profit >= 0) {
-            banner.textContent  = `Closed Early/At Close: Won ★ ${profit.toLocaleString()}`;
+            banner.textContent  = `Closed: Won ★ ${profit.toLocaleString()}`;
             banner.className    = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${winCls}`;
         } else {
-            banner.textContent  = `Closed Early/At Close: Lost ★ ${Math.abs(profit).toLocaleString()}`;
+            banner.textContent  = `Closed: Lost ★ ${Math.abs(profit).toLocaleString()}`;
             banner.className    = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${lossCls}`;
         }
     }
