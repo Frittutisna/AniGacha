@@ -100,14 +100,14 @@ function getCharacterEraKey(char) {
 }
 
 function evaluateGroupSynergy(chars, maxSlots, {
-    slotBase        = 10,
-    fullBonus       = 50,
-    franchiseWeight = 24,
-    studioWeight    = 14,
-    sourceWeight    = 8,
-    eraWeight       = 10,
-    genreWeight     = 6,
-    tagWeight       = 6
+    slotBase        = 2,
+    fullBonus       = 16,
+    franchiseWeight = 16,
+    studioWeight    = 8,
+    sourceWeight    = 1,
+    eraWeight       = 4,
+    genreWeight     = 2,
+    tagWeight       = 1
 } = {}) {
     const filled = chars.length;
 
@@ -226,36 +226,36 @@ function computeDeckSynergies(deckObj = draftDeck, suit = activeDeckSuit, rank =
     }
 
     const suitSyn = evaluateGroupSynergy(suitChars, 14, {
-        slotBase        : 10,
-        fullBonus       : 60,
-        franchiseWeight : 26,
-        studioWeight    : 15,
-        sourceWeight    : 8,
-        eraWeight       : 10,
-        genreWeight     : 6,
-        tagWeight       : 6
+        slotBase        : 8,
+        fullBonus       : 64,
+        franchiseWeight : 64,
+        studioWeight    : 32,
+        sourceWeight    : 1,
+        eraWeight       : 16,
+        genreWeight     : 8,
+        tagWeight       : 1
     });
 
     const rankSyn = evaluateGroupSynergy(rankChars, 4, {
-        slotBase        : 12,
-        fullBonus       : 40,
-        franchiseWeight : 36,
-        studioWeight    : 22,
-        sourceWeight    : 12,
-        eraWeight       : 14,
-        genreWeight     : 8,
-        tagWeight       : 8
+        slotBase        : 16,
+        fullBonus       : 128,
+        franchiseWeight : 128,
+        studioWeight    : 64,
+        sourceWeight    : 2,
+        eraWeight       : 32,
+        genreWeight     : 16,
+        tagWeight       : 2
     });
 
     const totalBase = evaluateGroupSynergy(allChars, 56, {
-        slotBase        : 8,
-        fullBonus       : 200,
-        franchiseWeight : 18,
-        studioWeight    : 10,
-        sourceWeight    : 5,
-        eraWeight       : 6,
-        genreWeight     : 4,
-        tagWeight       : 4
+        slotBase        : 2,
+        fullBonus       : 16,
+        franchiseWeight : 16,
+        studioWeight    : 8,
+        sourceWeight    : 1,
+        eraWeight       : 4,
+        genreWeight     : 2,
+        tagWeight       : 1
     });
 
     let completedSuits = 0;
@@ -283,14 +283,14 @@ function computeDeckSynergies(deckObj = draftDeck, suit = activeDeckSuit, rank =
 
 function formatSynergyTooltipLines(syn, extraLines = []) {
     return [
-        `Slots: ${syn.filled}/${syn.maxSlots} (${syn.completionPts})`,
-        `Power: ${syn.powerPts}`,
-        syn.franchisePts    > 0 ? `Franchise: ${syn.franchisePts}`  : null,
-        syn.studioPts       > 0 ? `Studio: ${syn.studioPts}`        : null,
-        syn.eraPts          > 0 ? `Era: ${syn.eraPts}`              : null,
-        syn.sourcePts       > 0 ? `Source: ${syn.sourcePts}`        : null,
-        syn.genrePts        > 0 ? `Genre: ${syn.genrePts}`          : null,
-        syn.tagPts          > 0 ? `Tag: ${syn.tagPts}`              : null,
+        `Slots: ${syn.filled}/${syn.maxSlots} (${syn.completionPts.toLocaleString()})`,
+        `Power: ${syn.powerPts.toLocaleString()}`,
+        syn.franchisePts    > 0 ? `Franchise: ${syn.franchisePts    .toLocaleString()}` : null,
+        syn.studioPts       > 0 ? `Studio: ${syn.studioPts          .toLocaleString()}` : null,
+        syn.eraPts          > 0 ? `Era: ${syn.eraPts                .toLocaleString()}` : null,
+        syn.sourcePts       > 0 ? `Source: ${syn.sourcePts          .toLocaleString()}` : null,
+        syn.genrePts        > 0 ? `Genre: ${syn.genrePts            .toLocaleString()}` : null,
+        syn.tagPts          > 0 ? `Tag: ${syn.tagPts                .toLocaleString()}` : null,
         ...extraLines
     ].filter(Boolean).join("\n");
 }
@@ -331,7 +331,7 @@ function updateDeckHeaderAndTabs() {
         ["deck-total-synergy-pill", "deck-total-synergy-pill-mobile"],
         `Total: ${synergies.total.score.toLocaleString()}`,
         "Total Synergy",
-        formatSynergyTooltipLines(synergies.total, [synergies.total.setBonusPts > 0 ? `Sets: ${synergies.total.setBonusPts}` : null])
+        formatSynergyTooltipLines(synergies.total, [synergies.total.setBonusPts > 0 ? `Sets: ${synergies.total.setBonusPts.toLocaleString()}` : null])
     );
 
     document.querySelectorAll(".deck-suit-tab").forEach(btn => {
