@@ -452,12 +452,7 @@ function exitFiftyFiftyMode(shouldRender = true) {
         restoreCheckboxes("#filter-list-group",     saved.list);
 
         const searchEl = document.getElementById("search-input");
-        const clearBtn = document.getElementById("clear-search");
-
-        if (searchEl) {
-            searchEl.value = saved.search;
-            clearBtn?.classList.toggle("hidden", saved.search === "");
-        }
+        if (searchEl) searchEl.value = saved.search;
     }
 
     if (shouldRender) {

@@ -113,21 +113,11 @@ document.getElementById("inventory-grid").addEventListener("click", (e) => {
 });
 
 const searchInput       = document.getElementById("search-input");
-const clearSearchBtn    = document.getElementById("clear-search");
 let searchDebounceId    = null;
 
 searchInput.addEventListener("input", () => {
-    clearSearchBtn.classList.toggle("hidden", searchInput.value === "");
     clearTimeout(searchDebounceId);
     searchDebounceId = setTimeout(resetPageAndRender, 250);
-});
-
-clearSearchBtn.addEventListener("click", () => {
-    clearTimeout(searchDebounceId);
-    searchInput.value = "";
-    clearSearchBtn.classList.add("hidden");
-    searchInput.focus();
-    resetPageAndRender();
 });
 
 document.querySelectorAll(".first-page").forEach(btn => btn.addEventListener("click", () => {if (currentPage > 1) {
