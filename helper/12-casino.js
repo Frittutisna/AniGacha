@@ -269,9 +269,12 @@ function renderBlackjackUI() {
     const hitBtn        = document.getElementById("bj-hit-btn");
     const standBtn      = document.getElementById("bj-stand-btn");
     const isGuest       = !currentUser;
-    betInput.disabled   = isGuest || casinoBusy || casinoBjState?.status === "ACTIVE";
+    betInput.disabled   = casinoBusy || casinoBjState?.status === "ACTIVE";
 
-    if (isGuest) betInput.value = 0;
+    if (isGuest) {
+        const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
+        if (String(clamped) !== betInput.value) betInput.value = clamped;
+    }
 
     if (!casinoBjState) {
         dealerWrap      .innerHTML   = `<span class="text-sm text-slate-500">Place a bet and press Deal</span>`;
@@ -330,7 +333,9 @@ function renderBlackjackUI() {
     }
 }
 
-function handleGuestBlackjack(subAction) {
+function handleGuestBlackjack(subAction, bet = 10) {
+    const fakeBet = Math.min(1000, Math.max(1, Math.floor(Number(bet) || 10)));
+
     if (subAction === "DEAL") {
         const shoe = [];
         for (const s of DECK_SUITS) {for (const r of DECK_RANKS) shoe.push(`${s}:${r}`)}
@@ -346,25 +351,27 @@ function handleGuestBlackjack(subAction) {
         const dealerScore = evaluateBlackjackHand(dealerCards);
 
         let status = "ACTIVE";
+        let payout = 0;
 
-        if      (playerScore === 21 && dealerScore === 21)  status = "PUSH";
-        else if (playerScore === 21)                        status = "BLACKJACK";
-        else if (dealerScore === 21)                        status = "DEALER_BLACKJACK";
+        if      (playerScore === 21 && dealerScore === 21)  {status = "PUSH";               payout = fakeBet}
+        else if (playerScore === 21)                        {status = "BLACKJACK";          payout = Math.floor(fakeBet * 2.5)}
+        else if (dealerScore === 21)                        {status = "DEALER_BLACKJACK";   payout = 0}
 
-        casinoGuestState = status === "ACTIVE" ? {shoe, playerCards, dealerCards} : null;
+        casinoGuestState = status === "ACTIVE" ? {bet: fakeBet, shoe, playerCards, dealerCards} : null;
 
         return {
             status,
-            bet         : 0,
-            payout      : 0,
+            bet         : fakeBet,
+            payout,
             playerCards,
-            dealerCards : status === "ACTIVE" ? [dealerCards[0], null] : dealerCards,
+            dealerCards : status === "ACTIVE" ? [dealerCards[0], null]                  : dealerCards,
             playerScore,
             dealerScore : status === "ACTIVE" ? evaluateBlackjackHand([dealerCards[0]]) : dealerScore
         };
     }
 
     if (!casinoGuestState) return null;
+    const activeBet = casinoGuestState.bet || fakeBet;
 
     if (subAction === "HIT") {
         casinoGuestState.playerCards.push(casinoGuestState.shoe.pop());
@@ -373,7 +380,7 @@ function handleGuestBlackjack(subAction) {
         if (playerScore > 21) {
             const res = {
                 status      : "BUST",
-                bet         : 0,
+                bet         : activeBet,
                 payout      : 0,
                 playerCards : casinoGuestState.playerCards,
                 dealerCards : casinoGuestState.dealerCards,
@@ -387,7 +394,7 @@ function handleGuestBlackjack(subAction) {
 
         return {
             status      : "ACTIVE",
-            bet         : 0,
+            bet         : activeBet,
             payout      : 0,
             playerCards : casinoGuestState.playerCards,
             dealerCards : [casinoGuestState.dealerCards[0], null],
@@ -403,15 +410,16 @@ function handleGuestBlackjack(subAction) {
         const dealerScore = evaluateBlackjackHand(casinoGuestState.dealerCards);
 
         let status = "LOSE";
+        let payout = 0;
 
-        if      (dealerScore >      21)             status = "DEALER_BUST";
-        else if (playerScore >      dealerScore)    status = "WIN";
-        else if (playerScore ===    dealerScore)    status = "PUSH";
+        if      (dealerScore >      21)             {status = "DEALER_BUST";    payout = activeBet * 2}
+        else if (playerScore >      dealerScore)    {status = "WIN";            payout = activeBet * 2}
+        else if (playerScore ===    dealerScore)    {status = "PUSH";           payout = activeBet}
 
         const res = {
             status,
-            bet         : 0,
-            payout      : 0,
+            bet         : activeBet,
+            payout,
             playerCards : casinoGuestState.playerCards,
             dealerCards : casinoGuestState.dealerCards,
             playerScore,
@@ -431,10 +439,11 @@ async function runBlackjackAction(subAction) {
     if (casinoBusy || !databaseReady) return;
 
     const betInput  = document.getElementById("bj-bet-input");
-    const bet       = Math.max(1, Math.floor(Number(betInput.value) || 1));
+    const rawBet    = Math.floor(Number(betInput.value) || 1);
+    const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
-    if (subAction === "DEAL" && currentUser) {
-        if (stars < bet) {
+    if (subAction === "DEAL") {
+        if (currentUser && stars < bet) {
             alert("Not enough stars");
             return;
         }
@@ -448,7 +457,7 @@ async function runBlackjackAction(subAction) {
     try {
         let nextGame = null;
 
-        if (!currentUser) nextGame = handleGuestBlackjack(subAction);
+        if (!currentUser) nextGame = handleGuestBlackjack(subAction, bet);
         else {
             const payload   = subAction === "DEAL" ? {action: "CASINO_BLACKJACK", subAction: "DEAL", bet} : {action: "CASINO_BLACKJACK", subAction};
             const res       = await sendGachaAction(payload);
@@ -631,9 +640,12 @@ function renderSynergyUI() {
     const ownedKeys     = getOwnedCollectionKeys();
     const hasMinCards   = ownedKeys.length >= 28;
     const isActive      = casinoSynState?.status === "ACTIVE";
-    betInput.disabled   = isGuest || casinoBusy || isActive;
+    betInput.disabled   = casinoBusy || isActive;
 
-    if (isGuest) betInput.value = 0;
+    if (isGuest) {
+        const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
+        if (String(clamped) !== betInput.value) betInput.value = clamped;
+    }
 
     if (!casinoSynState) {
         dealerWrap      .className      = "flex flex-wrap justify-center gap-2 min-h-[8.5rem] items-center";
@@ -773,8 +785,9 @@ function buildGuestDealerHand() {
     return {dealerHand: sortHandByRarity(picked.slice(0, 14)), dealerPoolSize: globalKeys.length};
 }
 
-function handleGuestSynergy(subAction) {
+function handleGuestSynergy(subAction, bet = 10) {
     const ownedKeys = getOwnedCollectionKeys();
+    const fakeBet   = Math.min(1000, Math.max(1, Math.floor(Number(bet) || 10)));
 
     if (subAction === "START") {
         if (ownedKeys.length < 28) return null;
@@ -784,6 +797,7 @@ function handleGuestSynergy(subAction) {
         const playerSynergy                 = getClientHandSynergy  (playerHand);
 
         casinoSynGuestState = {
+            bet             : fakeBet,
             playerHand,
             dealerHand,
             dealerPoolSize,
@@ -794,8 +808,8 @@ function handleGuestSynergy(subAction) {
         casinoSynSelectedKey = null;
 
         return {
-            status: "ACTIVE",
-            bet                 : 0,
+            status              : "ACTIVE",
+            bet                 : fakeBet,
             payout              : 0,
             playerHand,
             dealerHand          : [],
@@ -809,6 +823,7 @@ function handleGuestSynergy(subAction) {
     }
 
     if (!casinoSynGuestState) return null;
+    const activeBet = casinoSynGuestState.bet || fakeBet;
 
     if (subAction === "SWAP") {
         const idx = casinoSynGuestState.playerHand.indexOf(casinoSynSelectedKey);
@@ -831,7 +846,7 @@ function handleGuestSynergy(subAction) {
 
         return {
             status              : "ACTIVE",
-            bet                 : 0,
+            bet                 : activeBet,
             payout              : 0,
             playerHand          : [...casinoSynGuestState.playerHand],
             dealerHand          : [],
@@ -848,12 +863,13 @@ function handleGuestSynergy(subAction) {
         const playerSynergy     = getClientHandSynergy(casinoSynGuestState.playerHand);
         const playerNetSynergy  = playerSynergy - casinoSynGuestState.totalSwapCost;
         const dealerSynergy     = getClientHandSynergy(casinoSynGuestState.dealerHand);
-        const status            = playerNetSynergy > dealerSynergy ? "WIN" : "LOSE";
+        const won               = playerNetSynergy > dealerSynergy;
+        const payout            = won ? activeBet * 2 : 0;
 
         const res = {
-            status,
-            bet             : 0,
-            payout          : 0,
+            status          : won ? "WIN" : "LOSE",
+            bet             : activeBet,
+            payout,
             playerHand      : [...casinoSynGuestState.playerHand],
             dealerHand      : [...casinoSynGuestState.dealerHand],
             dealerPoolSize  : casinoSynGuestState.dealerPoolSize,
@@ -877,7 +893,8 @@ async function runSynergyAction(subAction) {
     if (casinoBusy || !databaseReady) return;
 
     const betInput  = document.getElementById("syn-bet-input");
-    const bet       = Math.max(1, Math.floor(Number(betInput?.value) || 1));
+    const rawBet    = Math.floor(Number(betInput?.value) || 1);
+    const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
     if (subAction === "START") {
         if (getOwnedCollectionKeys().length < 28) {
@@ -885,14 +902,12 @@ async function runSynergyAction(subAction) {
             return;
         }
 
-        if (currentUser) {
-            if (stars < bet) {
-                alert("Not enough stars");
-                return;
-            }
-
-            if (betInput) betInput.value = bet;
+        if (currentUser && stars < bet) {
+            alert("Not enough stars");
+            return;
         }
+
+        if (betInput) betInput.value = bet;
     }
 
     casinoBusy = true;
@@ -901,7 +916,7 @@ async function runSynergyAction(subAction) {
     try {
         let nextGame = null;
 
-        if (!currentUser) nextGame = handleGuestSynergy(subAction);
+        if (!currentUser) nextGame = handleGuestSynergy(subAction, bet);
         else {
             const payload = subAction === "START"
                 ? {action: "CASINO_SYNERGY", subAction: "START", bet}
@@ -1117,10 +1132,13 @@ function renderRouletteUI() {
 
     if (!betInput || !spinBtn) return;
 
-    betInput.disabled   = isGuest || casinoBusy;
-    spinBtn.disabled    = casinoBusy || !databaseReady || (!isGuest && stars < 1);
+    betInput    .disabled = casinoBusy;
+    spinBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
 
-    if (isGuest) betInput.value = 0;
+    if (isGuest) {
+        const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
+        if (String(clamped) !== betInput.value) betInput.value = clamped;
+    }
 
     document.querySelectorAll(".rl-color-btn").forEach(btn => {
         const isSelected    = casinoRlSelectedBet.type === "COLOR" && btn.dataset.rlColor === casinoRlSelectedBet.value;
@@ -1179,17 +1197,15 @@ async function runRouletteSpin() {
     if (casinoBusy || !databaseReady) return;
 
     const betInput  = document.getElementById("rl-bet-input");
-    const bet       = Math.max(1, Math.floor(Number(betInput.value) || 1));
+    const rawBet    = Math.floor(Number(betInput.value) || 1);
+    const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
-    if (currentUser) {
-        if (stars < bet) {
-            alert("Not enough stars");
-            return;
-        }
-
-        betInput.value = bet;
+    if (currentUser && stars < bet) {
+        alert("Not enough stars");
+        return;
     }
 
+    betInput.value      = bet;
     casinoBusy          = true;
     casinoRlLastSpin    = {spinning: true};
 
@@ -1203,14 +1219,15 @@ async function runRouletteSpin() {
             const resultColor   = pocket === 0 ? "GREEN" : (ROULETTE_RED_NUMBERS.has(pocket) ? "RED" : "BLACK");
             const isNumberBet   = casinoRlSelectedBet.type === "NUMBER";
             const won           = isNumberBet ? pocket === casinoRlSelectedBet.value : resultColor === casinoRlSelectedBet.value;
+            const payout        = won ? ((isNumberBet || casinoRlSelectedBet.value === "GREEN") ? bet * 36 : bet * 2) : 0;
 
             spinResult = {
                 pocket,
                 resultColor,
                 betColor    : isNumberBet ? null : casinoRlSelectedBet.value,
                 betNumber   : isNumberBet ? casinoRlSelectedBet.value : null,
-                bet         : 0,
-                payout      : 0,
+                bet,
+                payout,
                 won
             };
         } else {
@@ -1432,11 +1449,14 @@ function renderForexUI() {
 
     if (!betInput) return;
 
-    betInput    .disabled = casinoBusy || isGuest;
+    betInput    .disabled = casinoBusy;
     longBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
     shortBtn    .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
 
-    if (isGuest) betInput.value = 0;
+    if (isGuest) {
+        const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
+        if (String(clamped) !== betInput.value) betInput.value = clamped;
+    }
 
     closeBtn.classList.toggle("hidden", !isRunning);
     closeBtn.disabled = casinoBusy || !isRunning;
@@ -1586,16 +1606,15 @@ async function placeForexOrder(side) {
     if (casinoBusy || !databaseReady) return;
 
     const betInput  = document.getElementById("fx-bet-input");
-    const bet       = Math.max(1, Math.floor(Number(betInput.value) || 1));
+    const rawBet    = Math.floor(Number(betInput.value) || 1);
+    const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
-    if (currentUser) {
-        if (stars < bet) {
-            alert("Not enough stars");
-            return;
-        }
-
-        betInput.value = bet;
+    if (currentUser && stars < bet) {
+        alert("Not enough stars");
+        return;
     }
+
+    betInput.value = bet;
 
     casinoBusy = true;
     renderForexUI();
@@ -1613,11 +1632,11 @@ async function placeForexOrder(side) {
                     swapPerTick     : sim.swapPerTick,
                     sec             : 0,
                     currentPrice    : openPrice,
-                    positions       : [{side, leverage: casinoFxLeverage, bet: 0, entryPrice: openPrice, openSec: 0}],
-                    totalMargin     : 0,
+                    positions       : [{side, leverage: casinoFxLeverage, bet, entryPrice: openPrice, openSec: 0}],
+                    totalMargin     : bet,
                     entryPrice      : openPrice,
                     liqPrice        : openPrice * (1 - (side === "LONG" ? 1 : -1) * (0.85 / casinoFxLeverage)),
-                    equity          : 0,
+                    equity          : bet,
                     swapTotal       : 0,
                     payout          : 0,
                     liquidated      : false,
@@ -1672,13 +1691,17 @@ async function placeForexOrder(side) {
         } else {
             const curSec = casinoFxRun.sec;
 
-            if (!currentUser) {casinoFxRun.positions.push({
-                side,
-                leverage    : casinoFxLeverage,
-                bet         : 0,
-                entryPrice  : casinoFxRun.currentPrice,
-                openSec     : curSec
-            })} else {
+            if (!currentUser) {
+                casinoFxRun.positions.push({
+                    side,
+                    leverage    : casinoFxLeverage,
+                    bet,
+                    entryPrice  : casinoFxRun.currentPrice,
+                    openSec     : curSec
+                });
+
+                casinoFxRun.totalMargin = (casinoFxRun.totalMargin || 0) + bet;
+            } else {
                 const res = await sendGachaAction({
                     action      : "CASINO_FX",
                     subAction   : "ADD",
