@@ -74,9 +74,11 @@ function switchHeaderPage(targetPage) {
         if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview    ();
         if (typeof loadAniQuizData              === "function") loadAniQuizData                 ();
     } else if (targetPage === "CASINO") {
-        if (currentUser && stars > 0) {
+        if (currentUser) {
             const betInput = document.getElementById("bj-bet-input");
-            if (Number(betInput.value) > stars) betInput.value = stars;
+
+            if      (casinoBjState?.status === "ACTIVE" && casinoBjState.bet)               betInput.value = casinoBjState.bet;
+            else if (stars > 0                          && Number(betInput.value) > stars)  betInput.value = stars;
         }
 
         renderBlackjackUI();
@@ -222,7 +224,7 @@ function renderBlackjackUI() {
     if (isGuest) betInput.value = 0;
 
     if (!casinoBjState) {
-        dealerWrap      .innerHTML   = `<span class="text-xs text-slate-400">Place a bet and press Deal</span>`;
+        dealerWrap      .innerHTML   = `<span class="text-sm text-slate-500">Place a bet and press Deal</span>`;
         playerWrap      .innerHTML   = "";
         dealerScoreEl   .textContent = "—";
         playerScoreEl   .textContent = "—";
@@ -240,7 +242,7 @@ function renderBlackjackUI() {
 
     dealerWrap      .innerHTML      = dealerCards.map(renderCasinoCardHTML).join("");
     playerWrap      .innerHTML      = playerCards.map(renderCasinoCardHTML).join("");
-    dealerScoreEl   .textContent    = isActive ? `${dealerScore} + ?` : `${dealerScore}`;
+    dealerScoreEl   .textContent    = isActive ? `${dealerScore}+?` : `${dealerScore}`;
     playerScoreEl   .textContent    = `${playerScore}`;
 
     actionRow.classList.toggle("hidden", !isActive);
@@ -454,9 +456,9 @@ document.getElementById("casino-game-select")?.addEventListener("change", (e) =>
     const val           = e.target.value;
     const isBlackjack   = val === "BLACKJACK";
     const labels        = {
-        SYNERGY     : "Synergy Showdown",
+        SYNERGY     : "Synergy",
         ROULETTE    : "Roulette",
-        FX          : "Leveraged FX"
+        FX          : "Forex"
     };
 
     document.getElementById("bj-rules-pill")?.          classList.toggle("hidden", !isBlackjack);

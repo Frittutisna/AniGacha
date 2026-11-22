@@ -432,6 +432,26 @@ function applySaveState(data) {
     if (activeSparkBanner === "LIST" && !anilistUsername)       exitSparkMode()
     if (activeFiftyFiftyBanner === "LIST" && !anilistUsername)  exitFiftyFiftyMode()
 
+    if (typeof casinoBjState !== "undefined") {
+        const bj = data.blackjack;
+
+        if (bj && Array.isArray(bj.playerCards) && Array.isArray(bj.dealerCards)) {
+            const upCard = bj.dealerCards[0];
+
+            casinoBjState = {
+                status      : "ACTIVE",
+                bet         : bj.bet,
+                payout      : 0,
+                playerCards : bj.playerCards,
+                dealerCards : [upCard, null],
+                playerScore : typeof bj.playerScore === "number" ? bj.playerScore : evaluateBlackjackHand(bj.playerCards),
+                dealerScore : typeof bj.dealerScore === "number" ? bj.dealerScore : evaluateBlackjackHand([upCard])
+            };
+        } else if (!currentUser || (bj === null && (typeof casinoBusy === "undefined" || !casinoBusy))) casinoBjState = null;
+
+        if (typeof renderBlackjackUI === "function") renderBlackjackUI();
+    }
+
     applyDailyBanners           (lastDailyBannersPayload || getClientDailyBanners());
     updateSparkButtonsUI        ();
     updateFiftyFiftyButtonsUI   ();

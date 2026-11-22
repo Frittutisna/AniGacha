@@ -643,7 +643,42 @@ serve(async (req) => {
                 if (conflictResponse) return conflictResponse;
             }
 
-            return new Response(JSON.stringify({save, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            const clientSave = {...save};
+
+            if (save.blackjack && Array.isArray(save.blackjack.playerCards) && Array.isArray(save.blackjack.dealerCards)) {
+                const evalInitBjHand = (cards) => {
+                    let total   = 0;
+                    let aces    = 0;
+
+                    for (const card of cards) {
+                        const rank = String(card).split(":")[1];
+
+                        if      (rank === "R")                                  total   += 0;
+                        else if (rank === "A")                                  {total  += 11; aces++}
+                        else if (rank === "K" || rank === "Q" || rank === "J")  total   += 10;
+                        else                                                    total   += Number(rank) || 0;
+                    }
+
+                    while (total > 21 && aces > 0) {
+                        total -= 10;
+                        aces--;
+                    }
+
+                    return total;
+                };
+
+                clientSave.blackjack = {
+                    status      : "ACTIVE",
+                    bet         : save.blackjack.bet,
+                    payout      : 0,
+                    playerCards : save.blackjack.playerCards,
+                    dealerCards : [save.blackjack.dealerCards[0], null],
+                    playerScore : evalInitBjHand(save.blackjack.playerCards),
+                    dealerScore : evalInitBjHand([save.blackjack.dealerCards[0]])
+                };
+            }
+
+            return new Response(JSON.stringify({save: clientSave, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
         const QUIZ_MISSIONS = {
@@ -959,8 +994,8 @@ serve(async (req) => {
             if (subAction === "DEAL") {
                 const bet = Math.floor(Number(body.bet));
 
-                if (!Number.isFinite(bet) || bet < 1 || bet > 10000)    throw new Error("Bet must be between 1 and 10,000 Stars");
-                if (save.stars < bet)                                   throw new Error("Not enough stars");
+                if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (save.stars < bet)                               throw new Error("Not enough stars");
 
                 const shoe = [];
                 for (const s of BJ_SUITS) {for (const r of BJ_RANKS) shoe.push(`${s}:${r}`)}
