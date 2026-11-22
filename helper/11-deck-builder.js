@@ -281,6 +281,23 @@ function computeDeckSynergies(deckObj = draftDeck, suit = activeDeckSuit, rank =
     };
 }
 
+function computeHandSynergy(chars = []) {
+    const handChars = (chars || []).filter(Boolean).slice(0, 7);
+
+    const base = evaluateGroupSynergy(handChars, 7, {
+        slotBase        : 8,
+        fullBonus       : 64,
+        franchiseWeight : 64,
+        studioWeight    : 32,
+        sourceWeight    : 1,
+        eraWeight       : 16,
+        genreWeight     : 8,
+        tagWeight       : 1
+    });
+
+    return {...base, score: base.score};
+}
+
 function formatSynergyTooltipLines(syn, extraLines = []) {
     return [
         `Slots: ${syn.filled}/${syn.maxSlots} (${syn.completionPts.toLocaleString()})`,

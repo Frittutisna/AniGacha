@@ -768,10 +768,43 @@
                         Close All
                     </button>
                 </div>
+                <div id="syn-bet-controls" class="hidden flex items-center gap-1.5">
+                    <input id="syn-bet-input" type="number" min="1" step="1" value="10"
+                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="syn-start-btn" type="button" class="w-16 py-1 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Deal
+                    </button>
+                </div>
             </div>
-            <div id="casino-coming-soon" class="hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-8 text-center space-y-1">
-                <div id="casino-coming-soon-title" class="text-base font-bold text-slate-900 dark:text-white">Game: Coming Soon</div>
-                <p class="text-xs text-slate-500 dark:text-slate-400">This game is currently under development</p>
+            <div id="casino-synergy-board" class="hidden flex flex-col gap-3">
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 flex flex-col gap-2">
+                    <div class="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums">
+                        <span>Dealer:</span>
+                        <span id="syn-dealer-score">—</span>
+                    </div>
+                    <div id="syn-dealer-cards" class="flex flex-wrap justify-center gap-2 min-h-[8.5rem] items-center">
+                        <span class="text-sm text-slate-500">Place a bet and press Deal</span>
+                    </div>
+                </div>
+                <div id="syn-status-banner" class="hidden rounded-lg border px-3 py-2 text-center text-sm font-bold"></div>
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 flex flex-col gap-2">
+                    <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums">
+                        <span>Your Hand: <span id="syn-player-synergy">—</span></span>
+                        <span>Swap Cost: <span id="syn-swap-cost-total">0</span></span>
+                        <span>Net Synergy: <span id="syn-player-net">—</span></span>
+                    </div>
+                    <div id="syn-player-cards" class="flex flex-wrap justify-center gap-2 min-h-[8.5rem] items-center"></div>
+                </div>
+                <div id="syn-action-controls" class="hidden grid-cols-2 gap-2 -mb-3">
+                    <button id="syn-swap-btn" type="button" disabled
+                        class="py-2 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Swap: 5
+                    </button>
+                    <button id="syn-finish-btn" type="button" disabled
+                        class="py-2 rounded-lg text-sm font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Done
+                    </button>
+                </div>
             </div>
             <div id="casino-blackjack-board" class="flex flex-col gap-3">
                 <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 flex flex-col gap-2">
@@ -820,7 +853,7 @@
                     </div>
                 </div>
                 <div id="rl-status-banner" class="hidden rounded-lg border px-3 py-2 text-center text-sm font-bold"></div>
-                <div class="flex flex-col gap-1.5">
+                <div class="flex flex-col gap-1.5 -mb-3">
                     <div class="grid grid-cols-3 gap-1.5">
                         <button type="button" data-rl-color="RED" class="rl-color-btn py-2 rounded-lg bg-[#e11d48] hover:opacity-90 text-white text-sm font-bold transition">
                             Red

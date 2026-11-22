@@ -1,16 +1,19 @@
-let casinoBjState       = null;
-let casinoGuestState    = null;
-let casinoBusy          = false;
-let casinoRlSelectedBet = {type: "COLOR", value: "RED"};
-let casinoRlLastSpin    = null;
-let casinoRlWheelBuilt  = false;
-let casinoRlWheelAngle  = 0;
-let casinoRlBallAngle   = 0;
-let casinoRlAnimRafId   = 0;
-let casinoFxPair        = "USD/JPY";
-let casinoFxLeverage    = 100;
-let casinoFxRun         = null;
-let casinoFxTimerId     = 0;
+let casinoBjState           = null;
+let casinoGuestState        = null;
+let casinoBusy              = false;
+let casinoRlSelectedBet     = {type: "COLOR", value: "RED"};
+let casinoRlLastSpin        = null;
+let casinoRlWheelBuilt      = false;
+let casinoRlWheelAngle      = 0;
+let casinoRlBallAngle       = 0;
+let casinoRlAnimRafId       = 0;
+let casinoFxPair            = "USD/JPY";
+let casinoFxLeverage        = 100;
+let casinoFxRun             = null;
+let casinoFxTimerId         = 0;
+let casinoSynState          = null;
+let casinoSynSelectedKey    = null;
+let casinoSynGuestState     = null;
 
 const NAV_ICONS = {
     HOME    : '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -34,6 +37,21 @@ const FX_PAIR_META = {
     "EUR/CHF": {decimals: 5, desc: "Deceptively tight range, abruptly de-peg/surge/bleed"},
     "ZAR/JPY": {decimals: 4, desc: "Positive swap yield on Longs, bleeds value over time"},
     "TRY/JPY": {decimals: 4, desc: "Carry yield on Longs, chaotic slides, violent spikes"}
+};
+
+const SYNERGY_DEALER_FACTOR = 2;
+const SYNERGY_SWAP_STEP     = 5;
+
+const SYNERGY_TIER_ORDER = {
+    SSR : 9,
+    SR  : 8,
+    S   : 7,
+    A   : 6,
+    B   : 5,
+    C   : 4,
+    D   : 3,
+    E   : 2,
+    F   : 1
 };
 
 function syncHeaderNavButtons(currentPage) {
@@ -97,19 +115,23 @@ function switchHeaderPage(targetPage) {
         if (typeof loadAniQuizData              === "function") loadAniQuizData                 ();
     } else if (targetPage === "CASINO") {
         if (currentUser) {
-            const bjInput = document.getElementById("bj-bet-input");
-            const rlInput = document.getElementById("rl-bet-input");
-            const fxInput = document.getElementById("fx-bet-input");
+            const bjInput   = document.getElementById("bj-bet-input");
+            const rlInput   = document.getElementById("rl-bet-input");
+            const fxInput   = document.getElementById("fx-bet-input");
+            const synInput  = document.getElementById("syn-bet-input");
 
-            if      (casinoBjState?.status === "ACTIVE" && casinoBjState.bet)               bjInput.value = casinoBjState.bet;
-            else if (stars > 0                          && Number(bjInput.value) > stars)   bjInput.value = stars;
-            if      (stars > 0                          && Number(rlInput.value) > stars)   rlInput.value = stars;
-            if      (stars > 0                          && Number(fxInput.value) > stars)   fxInput.value = stars;
+            if      (casinoBjState?.status === "ACTIVE"     && casinoBjState.bet)                           bjInput     .value = casinoBjState.bet;
+            else if (stars > 0                              && Number(bjInput.value) > stars)               bjInput     .value = stars;
+            if      (stars > 0                              && Number(rlInput.value) > stars)               rlInput     .value = stars;
+            if      (stars > 0                              && Number(fxInput.value) > stars)               fxInput     .value = stars;
+            if      (casinoSynState?.status === "ACTIVE"    && casinoSynState.bet)                          synInput    .value = casinoSynState.bet;
+            else if (stars > 0                              && synInput && Number(synInput.value) > stars)  synInput    .value = stars;
         }
 
         renderBlackjackUI   ();
         renderRouletteUI    ();
         renderForexUI       ();
+        renderSynergyUI     ();
     }
 
     window.scrollTo({top: 0, behavior: "instant"});
@@ -484,9 +506,457 @@ document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
 
 const CASINO_RULES_TEXT = {
     BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
+    SYNERGY     : `Requires at least 28 owned cards\nYou draw 7 random owned cards (sorted by rarity) and may swap 1 card at a time for a random owned card\nDealer draws 14 cards (sorted by rarity) with at least 1 card from each rarity\nSwap costs increase by ${SYNERGY_SWAP_STEP} (5, 10, 15...) and deduct from Total Hand Synergy\nHighest (Total Hand Synergy - Swap Cost) wins 2× bet; ties lose`,
     ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1",
     FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers automatically at ≤15% margin\nSettle anytime before 05:00 or hold until market close"
 };
+
+function getOwnedCollectionKeys() {
+    if (!databaseReady || !characterPool) return [];
+    return characterPool.filter(c => (inventory?.[c.uniqueKey] || 0) > 0).map(c => c.uniqueKey);
+}
+
+function shuffleArrayCopy(arr) {
+    const copy = [...arr];
+
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+
+    return copy;
+}
+
+function getClientHandSynergy(keys = []) {
+    const chars = (keys || []).map(k => characterMap?.get(k)).filter(Boolean);
+    if (typeof computeHandSynergy === "function") return computeHandSynergy(chars).score;
+    return chars.reduce((sum, c) => sum + (SYNERGY_RARITY_POINTS?.[c.rarity?.tier] || 1), 0);
+}
+
+function renderSynergyCardHTML(uniqueKey, {selectable = false, selected = false, hidden = false, isDealer = false} = {}) {
+    if (hidden || !uniqueKey) return `
+        <div class="w-full rounded-lg overflow-hidden bg-slate-800 border-2 border-slate-600 text-white flex flex-col select-none">
+            <div class="relative aspect-[3/4] w-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900">
+                <span class="text-xl font-black text-slate-400">?</span>
+            </div>
+            <div class="p-1 text-center bg-slate-900">
+                <div class="font-bold text-[11px] leading-tight text-slate-400">Hidden</div>
+            </div>
+        </div>
+    `;
+
+    const char = characterMap?.get(uniqueKey);
+    if (!char) return "";
+
+    const r             = char.rarity;
+    const safeName      = escapeHTML(char.name);
+    const listPrefix    = isListCharacter(char) ? "L" : "";
+    const dupCount      = inventory?.[char.uniqueKey] || 1;
+    const dupLevel      = dupCount >= 6 ? "3" : dupCount >= 3 ? "2" : dupCount === 2 ? "1" : "";
+    const isLocked      = lockedCards?.has(char.uniqueKey);
+    const suit          = char.deckSuit || "Spades";
+    const rank          = char.deckRank || "2";
+    const suitStyle     = getDeckSuitStyle(suit);
+    const rankLabel     = `${rank} ${suitStyle.symbol}`;
+    const fullRankSuit  = `${getDeckRankFullName(rank)} of ${suit}`;
+    const ringCls       = selected ? "ring-2 ring-indigo-500 -translate-y-0.5" : "";
+    const cursorCls     = selectable ? "cursor-pointer hover:-translate-y-0.5 transition" : "";
+    const tag           = selectable ? "button" : "div";
+    const typeAttr      = selectable ? 'type="button"' : "";
+
+    const lockBadgeHtml = isDealer ? "" : `
+        <span aria-hidden="true"
+            class="pointer-events-none absolute top-1 right-1 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded ${r.badge}">
+            ${isLocked
+                ? `<svg class="w-2.5 h-2.5 sm:w-3 sm:h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
+                   </svg>`
+                : `<svg class="w-2.5 h-2.5 sm:w-3 sm:h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
+                   </svg>`}
+        </span>`;
+
+    const imgHtml = char.imageUrl
+        ? `<img src="${char.imageUrl}" alt="${safeName}" loading="lazy"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            class="w-full h-full object-cover object-top" />
+           <div style="display:none" class="w-full h-full bg-slate-200 dark:bg-slate-800 items-center justify-center text-slate-500 dark:text-slate-400 p-1 text-center">
+               <span class="text-xs font-bold leading-[1.05]">No<br>Image</span>
+           </div>`
+        : `<div class="w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 p-1 text-center">
+               <span class="text-xs font-bold leading-[1.05]">No<br>Image</span>
+           </div>`;
+
+    return `
+        <${tag} ${typeAttr} ${selectable ? `data-syn-hand-key="${escapeHTML(char.uniqueKey)}"` : ""}
+            title="${escapeHTML(`${fullRankSuit}\n${char.name}\n${getAnimeTitle(char)}`)}"
+            class="w-full rounded-lg overflow-hidden bg-white dark:bg-slate-900 ${r.border} ${ringCls} ${cursorCls} flex flex-col text-left">
+            <div class="${r.badge} !border-0 overflow-hidden flex flex-col w-full h-full">
+                <div class="relative aspect-[3/4] w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    ${imgHtml}
+                    <span class="absolute top-1 left-1 px-1 py-0.5 rounded text-[10px] font-bold ${suitStyle.badge}">
+                        ${escapeHTML(rankLabel)}
+                    </span>
+                    ${lockBadgeHtml}
+                    <span class="absolute bottom-1 left-1 px-1 py-0.5 rounded text-[10px] font-bold ${r.badge}">
+                        ${listPrefix}${r.tier}${dupLevel}
+                    </span>
+                </div>
+                <div class="p-1 flex-1 flex flex-col justify-center text-center">
+                    <div class="font-bold text-[11px] leading-tight line-clamp-1">${safeName}</div>
+                </div>
+            </div>
+        </${tag}>
+    `;
+}
+
+function renderSynergyUI() {
+    const dealerWrap    = document.getElementById("syn-dealer-cards");
+    const playerWrap    = document.getElementById("syn-player-cards");
+    const dealerScoreEl = document.getElementById("syn-dealer-score");
+    const synScoreEl    = document.getElementById("syn-player-synergy");
+    const swapCostEl    = document.getElementById("syn-swap-cost-total");
+    const netScoreEl    = document.getElementById("syn-player-net");
+    const statusBanner  = document.getElementById("syn-status-banner");
+    const actionRow     = document.getElementById("syn-action-controls");
+    const betControls   = document.getElementById("syn-bet-controls");
+    const betInput      = document.getElementById("syn-bet-input");
+    const startBtn      = document.getElementById("syn-start-btn");
+    const swapBtn       = document.getElementById("syn-swap-btn");
+    const finishBtn     = document.getElementById("syn-finish-btn");
+
+    if (!dealerWrap || !playerWrap || !betInput || !startBtn) return;
+
+    const isGuest       = !currentUser;
+    const ownedKeys     = getOwnedCollectionKeys();
+    const hasMinCards   = ownedKeys.length >= 28;
+    const isActive      = casinoSynState?.status === "ACTIVE";
+    betInput.disabled   = isGuest || casinoBusy || isActive;
+
+    if (isGuest) betInput.value = 0;
+
+    if (!casinoSynState) {
+        dealerWrap      .className      = "flex flex-wrap justify-center gap-2 min-h-[8.5rem] items-center";
+        playerWrap      .className      = "flex flex-wrap justify-center gap-2 min-h-[8.5rem] items-center";
+        dealerWrap      .innerHTML      = `<span class="text-sm text-slate-500">Place a bet and press Deal</span>`;
+        playerWrap      .innerHTML      = "";
+        dealerScoreEl   .textContent    = "—";
+        synScoreEl      .textContent    = "—";
+        swapCostEl      .textContent    = "0";
+        netScoreEl      .textContent    = "—";
+
+        statusBanner?.  classList.add       ("hidden");
+        actionRow?.     classList.add       ("hidden");
+        actionRow?.     classList.remove    ("grid");
+        betControls?.   classList.remove    ("opacity-50", "pointer-events-none");
+
+        startBtn.disabled = casinoBusy || !databaseReady || !hasMinCards || (!isGuest && stars < 1);
+        return;
+    }
+
+    dealerWrap.className = "grid grid-cols-4 sm:grid-cols-7 gap-1.5 min-h-[8.5rem] items-center";
+    playerWrap.className = "grid grid-cols-4 sm:grid-cols-7 gap-1.5 min-h-[8.5rem] items-center";
+
+    const {
+        status,
+        bet,
+        payout,
+        playerHand              = [],
+        dealerHand              = [],
+        revealedDealerIndices   = null,
+        revealing               = false,
+        playerSynergy           = 0,
+        swapCount               = 0,
+        totalSwapCost           = 0,
+        playerNetSynergy        = 0,
+        dealerSynergy           = null
+    } = casinoSynState;
+
+    const nextSwapCost  = (swapCount + 1) * SYNERGY_SWAP_STEP;
+    const canSwapPool   = ownedKeys.length > playerHand.length;
+
+    if (isActive && casinoSynSelectedKey && !playerHand.includes(casinoSynSelectedKey)) casinoSynSelectedKey = null;
+    const revealedSet = Array.isArray(revealedDealerIndices) ? new Set(revealedDealerIndices) : new Set(dealerHand.map((_, idx) => idx));
+
+    dealerWrap.innerHTML = isActive
+        ? Array.from({length: Math.max(14, dealerHand.length || 14)}, () => renderSynergyCardHTML(null, {hidden: true, isDealer: true})).join("")
+        : dealerHand.map((k, idx) => renderSynergyCardHTML(revealedSet.has(idx) ? k : null, {hidden: !revealedSet.has(idx), isDealer: true})).join("");
+
+    playerWrap.innerHTML = playerHand.map(k => renderSynergyCardHTML(k, {
+        selectable  : isActive && !casinoBusy,
+        selected    : isActive && casinoSynSelectedKey === k,
+        isDealer    : false
+    })).join("");
+
+    if (isActive || dealerSynergy == null) dealerScoreEl.textContent = "?";
+    else if (revealing || revealedSet.size < dealerHand.length) {
+        const revealedKeys              = dealerHand.filter((_, idx) => revealedSet.has(idx));
+        const partialSynergy            = getClientHandSynergy(revealedKeys);
+        dealerScoreEl.textContent       = `${partialSynergy .toLocaleString()}+?`;
+    } else dealerScoreEl.textContent    = `${dealerSynergy  .toLocaleString()}`;
+
+    synScoreEl.textContent = `${playerSynergy       .toLocaleString()}`;
+    swapCostEl.textContent = `${totalSwapCost       .toLocaleString()}`;
+    netScoreEl.textContent = `${playerNetSynergy    .toLocaleString()}`;
+
+    actionRow?.classList.toggle("hidden",   !isActive);
+    actionRow?.classList.toggle("grid",     isActive);
+
+    if (swapBtn) {
+        swapBtn.textContent = `Swap: ${nextSwapCost}`;
+        swapBtn.disabled    = casinoBusy || !isActive || !casinoSynSelectedKey || !canSwapPool;
+    }
+
+    if (finishBtn) finishBtn.disabled = casinoBusy || !isActive;
+
+    betControls?.classList.toggle("opacity-50",             isActive);
+    betControls?.classList.toggle("pointer-events-none",    isActive);
+
+    startBtn.disabled = casinoBusy || isActive || !hasMinCards || (!isGuest && stars < 1);
+
+    if (isActive || revealing) statusBanner?.classList.add("hidden");
+    else if (statusBanner) {
+        const profit    = payout - bet;
+        const winCls    = "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+        const lossCls   = "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300";
+        const isWin     = status === "WIN";
+
+        statusBanner.textContent = isWin
+            ? `You Win (${playerNetSynergy.toLocaleString()} vs ${Number(dealerSynergy).toLocaleString()}): Won ★ ${profit.toLocaleString()}`
+            : `Dealer Wins (${playerNetSynergy.toLocaleString()} vs ${Number(dealerSynergy).toLocaleString()}): Lost ★ ${bet.toLocaleString()}`;
+
+        statusBanner.className = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${isWin ? winCls : lossCls}`;
+    }
+}
+
+function sortHandByRarity(keys = []) {return [...keys].sort((a, b) => {
+    const ta = SYNERGY_TIER_ORDER[characterMap?.get(a)?.rarity?.tier] || 0;
+    const tb = SYNERGY_TIER_ORDER[characterMap?.get(b)?.rarity?.tier] || 0;
+
+    return tb - ta;
+})}
+
+function buildGuestDealerHand() {
+    const globalKeys    = (characterPool || []).map(c => c.uniqueKey).filter(Boolean);
+    const byTier        = new Map();
+
+    for (const c of (characterPool || [])) {
+        if (!c?.uniqueKey) continue;
+
+        const t = c.rarity?.tier || "F";
+        if (!byTier.has(t)) byTier.set(t, []);
+        byTier.get(t).push(c.uniqueKey);
+    }
+
+    const picked    = [];
+    const used      = new Set();
+
+    for (const tier of Object.keys(SYNERGY_TIER_ORDER)) {
+        const candidates    = shuffleArrayCopy(byTier.get(tier)     || globalKeys);
+        const chosen        = candidates.find(k => !used.has(k))    || candidates[0];
+
+        if (chosen) {
+            picked  .push   (chosen);
+            used    .add    (chosen);
+        }
+    }
+
+    for (const k of shuffleArrayCopy(globalKeys)) {
+        if (picked.length >= 14) break;
+
+        if (!used.has(k)) {
+            picked  .push   (k);
+            used    .add    (k);
+        }
+    }
+
+    return {dealerHand: sortHandByRarity(picked.slice(0, 14)), dealerPoolSize: globalKeys.length};
+}
+
+function handleGuestSynergy(subAction) {
+    const ownedKeys = getOwnedCollectionKeys();
+
+    if (subAction === "START") {
+        if (ownedKeys.length < 28) return null;
+
+        const playerHand                    = sortHandByRarity      (shuffleArrayCopy(ownedKeys).slice(0, 7));
+        const {dealerHand, dealerPoolSize}  = buildGuestDealerHand  ();
+        const playerSynergy                 = getClientHandSynergy  (playerHand);
+
+        casinoSynGuestState = {
+            playerHand,
+            dealerHand,
+            dealerPoolSize,
+            swapCount       : 0,
+            totalSwapCost   : 0
+        };
+
+        casinoSynSelectedKey = null;
+
+        return {
+            status: "ACTIVE",
+            bet                 : 0,
+            payout              : 0,
+            playerHand,
+            dealerHand          : [],
+            dealerPoolSize,
+            playerSynergy,
+            swapCount           : 0,
+            totalSwapCost       : 0,
+            playerNetSynergy    : playerSynergy,
+            dealerSynergy       : null
+        };
+    }
+
+    if (!casinoSynGuestState) return null;
+
+    if (subAction === "SWAP") {
+        const idx = casinoSynGuestState.playerHand.indexOf(casinoSynSelectedKey);
+        if (idx === -1) return null;
+
+        const inHandSet = new Set(casinoSynGuestState.playerHand);
+        const pool      = ownedKeys.filter(k => !inHandSet.has(k));
+
+        if (!pool.length) return null;
+
+        const replacement   = pool[Math.floor(Math.random() * pool.length)];
+        const cost          = (casinoSynGuestState.swapCount + 1) * SYNERGY_SWAP_STEP;
+
+        casinoSynGuestState.playerHand[idx] =   replacement;
+        casinoSynGuestState.playerHand      =   sortHandByRarity(casinoSynGuestState.playerHand);
+        casinoSynGuestState.swapCount       +=  1;
+        casinoSynGuestState.totalSwapCost   +=  cost;
+        casinoSynSelectedKey                =   replacement;
+        const playerSynergy                 =   getClientHandSynergy(casinoSynGuestState.playerHand);
+
+        return {
+            status              : "ACTIVE",
+            bet                 : 0,
+            payout              : 0,
+            playerHand          : [...casinoSynGuestState.playerHand],
+            dealerHand          : [],
+            dealerPoolSize      : casinoSynGuestState.dealerPoolSize,
+            playerSynergy,
+            swapCount           : casinoSynGuestState.swapCount,
+            totalSwapCost       : casinoSynGuestState.totalSwapCost,
+            playerNetSynergy    : playerSynergy - casinoSynGuestState.totalSwapCost,
+            dealerSynergy       : null
+        };
+    }
+
+    if (subAction === "FINISH") {
+        const playerSynergy     = getClientHandSynergy(casinoSynGuestState.playerHand);
+        const playerNetSynergy  = playerSynergy - casinoSynGuestState.totalSwapCost;
+        const dealerSynergy     = getClientHandSynergy(casinoSynGuestState.dealerHand);
+        const status            = playerNetSynergy > dealerSynergy ? "WIN" : "LOSE";
+
+        const res = {
+            status,
+            bet             : 0,
+            payout          : 0,
+            playerHand      : [...casinoSynGuestState.playerHand],
+            dealerHand      : [...casinoSynGuestState.dealerHand],
+            dealerPoolSize  : casinoSynGuestState.dealerPoolSize,
+            playerSynergy,
+            swapCount       : casinoSynGuestState.swapCount,
+            totalSwapCost   : casinoSynGuestState.totalSwapCost,
+            playerNetSynergy,
+            dealerSynergy
+        };
+
+        casinoSynGuestState     = null;
+        casinoSynSelectedKey    = null;
+
+        return res;
+    }
+
+    return null;
+}
+
+async function runSynergyAction(subAction) {
+    if (casinoBusy || !databaseReady) return;
+
+    const betInput  = document.getElementById("syn-bet-input");
+    const bet       = Math.max(1, Math.floor(Number(betInput?.value) || 1));
+
+    if (subAction === "START") {
+        if (getOwnedCollectionKeys().length < 28) {
+            alert("You need at least 28 cards in your collection to play Synergy");
+            return;
+        }
+
+        if (currentUser) {
+            if (stars < bet) {
+                alert("Not enough stars");
+                return;
+            }
+
+            if (betInput) betInput.value = bet;
+        }
+    }
+
+    casinoBusy = true;
+    renderSynergyUI();
+
+    try {
+        let nextGame = null;
+
+        if (!currentUser) nextGame = handleGuestSynergy(subAction);
+        else {
+            const payload = subAction === "START"
+                ? {action: "CASINO_SYNERGY", subAction: "START", bet}
+                : subAction === "SWAP"
+                    ? {action: "CASINO_SYNERGY", subAction: "SWAP", removeKey: casinoSynSelectedKey}
+                    : {action: "CASINO_SYNERGY", subAction: "FINISH"};
+
+            const res = await sendGachaAction(payload);
+            if (res?.game) nextGame = res.game;
+        }
+
+        if (nextGame) {
+            if (subAction === "FINISH" && Array.isArray(nextGame.dealerHand) && nextGame.dealerHand.length > 0) {
+                const totalCards    = nextGame.dealerHand.length;
+                const bottomStart   = Math.max(0, totalCards - 7);
+                const revealed      = new Set();
+
+                for (let i = bottomStart; i < totalCards; i++) revealed.add(i);
+
+                casinoSynState = {
+                    ...nextGame,
+                    status                  : "REVEALING",
+                    revealing               : true,
+                    revealedDealerIndices   : Array.from(revealed)
+                };
+
+                renderSynergyUI();
+
+                for (let idx = totalCards - 1; idx >= 0; idx--) {
+                    if (revealed.has(idx)) continue;
+                    await casinoSleep(1000);
+                    revealed.add(idx);
+
+                    casinoSynState = {
+                        ...nextGame,
+                        status                  : "REVEALING",
+                        revealing               : idx > 0,
+                        revealedDealerIndices   : Array.from(revealed)
+                    };
+
+                    renderSynergyUI();
+                }
+
+                casinoSynState = {
+                    ...nextGame,
+                    revealing               : false,
+                    revealedDealerIndices   : Array.from({length: totalCards}, (_, i) => i)
+                };
+            } else casinoSynState = nextGame;
+        }
+    } finally {
+        casinoBusy = false;
+        renderSynergyUI();
+    }
+}
 
 function ensureRouletteWheelBuilt() {
     if (casinoRlWheelBuilt) return;
@@ -1242,6 +1712,7 @@ async function placeForexOrder(side) {
 document.getElementById("casino-game-select")?.addEventListener("change", (e) => {
     const val           = e.target.value;
     const isBlackjack   = val === "BLACKJACK";
+    const isSynergy     = val === "SYNERGY";
     const isRoulette    = val === "ROULETTE";
     const isFx          = val === "FX";
     const hasRules      = Boolean(CASINO_RULES_TEXT[val]);
@@ -1277,9 +1748,12 @@ document.getElementById("casino-game-select")?.addEventListener("change", (e) =>
     document.getElementById("casino-roulette-board")?.  classList.toggle("hidden", !isRoulette);
     document.getElementById("fx-bet-controls")?.        classList.toggle("hidden", !isFx);
     document.getElementById("casino-fx-board")?.        classList.toggle("hidden", !isFx);
-    document.getElementById("casino-coming-soon")?.     classList.toggle("hidden", isBlackjack || isRoulette || isFx);
+    document.getElementById("syn-bet-controls")?.       classList.toggle("hidden", !isSynergy);
+    document.getElementById("casino-synergy-board")?.   classList.toggle("hidden", !isSynergy);
+    document.getElementById("casino-coming-soon")?.     classList.toggle("hidden", isBlackjack || isSynergy || isRoulette || isFx);
 
     if      (isBlackjack)   renderBlackjackUI       ();
+    else if (isSynergy)     renderSynergyUI         ();
     else if (isRoulette)    renderRouletteUI        ();
     else if (isFx)          renderForexUI           ();
     else                    document.getElementById ("casino-coming-soon-title").textContent = `${labels[val] || val}: Coming Soon`;
@@ -1321,3 +1795,19 @@ document.querySelectorAll(".fx-lev-btn").forEach(btn => {btn.addEventListener("c
 document.getElementById("fx-long-btn")?.    addEventListener("click", () => placeForexOrder("LONG"));
 document.getElementById("fx-short-btn")?.   addEventListener("click", () => placeForexOrder("SHORT"));
 document.getElementById("fx-close-btn")?.   addEventListener("click", () => {if (casinoFxRun && !casinoFxRun.done) settleForexPosition(casinoFxRun.sec)});
+
+document.getElementById("syn-start-btn")?.  addEventListener("click", () => runSynergyAction("START"));
+document.getElementById("syn-swap-btn")?.   addEventListener("click", () => runSynergyAction("SWAP"));
+document.getElementById("syn-finish-btn")?. addEventListener("click", () => runSynergyAction("FINISH"));
+
+document.getElementById("syn-player-cards")?.addEventListener("click", (e) => {
+    if (casinoBusy || casinoSynState?.status !== "ACTIVE") return;
+
+    const cardBtn = e.target.closest("[data-syn-hand-key]");
+    if (!cardBtn) return;
+
+    const key = cardBtn.getAttribute("data-syn-hand-key");
+    casinoSynSelectedKey = casinoSynSelectedKey === key ? null : key;
+
+    renderSynergyUI();
+});

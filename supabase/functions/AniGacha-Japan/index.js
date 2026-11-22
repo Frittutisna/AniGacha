@@ -504,6 +504,7 @@ serve(async (req) => {
             QUIZ_MISSION_PROGRESS   : 100,
             QUIZ_CLAIM_MISSION      : 100,
             CASINO_BLACKJACK        : 100,
+            CASINO_SYNERGY          : 100,
             CASINO_ROULETTE         : 100,
             CASINO_FX               : 100
         };
@@ -1338,6 +1339,229 @@ serve(async (req) => {
             }
 
             throw new Error("Invalid Forex action");
+        } else if (action === "CASINO_SYNERGY") {
+            const SWAP_STEP     = 5;
+            const TIER_RANK     = {SSR: 9, SR: 8, S: 7, A: 6, B: 5, C: 4, D: 3, E: 2, F: 1};
+            const RARITY_PTS    = {SSR: 128, SR: 64, S: 32, A: 16, B: 8, C: 4, D: 3, E: 2, F: 1};
+
+            const getEraKey = (year) => {
+                if (!year)          return null;
+                if (year < 2000)    return "Pre-2000s";
+                if (year < 2010)    return "2000s";
+
+                const start = Math.floor(year / 5) * 5;
+                return `${start}-${start + 4}`;
+            };
+
+            const sortByRarity = (keys) => [...keys].sort((a, b) => {
+                const ta = TIER_RANK[gameData.charMap.get(a)?.tier] || 0;
+                const tb = TIER_RANK[gameData.charMap.get(b)?.tier] || 0;
+
+                return tb - ta;
+            });
+
+            const evalSynergyHand = (keys) => {
+                const chars = (keys || []).map(k => gameData.charMap.get(k)).filter(Boolean).slice(0, 7);
+                if (!chars.length) return 0;
+
+                const filled        = chars.length;
+                const completionPts = filled * 8 + (filled === 7 ? 64 : 0);
+                let powerPts        = 0;
+                const animeCounts   = new Map();
+                const eraCounts     = new Map();
+
+                for (const c of chars) {
+                    const tierPts   = RARITY_PTS[c.tier] || 1;
+                    const count     = save.inventory[c.uniqueKey] || 1;
+                    const level     = count >= 6 ? 3 : count >= 3 ? 2 : count === 2 ? 1 : 0;
+
+                    powerPts += tierPts + level * 4;
+                    if (c.animeId) animeCounts.set(c.animeId, (animeCounts.get(c.animeId) || 0) + 1);
+
+                    const era = getEraKey(c.animeYear);
+                    if (era) eraCounts.set(era, (eraCounts.get(era) || 0) + 1);
+                }
+
+                const pairPts = (map, weight) => {
+                    let pts = 0;
+                    for (const cnt of map.values()) {if (cnt >= 2) pts += ((cnt * (cnt - 1)) / 2) * weight}
+                    return Math.round(pts);
+                };
+
+                return completionPts + powerPts + pairPts(animeCounts, 64) + pairPts(eraCounts, 16);
+            };
+
+            const ownedKeys = Object.entries(save.inventory || {}).filter(([k, cnt]) => cnt > 0 && gameData.charMap.has(k)).map(([k]) => k);
+
+            const shuffle = (arr) => {
+                const copy = [...arr];
+
+                for (let i = copy.length - 1; i > 0; i--) {
+                    const j             = Math.floor(Math.random() * (i + 1));
+                    [copy[i], copy[j]]  = [copy[j], copy[i]];
+                }
+
+                return copy;
+            };
+
+            const subAction = String(body.subAction || "");
+
+            if (subAction === "START") {
+                if (ownedKeys.length < 28) throw new Error("You must have at least 28 cards in your collection to play Synergy");
+                const bet = Math.floor(Number(body.bet));
+
+                if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (save.stars < bet)                               throw new Error("Not enough stars");
+
+                save.stars -= bet;
+
+                const globalKeys    = gameData.charList.map(([key]) => key);
+                const playerHand    = sortByRarity(shuffle(ownedKeys).slice(0, 7));
+                const byTier        = new Map();
+
+                for (const [key, tier] of gameData.charList) {
+                    if (!byTier.has(tier)) byTier.set(tier, []);
+                    byTier.get(tier).push(key);
+                }
+
+                const pickedDealer  = [];
+                const usedDealer    = new Set();
+
+                for (const tier of Object.keys(TIER_RANK)) {
+                    const candidates    = shuffle(byTier.get(tier) || globalKeys);
+                    const chosen        = candidates.find(k => !usedDealer.has(k)) || candidates[0];
+
+                    if (chosen) {
+                        pickedDealer    .push   (chosen);
+                        usedDealer      .add    (chosen);
+                    }
+                }
+
+                for (const k of shuffle(globalKeys)) {
+                    if (pickedDealer.length >= 14) break;
+
+                    if (!usedDealer.has(k)) {
+                        pickedDealer    .push   (k);
+                        usedDealer      .add    (k);
+                    }
+                }
+
+                const dealerHand        = sortByRarity(pickedDealer.slice(0, 14));
+                const dealerPoolSize    = globalKeys.length;
+
+                save.synergySession = {
+                    bet,
+                    playerHand,
+                    dealerHand,
+                    dealerPoolSize,
+                    swapCount       : 0,
+                    totalSwapCost   : 0
+                };
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                const playerSynergy = evalSynergyHand(playerHand);
+
+                return new Response(JSON.stringify({
+                    save,
+                    game: {
+                        status              : "ACTIVE",
+                        bet,
+                        payout              : 0,
+                        playerHand,
+                        dealerHand          : [],
+                        dealerPoolSize,
+                        playerSynergy,
+                        swapCount           : 0,
+                        totalSwapCost       : 0,
+                        playerNetSynergy    : playerSynergy,
+                        dealerSynergy       : null
+                    }
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            const syn = save.synergySession;
+            if (!syn || !Array.isArray(syn.playerHand) || !Array.isArray(syn.dealerHand)) throw new Error("No active Synergy session");
+
+            if (subAction === "SWAP") {
+                const removeKey = String(body.removeKey || "");
+
+                const idx = syn.playerHand.indexOf(removeKey);
+                if (idx === -1) throw new Error("Card is not in your current hand");
+
+                const inHandSet = new Set(syn.playerHand);
+                const pool      = ownedKeys.filter(k => !inHandSet.has(k));
+
+                if (!pool.length) throw new Error("No other owned cards available to swap in");
+
+                const replacement   = pool[Math.floor(Math.random() * pool.length)];
+                const cost          = (syn.swapCount + 1) * SWAP_STEP;
+
+                syn.playerHand[idx] = replacement;
+                syn.playerHand      = sortByRarity(syn.playerHand);
+
+                syn.swapCount       += 1;
+                syn.totalSwapCost   += cost;
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                const playerSynergy = evalSynergyHand(syn.playerHand);
+
+                return new Response(JSON.stringify({
+                    save,
+                    game: {
+                        status              : "ACTIVE",
+                        bet                 : syn.bet,
+                        payout              : 0,
+                        playerHand          : syn.playerHand,
+                        dealerHand          : [],
+                        dealerPoolSize      : syn.dealerPoolSize,
+                        playerSynergy,
+                        swapCount           : syn.swapCount,
+                        totalSwapCost       : syn.totalSwapCost,
+                        playerNetSynergy    : playerSynergy - syn.totalSwapCost,
+                        dealerSynergy       : null
+                    }
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            if (subAction === "FINISH") {
+                const playerSynergy     = evalSynergyHand(syn.playerHand);
+                const playerNetSynergy  = playerSynergy - syn.totalSwapCost;
+                const dealerSynergy     = evalSynergyHand(syn.dealerHand);
+                const won               = playerNetSynergy > dealerSynergy;
+                const payout            = won ? syn.bet * 2 : 0;
+
+                save.stars += payout;
+
+                const finalState = {
+                    status          : won ? "WIN" : "LOSE",
+                    bet             : syn.bet,
+                    payout,
+                    playerHand      : syn.playerHand,
+                    dealerHand      : syn.dealerHand,
+                    dealerPoolSize  : syn.dealerPoolSize,
+                    playerSynergy,
+                    swapCount       : syn.swapCount,
+                    totalSwapCost   : syn.totalSwapCost,
+                    playerNetSynergy,
+                    dealerSynergy
+                };
+
+                save.synergySession = null;
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    game: finalState
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            throw new Error("Invalid Synergy action");
         }
 
         const lockedSet             = new Set(save.lockedCards || []);
