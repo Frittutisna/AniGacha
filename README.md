@@ -16,3 +16,6 @@
     1. Blackjack
     3. Roulette
     4. Forex
+
+## Issue
+1. Modals stopped showing
