@@ -893,23 +893,8 @@ function aniQuizAbortToHome() {
         aniQuizUpdateSettingsPreview();
     }
 
-    const quizPage  = document.getElementById("quiz-page");
-    const mainPage  = document.getElementById("main-page");
-    const navBtn    = document.getElementById("page-nav-btn");
-    const navIcon   = document.getElementById("page-nav-icon");
-
-    if (quizPage && !quizPage.classList.contains("hidden")) {
-        quizPage.   classList.add       ("hidden");
-        mainPage?.  classList.remove    ("hidden");
-
-        if (navBtn) {
-            navBtn.setAttribute("aria-label", "Quiz");
-            navBtn.title = "Quiz";
-        }
-
-        if (navIcon) navIcon.innerHTML = '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
-        window.scrollTo({top: 0, behavior: "instant"});
-    }
+    const quizPage = document.getElementById("quiz-page");
+    if (quizPage && !quizPage.classList.contains("hidden") && typeof switchHeaderPage === "function") switchHeaderPage("HOME");
 }
 
 let aniQuizSyncingMissions = false;
@@ -1193,34 +1178,8 @@ if (pageNavBtn) pageNavBtn.addEventListener("click", () => {
         return;
     }
 
-    const quizPage      = document.getElementById("quiz-page");
-    const mainPage      = document.getElementById("main-page");
-    const openingQuiz   = quizPage.classList.contains("hidden");
-
-    if (!openingQuiz && aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden")) {
-        aniQuizEndToHome = true;
-        quizEndModal?.classList.remove("hidden");
-        document.getElementById("quiz-end-confirm")?.focus();
-        return;
-    }
-
-    quizPage.classList.toggle("hidden", !openingQuiz);
-    mainPage.classList.toggle("hidden", openingQuiz);
-
-    if (openingQuiz) {
-        aniQuizRenderMissions           ();
-        aniQuizUpdateSettingsPreview    ();
-        loadAniQuizData                 ();
-    }
-
-    pageNavBtn.setAttribute("aria-label", openingQuiz ? "Home" : "Quiz");
-    pageNavBtn.title = openingQuiz ? "Home" : "Quiz";
-
-    document.getElementById("page-nav-icon").innerHTML = openingQuiz
-        ? '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>'
-        : '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
-
-    window.scrollTo({top: 0, behavior: "instant"});
+    const targetPage = pageNavBtn.dataset.targetPage || "QUIZ";
+    if (typeof switchHeaderPage === "function") switchHeaderPage(targetPage);
 });
 
 if (document.readyState === "loading")  document.addEventListener("DOMContentLoaded", () => {loadAniQuizData()}, {once: true});

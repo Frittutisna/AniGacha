@@ -1,4 +1,4 @@
-# AniGacha v0.7.5-beta
+# AniGacha v0.7.5.1-beta
 
 ## Changelog
 1. Changed Sort/Filter to only show S+ rarity checkboxes when selecting 50/50s
@@ -12,3 +12,5 @@
 5. Removed anime lines from cards
 6. Swapped List and Premium banner prices and positions
 7. Added Deck Synergy
+8. Added Casino games
+    1. Blackjack

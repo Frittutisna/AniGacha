@@ -72,6 +72,7 @@ async function loadSharedCollection(targetUserId) {
     }
 
     if (navIcon) navIcon.innerHTML = '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>';
+    document.getElementById("casino-nav-btn")?.classList.add("hidden");
     renderInventory();
 }
 
@@ -93,21 +94,16 @@ async function exitSharedCollection() {
     }
 
     document.getElementById("filter-own-section")?.classList.remove("hidden");
-
     const topSection = document.getElementById("gacha-top-section");
 
     topSection?.classList.remove    ("hidden");
     topSection?.classList.add       ("flex", "lg:grid");
 
-    const navBtn    = document.getElementById("page-nav-btn");
-    const navIcon   = document.getElementById("page-nav-icon");
+    document.getElementById("casino-nav-btn")?.classList.remove("hidden");
 
-    if (navBtn) {
-        navBtn.setAttribute("aria-label", "Open Quiz");
-        navBtn.title = "Quiz";
-    }
+    if      (typeof closeCasinoPage         === "function") closeCasinoPage         ();
+    else if (typeof syncHeaderNavButtons    === "function") syncHeaderNavButtons    ("HOME");
 
-    if (navIcon) navIcon.innerHTML = '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>';
     window.scrollTo({top: 0, behavior: "instant"});
 
     if (currentUser) {

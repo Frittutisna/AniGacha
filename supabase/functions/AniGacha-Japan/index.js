@@ -503,7 +503,8 @@ serve(async (req) => {
             QUIZ_START              : 10,
             QUIZ_COMPLETE           : 10,
             QUIZ_MISSION_PROGRESS   : 100,
-            QUIZ_CLAIM_MISSION      : 100
+            QUIZ_CLAIM_MISSION      : 100,
+            CASINO_BLACKJACK        : 100
         };
 
         const actionLimit = RATE_LIMITS[action] ?? 10;
@@ -928,6 +929,176 @@ serve(async (req) => {
             const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save); 
             if (conflictResponse) return conflictResponse;
             return new Response(JSON.stringify({save, missionReward: mission.reward, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+        } else if (action === "CASINO_BLACKJACK") {
+            const BJ_SUITS = ["Spades", "Hearts", "Diamonds", "Clubs"];
+            const BJ_RANKS = ["R", "A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
+
+            const evalBjHand = (cards) => {
+                let total   = 0;
+                let aces    = 0;
+
+                for (const card of cards) {
+                    const rank = String(card).split(":")[1];
+
+                    if      (rank === "R")                                  total   += 0;
+                    else if (rank === "A")                                  {total  += 11; aces++}
+                    else if (rank === "K" || rank === "Q" || rank === "J")  total   += 10;
+                    else                                                    total   += Number(rank) || 0;
+                }
+
+                while (total > 21 && aces > 0) {
+                    total -= 10;
+                    aces--;
+                }
+
+                return total;
+            };
+
+            const subAction = body.subAction;
+
+            if (subAction === "DEAL") {
+                const bet = Math.floor(Number(body.bet));
+
+                if (!Number.isFinite(bet) || bet < 1 || bet > 10000)    throw new Error("Bet must be between 1 and 10,000 Stars");
+                if (save.stars < bet)                                   throw new Error("Not enough stars");
+
+                const shoe = [];
+                for (const s of BJ_SUITS) {for (const r of BJ_RANKS) shoe.push(`${s}:${r}`)}
+
+                for (let i = shoe.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shoe[i], shoe[j]] = [shoe[j], shoe[i]];
+                }
+
+                save.stars -= bet;
+
+                const playerCards = [shoe.pop(), shoe.pop()];
+                const dealerCards = [shoe.pop(), shoe.pop()];
+                const playerScore = evalBjHand(playerCards);
+                const dealerScore = evalBjHand(dealerCards);
+
+                let status = "ACTIVE";
+                let payout = 0;
+
+                if (playerScore === 21 || dealerScore === 21) {
+                    if (playerScore === 21 && dealerScore === 21) {
+                        status = "PUSH";
+                        payout = bet;
+                    } else if (playerScore === 21) {
+                        status = "BLACKJACK";
+                        payout = Math.floor(bet * 2.5);
+                    } else {
+                        status = "DEALER_BLACKJACK";
+                        payout = 0;
+                    }
+
+                    save.stars      +=  payout;
+                    save.blackjack  =   null;
+                } else save.blackjack = {bet, shoe, playerCards, dealerCards};
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    game: {
+                        status,
+                        bet,
+                        payout,
+                        playerCards,
+                        dealerCards : status === "ACTIVE" ? [dealerCards[0], null]          : dealerCards,
+                        playerScore,
+                        dealerScore : status === "ACTIVE" ? evalBjHand([dealerCards[0]])    : dealerScore
+                    }
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            const bj = save.blackjack;
+            if (!bj || !Array.isArray(bj.shoe) || !Array.isArray(bj.playerCards) || !Array.isArray(bj.dealerCards)) throw new Error("No active Blackjack hand");
+
+            if (subAction === "HIT") {
+                bj.playerCards.push(bj.shoe.pop());
+                const playerScore = evalBjHand(bj.playerCards);
+
+                if (playerScore > 21) {
+                    const dealerScore   = evalBjHand(bj.dealerCards);
+                    save.blackjack      = null;
+
+                    const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                    if (conflictResponse) return conflictResponse;
+
+                    return new Response(JSON.stringify({
+                        save,
+                        game: {
+                            status      : "BUST",
+                            bet         : bj.bet,
+                            payout      : 0,
+                            playerCards : bj.playerCards,
+                            dealerCards : bj.dealerCards,
+                            playerScore,
+                            dealerScore
+                        }
+                    }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+                }
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    game: {
+                        status      : "ACTIVE",
+                        bet         : bj.bet,
+                        payout      : 0,
+                        playerCards : bj.playerCards,
+                        dealerCards : [bj.dealerCards[0], null],
+                        playerScore,
+                        dealerScore : evalBjHand([bj.dealerCards[0]])
+                    }
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            if (subAction === "STAND") {
+                while (evalBjHand(bj.dealerCards) < 17 && bj.shoe.length > 0) bj.dealerCards.push(bj.shoe.pop());
+
+                const playerScore = evalBjHand(bj.playerCards);
+                const dealerScore = evalBjHand(bj.dealerCards);
+
+                let status = "LOSE";
+                let payout = 0;
+
+                if (dealerScore > 21) {
+                    status = "DEALER_BUST";
+                    payout = bj.bet * 2;
+                } else if (playerScore > dealerScore) {
+                    status = "WIN";
+                    payout = bj.bet * 2;
+                } else if (playerScore === dealerScore) {
+                    status = "PUSH";
+                    payout = bj.bet;
+                }
+
+                save.stars      +=  payout;
+                save.blackjack  =   null;
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    game: {
+                        status,
+                        bet         : bj.bet,
+                        payout,
+                        playerCards : bj.playerCards,
+                        dealerCards : bj.dealerCards,
+                        playerScore,
+                        dealerScore
+                    }
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            throw new Error("Invalid Blackjack action");
         }
 
         const lockedSet             = new Set(save.lockedCards || []);
