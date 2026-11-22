@@ -765,6 +765,13 @@
                         Spin
                     </button>
                 </div>
+                <div id="fx-bet-controls" class="hidden flex items-center gap-1.5">
+                    <input id="fx-bet-input" type="number" min="1" step="1" value="10"
+                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="fx-close-btn" type="button" class="hidden px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Settle
+                    </button>
+                </div>
             </div>
             <div id="casino-coming-soon" class="hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-8 text-center space-y-1">
                 <div id="casino-coming-soon-title" class="text-base font-bold text-slate-900 dark:text-white">Game: Coming Soon</div>
@@ -830,6 +837,68 @@
                         </button>
                     </div>
                     <div id="rl-number-grid" class="grid grid-cols-9 sm:grid-cols-[repeat(18,minmax(0,1fr))] gap-1.5"></div>
+                </div>
+            </div>
+            <div id="casino-fx-board" class="hidden flex flex-col gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    <button type="button" data-fx-pair="USD/JPY" class="fx-pair-btn py-1.5 px-2 rounded-lg border text-left transition">
+                        <div class="text-xs font-black">USD/JPY</div>
+                        <div class="text-[10px] opacity-80 truncate">Fed Pivot</div>
+                    </button>
+                    <button type="button" data-fx-pair="AUD/JPY" class="fx-pair-btn py-1.5 px-2 rounded-lg border text-left transition">
+                        <div class="text-xs font-black">AUD/JPY</div>
+                        <div class="text-[10px] opacity-80 truncate">Risk Barometer</div>
+                    </button>
+                    <button type="button" data-fx-pair="GBP/JPY" class="fx-pair-btn py-1.5 px-2 rounded-lg border text-left transition">
+                        <div class="text-xs font-black">GBP/JPY</div>
+                        <div class="text-[10px] opacity-80 truncate">Killer Pair</div>
+                    </button>
+                    <button type="button" data-fx-pair="EUR/CHF" class="fx-pair-btn py-1.5 px-2 rounded-lg border text-left transition">
+                        <div class="text-xs font-black">EUR/CHF</div>
+                        <div class="text-[10px] opacity-80 truncate">SNB Peg</div>
+                    </button>
+                    <button type="button" data-fx-pair="ZAR/JPY" class="fx-pair-btn col-span-2 sm:col-span-1 py-1.5 px-2 rounded-lg border text-left transition">
+                        <div class="text-xs font-black">ZAR/JPY</div>
+                        <div class="text-[10px] opacity-80 truncate">Carry Trap</div>
+                    </button>
+                </div>
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+                        <div class="flex items-center gap-2">
+                            <span id="fx-pair-title" class="text-sm font-black text-slate-900 dark:text-white">USD/JPY</span>
+                            <span id="fx-pair-tag" class="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-300">Fed Pivot</span>
+                        </div>
+                        <div class="flex items-center gap-3 tabular-nums">
+                            <span>Rate: <b id="fx-current-price" class="text-slate-900 dark:text-white">—</b></span>
+                            <span>Time: <b id="fx-timer-label">05:00</b></span>
+                            <span>Equity: <b id="fx-equity-label">—</b></span>
+                        </div>
+                    </div>
+                    <div class="relative w-full h-56 sm:h-64 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
+                        <svg id="fx-chart-svg" viewBox="0 0 600 240" preserveAspectRatio="none" class="w-full h-full block"></svg>
+                        <div id="fx-chart-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700 text-xs font-bold text-slate-300">Select Leverage &amp; Long / Short to enter</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                        <span id="fx-pair-desc">Macro trends with sudden liquidity sweeps</span>
+                        <span>Swap: <b id="fx-swap-label">★ 0</b> | Margin Call: <b id="fx-liq-price">—</b></span>
+                    </div>
+                </div>
+                <div id="fx-status-banner" class="hidden rounded-lg border px-3 py-2 text-center text-sm font-bold"></div>
+                <div class="grid grid-cols-4 gap-1.5">
+                    <button type="button" data-fx-lev="25" class="fx-lev-btn py-1.5 rounded-lg border text-xs font-bold tabular-nums transition">25x</button>
+                    <button type="button" data-fx-lev="100" class="fx-lev-btn py-1.5 rounded-lg border text-xs font-bold tabular-nums transition">100x</button>
+                    <button type="button" data-fx-lev="250" class="fx-lev-btn py-1.5 rounded-lg border text-xs font-bold tabular-nums transition">250x</button>
+                    <button type="button" data-fx-lev="500" class="fx-lev-btn py-1.5 rounded-lg border text-xs font-bold tabular-nums transition">500x</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="fx-long-btn" type="button" class="py-2 rounded-lg text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Long (Buy)
+                    </button>
+                    <button id="fx-short-btn" type="button" class="py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Short (Sell)
+                    </button>
                 </div>
             </div>
         </section>

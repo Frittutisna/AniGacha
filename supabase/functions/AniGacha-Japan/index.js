@@ -505,7 +505,8 @@ serve(async (req) => {
             QUIZ_MISSION_PROGRESS   : 100,
             QUIZ_CLAIM_MISSION      : 100,
             CASINO_BLACKJACK        : 100,
-            CASINO_ROULETTE         : 100
+            CASINO_ROULETTE         : 100,
+            CASINO_FX               : 100
         };
 
         const actionLimit = RATE_LIMITS[action] ?? 10;
@@ -1171,6 +1172,130 @@ serve(async (req) => {
                     won
                 }
             }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+        } else if (action === "CASINO_FX") {
+            const FX_CONFIGS = {
+                "USD/JPY": {base: 154.200, vol: 0.00055, drift:  0.00003, jumpProb: 0.09, jumpScale: 0.0024, swapPerTick:  0.000, spread: 0.00012},
+                "AUD/JPY": {base: 100.400, vol: 0.00075, drift:  0.00005, jumpProb: 0.08, jumpScale: 0.0032, swapPerTick:  0.001, spread: 0.00016},
+                "GBP/JPY": {base: 195.800, vol: 0.00125, drift: -0.00004, jumpProb: 0.14, jumpScale: 0.0046, swapPerTick:  0.000, spread: 0.00024},
+                "EUR/CHF": {base: 0.94200, vol: 0.00018, drift:  0.00000, jumpProb: 0.06, jumpScale: 0.0042, swapPerTick: -0.001, spread: 0.00014},
+                "ZAR/JPY": {base: 8.4500,  vol: 0.00080, drift: -0.00028, jumpProb: 0.09, jumpScale: 0.0030, swapPerTick:  0.008, spread: 0.00025}
+            };
+
+            const subAction = String(body.subAction || "");
+
+            if (subAction === "OPEN") {
+                const pair      = String(body.pair || "");
+                const side      = String(body.side || "").toUpperCase();
+                const leverage  = Number(body.leverage);
+                const bet       = Math.floor(Number(body.bet));
+
+                if (!FX_CONFIGS[pair])                              throw new Error("Invalid currency pair");
+                if (side !== "LONG" && side !== "SHORT")            throw new Error("Invalid trade direction");
+                if (![25, 100, 250, 500].includes(leverage))        throw new Error("Invalid leverage");
+                if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (save.stars < bet)                               throw new Error("Not enough stars");
+
+                save.stars -= bet;
+
+                const cfg       = FX_CONFIGS[pair];
+                const randn     = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
+                const dir       = side === "LONG" ? 1 : -1;
+                const candles   = [];
+
+                let price   = cfg.base * (1 + dir * cfg.spread);
+                let regime  = 0;
+
+                for (let i = 0; i < 60; i++) {
+                    if (Math.random() < 0.12) regime = (Math.random() - 0.52) * cfg.vol * 1.4;
+
+                    let ret = cfg.drift + regime + randn() * cfg.vol;
+                    if (Math.random() < cfg.jumpProb) {
+                        const jumpDir = pair === "EUR/CHF"
+                            ? (Math.random() < 0.58 ? -1 : 1)
+                            : (Math.random() < 0.52 ? -1 : 1);
+                        ret += jumpDir * cfg.jumpScale * (0.6 + Math.random() * 0.9);
+                    }
+
+                    const open  = price;
+                    const close = Math.max(cfg.base * 0.5, open * (1 + ret));
+                    const wick  = Math.abs(randn()) * cfg.vol * open * (pair === "GBP/JPY" ? 1.5 : 0.95);
+                    const high  = Math.max(open, close) + wick * Math.random();
+                    const low   = Math.min(open, close) - wick * Math.random();
+
+                    candles.push({open, high, low, close});
+                    price = close;
+                }
+
+                const tradeId   = crypto.randomUUID();
+                save.fxTrade    = {
+                    tradeId,
+                    pair,
+                    side,
+                    leverage,
+                    bet,
+                    candles,
+                    swapPerTick: cfg.swapPerTick
+                };
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    trade: save.fxTrade
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            if (subAction === "SETTLE") {
+                const trade     = save.fxTrade;
+                const tradeId   = String(body.tradeId || "");
+                const closeTick = Math.floor(Number(body.closeTick));
+
+                if (!trade || trade.tradeId !== tradeId)                        throw new Error("No active Forex position");
+                if (!Number.isInteger(closeTick) || closeTick < 0 || closeTick > 59) throw new Error("Invalid close tick");
+
+                const entryPrice    = trade.candles[0].open;
+                const dir           = trade.side === "LONG" ? 1 : -1;
+                const marginCut     = trade.bet * 0.15;
+
+                let settledTick = closeTick;
+                let liquidated  = false;
+                let swapTotal   = 0;
+                let rawEquity   = trade.bet;
+
+                for (let t = 0; t <= closeTick; t++) {
+                    const c     = trade.candles[t];
+                    const move  = ((c.close - entryPrice) / entryPrice) * dir;
+                    swapTotal   = Math.round(trade.bet * trade.swapPerTick * (t + 1) * dir);
+                    rawEquity   = trade.bet + trade.bet * trade.leverage * move + swapTotal;
+
+                    if (rawEquity <= marginCut) {
+                        settledTick = t;
+                        liquidated  = true;
+                        rawEquity   = 0;
+                        break;
+                    }
+                }
+
+                const payout    = liquidated ? 0 : Math.max(0, Math.round(rawEquity));
+                save.stars     += payout;
+                save.fxTrade    = null;
+
+                const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+                if (conflictResponse) return conflictResponse;
+
+                return new Response(JSON.stringify({
+                    save,
+                    result: {
+                        settledTick,
+                        liquidated,
+                        swapTotal,
+                        payout
+                    }
+                }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+            }
+
+            throw new Error("Invalid Forex action");
         }
 
         const lockedSet             = new Set(save.lockedCards || []);

@@ -1,4 +1,4 @@
-# AniGacha v0.7.5.2-beta
+# AniGacha v0.7.5.2.1-beta
 
 ## Changelog
 1. Changed Sort/Filter to only show S+ rarity checkboxes when selecting 50/50s
@@ -15,3 +15,4 @@
 8. Added Casino games
     1. Blackjack
     3. Roulette
+    4. Forex
