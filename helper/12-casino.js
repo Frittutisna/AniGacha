@@ -1,6 +1,12 @@
 let casinoBjState       = null;
 let casinoGuestState    = null;
 let casinoBusy          = false;
+let casinoRlSelectedBet = {type: "COLOR", value: "RED"};
+let casinoRlLastSpin    = null;
+let casinoRlWheelBuilt  = false;
+let casinoRlWheelAngle  = 0;
+let casinoRlBallAngle   = 0;
+let casinoRlAnimRafId   = 0;
 
 const NAV_ICONS = {
     HOME    : '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -13,6 +19,9 @@ const NAV_LABELS = {
     QUIZ    : "Quiz",
     CASINO  : "Casino"
 };
+
+const ROULETTE_RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const ROULETTE_WHEEL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 
 function syncHeaderNavButtons(currentPage) {
     const pairs = {
@@ -75,13 +84,16 @@ function switchHeaderPage(targetPage) {
         if (typeof loadAniQuizData              === "function") loadAniQuizData                 ();
     } else if (targetPage === "CASINO") {
         if (currentUser) {
-            const betInput = document.getElementById("bj-bet-input");
+            const bjInput = document.getElementById("bj-bet-input");
+            const rlInput = document.getElementById("rl-bet-input");
 
-            if      (casinoBjState?.status === "ACTIVE" && casinoBjState.bet)               betInput.value = casinoBjState.bet;
-            else if (stars > 0                          && Number(betInput.value) > stars)  betInput.value = stars;
+            if      (casinoBjState?.status === "ACTIVE" && casinoBjState.bet)               bjInput.value = casinoBjState.bet;
+            else if (stars > 0                          && Number(bjInput.value) > stars)   bjInput.value = stars;
+            if      (stars > 0                          && Number(rlInput.value) > stars)   rlInput.value = stars;
         }
 
-        renderBlackjackUI();
+        renderBlackjackUI   ();
+        renderRouletteUI    ();
     }
 
     window.scrollTo({top: 0, behavior: "instant"});
@@ -231,6 +243,7 @@ function renderBlackjackUI() {
 
         statusBanner    .classList  .add    ("hidden");
         actionRow       .classList  .add    ("hidden");
+        actionRow       .classList  .remove ("grid");
         betControls     .classList  .remove ("opacity-50", "pointer-events-none");
 
         dealBtn.disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
@@ -245,7 +258,8 @@ function renderBlackjackUI() {
     dealerScoreEl   .textContent    = isActive ? `${dealerScore}+?` : `${dealerScore}`;
     playerScoreEl   .textContent    = `${playerScore}`;
 
-    actionRow.classList.toggle("hidden", !isActive);
+    actionRow.classList.toggle("hidden",    !isActive);
+    actionRow.classList.toggle("grid",      isActive);
 
     hitBtn      .disabled = casinoBusy || !isActive;
     standBtn    .disabled = casinoBusy || !isActive;
@@ -452,24 +466,342 @@ document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
     switchHeaderPage(targetPage);
 });
 
+const CASINO_RULES_TEXT = {
+    BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
+    ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1"
+};
+
+function ensureRouletteWheelBuilt() {
+    if (casinoRlWheelBuilt) return;
+
+    const svg = document.getElementById("rl-wheel-svg");
+    if (!svg) return;
+
+    const sliceDeg  = 360 / ROULETTE_WHEEL_ORDER.length;
+    const outerR    = 99;
+    const innerR    = 48;
+    const labelR    = 83;
+    const parts     = [];
+
+    ROULETTE_WHEEL_ORDER.forEach((num, idx) => {
+        const startDeg  = idx * sliceDeg - sliceDeg / 2 - 90;
+        const endDeg    = startDeg + sliceDeg;
+        const startRad  = (startDeg * Math.PI) / 180;
+        const endRad    = (endDeg   * Math.PI) / 180;
+
+        const x1 = (outerR * Math.cos(startRad)).toFixed(3);
+        const y1 = (outerR * Math.sin(startRad)).toFixed(3);
+        const x2 = (outerR * Math.cos(endRad))  .toFixed(3);
+        const y2 = (outerR * Math.sin(endRad))  .toFixed(3);
+        const x3 = (innerR * Math.cos(endRad))  .toFixed(3);
+        const y3 = (innerR * Math.sin(endRad))  .toFixed(3);
+        const x4 = (innerR * Math.cos(startRad)).toFixed(3);
+        const y4 = (innerR * Math.sin(startRad)).toFixed(3);
+
+        const fill      = num === 0 ? "#059669" : (ROULETTE_RED_NUMBERS.has(num) ? "#e11d48" : "#0f172a");
+        const midDeg    = idx * sliceDeg;
+        const midRad    = ((midDeg - 90) * Math.PI) / 180;
+        const lx        = (labelR * Math.cos(midRad)).toFixed(3);
+        const ly        = (labelR * Math.sin(midRad)).toFixed(3);
+
+        parts.push(
+            `<path d="M ${x1} ${y1} A ${outerR} ${outerR} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#334155" stroke-width="0.6"/>`,
+            `<text x="${lx}" y="${ly}" fill="#ffffff" font-size="7.2" font-weight="800" text-anchor="middle" dominant-baseline="central" transform="rotate(${midDeg} ${lx} ${ly})">${num}</text>`
+        );
+    });
+
+    svg.innerHTML       = parts.join("");
+    casinoRlWheelBuilt  = true;
+}
+
+function setRouletteWheelPose(wheelDeg, ballDeg, ballTopPx) {
+    const wheelEl   = document.getElementById("rl-wheel");
+    const armEl     = document.getElementById("rl-ball-arm");
+    const ballEl    = document.getElementById("rl-ball");
+
+    if (wheelEl)    wheelEl.style.transform = `rotate(${wheelDeg}deg)`;
+    if (armEl)      armEl.style.transform   = `rotate(${ballDeg}deg)`;
+    if (ballEl)     ballEl.style.top        = `${ballTopPx}px`;
+}
+
+function animateRouletteSpin(targetPocket) {
+    cancelAnimationFrame(casinoRlAnimRafId);
+
+    const container         = document.getElementById("rl-wheel")?.parentElement;
+    const size              = container ? container.offsetWidth : 288;
+    const trackTop          = Math.round(size * 0.045);
+    const pocketTop         = Math.round(size * 0.195);
+    const pocketIdx         = Math.max(0, ROULETTE_WHEEL_ORDER.indexOf(targetPocket));
+    const sliceDeg          = 360 / ROULETTE_WHEEL_ORDER.length;
+    const pocketOffsetDeg   = pocketIdx * sliceDeg;
+    const startWheel        = casinoRlWheelAngle;
+    const startBall         = casinoRlBallAngle;
+    const endWheel          = startWheel + 1440 + Math.random() * 360;
+    const normalizedWheel   = ((endWheel % 360) + 360) % 360;
+    const finalPocketAngle  = (normalizedWheel + pocketOffsetDeg) % 360;
+    const baseTargetBall    = startBall - 2160;
+    const currentMod        = ((baseTargetBall % 360) + 360) % 360;
+
+    let delta = finalPocketAngle - currentMod;
+    if (delta > 0) delta -= 360;
+
+    const endBall       = baseTargetBall + delta;
+    const duration      = 3400;
+    const dropStart     = 0.52;
+    const settleStart   = 0.78;
+    const startTime     = performance.now();
+
+    return new Promise((resolve) => {
+        const step = (now) => {
+            const t         = Math.min(1, (now - startTime) / duration);
+            const wheelEase = 1 - Math.pow(1 - t, 3.2);
+            const curWheel  = startWheel + (endWheel - startWheel) * wheelEase;
+
+            let curBall, curTop;
+
+            if (t < dropStart) {
+                const p             = t / dropStart;
+                const ease          = 1 - Math.pow(1 - p, 1.35);
+                curBall             = startBall + (endBall - startBall) * (ease * 0.78);
+                curTop              = trackTop;
+            } else if (t < settleStart) {
+                const p             = (t - dropStart) / (settleStart - dropStart);
+                const dropEase      = 1 - Math.pow(1 - p, 2);
+                const bounce        = Math.abs(Math.sin(p * Math.PI * 2.5)) * (1 - p) * 11;
+                curBall             = startBall + (endBall - startBall) * (0.78 + dropEase * 0.19);
+                curTop              = trackTop + (pocketTop - trackTop) * dropEase - bounce;
+            } else {
+                const p             = (t - settleStart) / (1 - settleStart);
+                const settleEase    = 1 - Math.pow(1 - p, 2.5);
+                const capturedBall  = (curWheel + pocketOffsetDeg);
+                const preCapture    = startBall + (endBall - startBall) * 0.97;
+                const diff          = ((capturedBall - preCapture + 540) % 360) - 180;
+
+                curBall = preCapture + diff * settleEase;
+                curTop  = pocketTop;
+            }
+
+            setRouletteWheelPose(curWheel, curBall, curTop);
+
+            if (t < 1) casinoRlAnimRafId = requestAnimationFrame(step);
+            else {
+                casinoRlWheelAngle  = ((endWheel % 360) + 360) % 360;
+                casinoRlBallAngle   = (casinoRlWheelAngle + pocketOffsetDeg) % 360;
+
+                setRouletteWheelPose    (casinoRlWheelAngle, casinoRlBallAngle, pocketTop);
+                resolve                 ();
+            }
+        };
+
+        casinoRlAnimRafId = requestAnimationFrame(step);
+    });
+}
+
+let casinoRlGridBuilt = false;
+
+function ensureRouletteNumberGridBuilt() {
+    if (casinoRlGridBuilt) return;
+
+    const grid = document.getElementById("rl-number-grid");
+    if (!grid) return;
+
+    const buttons = [];
+
+    for (let num = 1; num <= 36; num++) {
+        const bgClass = ROULETTE_RED_NUMBERS.has(num) ? "bg-[#e11d48]" : "bg-[#0f172a]";
+        buttons.push(`<button type="button" data-rl-number="${num}" class="rl-number-btn py-1.5 rounded-lg ${bgClass} hover:opacity-90 text-white text-xs sm:text-sm font-bold tabular-nums transition">${num}</button>`);
+    }
+
+    grid.innerHTML      = buttons.join("");
+    casinoRlGridBuilt   = true;
+}
+
+function renderRouletteUI() {
+    ensureRouletteWheelBuilt        ();
+    ensureRouletteNumberGridBuilt   ();
+
+    const betInput      = document.getElementById("rl-bet-input");
+    const spinBtn       = document.getElementById("rl-spin-btn");
+    const readoutEl     = document.getElementById("rl-center-readout");
+    const pocketNumEl   = document.getElementById("rl-pocket-number");
+    const pocketColEl   = document.getElementById("rl-pocket-color");
+    const statusBanner  = document.getElementById("rl-status-banner");
+    const isGuest       = !currentUser;
+
+    if (!betInput || !spinBtn) return;
+
+    betInput.disabled   = isGuest || casinoBusy;
+    spinBtn.disabled    = casinoBusy || !databaseReady || (!isGuest && stars < 1);
+
+    if (isGuest) betInput.value = 0;
+
+    document.querySelectorAll(".rl-color-btn").forEach(btn => {
+        const isSelected    = casinoRlSelectedBet.type === "COLOR" && btn.dataset.rlColor === casinoRlSelectedBet.value;
+        btn.disabled        = casinoBusy;
+
+        btn.classList.toggle("opacity-55", !isSelected);
+    });
+
+    document.querySelectorAll(".rl-number-btn").forEach(btn => {
+        const isSelected    = casinoRlSelectedBet.type === "NUMBER" && Number(btn.dataset.rlNumber) === casinoRlSelectedBet.value;
+        btn.disabled        = casinoBusy;
+
+        btn.classList.toggle("opacity-55", !isSelected);
+    });
+
+    const colorStyles = {
+        RED     : "bg-[#e11d48] text-white",
+        BLACK   : "bg-[#0f172a] text-white",
+        GREEN   : "bg-[#059669] text-white"
+    };
+
+    const colorLabels = {
+        RED     : "Red",
+        BLACK   : "Black",
+        GREEN   : "Green"
+    };
+
+    if (!casinoRlLastSpin || casinoRlLastSpin.spinning) {
+        readoutEl?.     classList.add("hidden");
+        statusBanner?.  classList.add("hidden");
+    } else {
+        const {pocket, resultColor, bet, payout, won}   = casinoRlLastSpin;
+        const label                                     = colorLabels[resultColor] || resultColor;
+
+        if (readoutEl) {
+            readoutEl.className         = `absolute w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center pointer-events-none transition-all ${colorStyles[resultColor] || ""}`;
+            pocketNumEl.textContent     = pocket;
+            pocketColEl.textContent     = label;
+        }
+
+        const profit    = payout - bet;
+        const winCls    = "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+        const lossCls   = "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300";
+
+        if (statusBanner) {
+            statusBanner.textContent = won
+                ? `${pocket}-${label}: Won ★ ${profit  .toLocaleString()}`
+                : `${pocket}-${label}: Lost ★ ${bet    .toLocaleString()}`;
+
+            statusBanner.className = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${won ? winCls : lossCls}`;
+        }
+    }
+}
+
+async function runRouletteSpin() {
+    if (casinoBusy || !databaseReady) return;
+
+    const betInput  = document.getElementById("rl-bet-input");
+    const bet       = Math.max(1, Math.floor(Number(betInput.value) || 1));
+
+    if (currentUser) {
+        if (stars < bet) {
+            alert("Not enough stars");
+            return;
+        }
+
+        betInput.value = bet;
+    }
+
+    casinoBusy          = true;
+    casinoRlLastSpin    = {spinning: true};
+
+    renderRouletteUI();
+
+    try {
+        let spinResult = null;
+
+        if (!currentUser) {
+            const pocket        = Math.floor(Math.random() * 37);
+            const resultColor   = pocket === 0 ? "GREEN" : (ROULETTE_RED_NUMBERS.has(pocket) ? "RED" : "BLACK");
+            const isNumberBet   = casinoRlSelectedBet.type === "NUMBER";
+            const won           = isNumberBet ? pocket === casinoRlSelectedBet.value : resultColor === casinoRlSelectedBet.value;
+
+            spinResult = {
+                pocket,
+                resultColor,
+                betColor    : isNumberBet ? null : casinoRlSelectedBet.value,
+                betNumber   : isNumberBet ? casinoRlSelectedBet.value : null,
+                bet         : 0,
+                payout      : 0,
+                won
+            };
+        } else {
+            const payload   = casinoRlSelectedBet.type === "NUMBER" ? {action: "CASINO_ROULETTE", bet, number: casinoRlSelectedBet.value} : {action: "CASINO_ROULETTE", bet, color: casinoRlSelectedBet.value};
+            const res       = await sendGachaAction(payload);
+
+            if (res?.spin) spinResult = res.spin;
+        }
+
+        if (spinResult) {
+            await animateRouletteSpin(spinResult.pocket);
+            casinoRlLastSpin = spinResult;
+        } else casinoRlLastSpin = null;
+    } finally {
+        casinoBusy = false;
+        renderRouletteUI();
+    }
+}
+
 document.getElementById("casino-game-select")?.addEventListener("change", (e) => {
     const val           = e.target.value;
     const isBlackjack   = val === "BLACKJACK";
-    const labels        = {
+    const isRoulette    = val === "ROULETTE";
+    const hasRules      = Boolean(CASINO_RULES_TEXT[val]);
+
+    const labels = {
         SYNERGY     : "Synergy",
         ROULETTE    : "Roulette",
         FX          : "Forex"
     };
 
-    document.getElementById("bj-rules-pill")?.          classList.toggle("hidden", !isBlackjack);
+    const rulesPill = document.getElementById("casino-rules-pill");
+
+    if (rulesPill) {
+        rulesPill.classList.toggle("hidden", !hasRules);
+
+        if (hasRules) {
+            rulesPill.setAttribute      ("data-tooltip", CASINO_RULES_TEXT[val]);
+            rulesPill.removeAttribute   ("title");
+        }
+    }
+
     document.getElementById("bj-bet-controls")?.        classList.toggle("hidden", !isBlackjack);
     document.getElementById("casino-blackjack-board")?. classList.toggle("hidden", !isBlackjack);
-    document.getElementById("casino-coming-soon")?.     classList.toggle("hidden", isBlackjack);
 
-    if (!isBlackjack)   document.getElementById("casino-coming-soon-title").textContent = `${labels[val] || val}: Coming Soon`;
-    else                renderBlackjackUI();
+    if (!isBlackjack) {
+        const actionControls = document.getElementById("bj-action-controls");
+
+        actionControls?.classList.add       ("hidden");
+        actionControls?.classList.remove    ("grid");
+    }
+
+    document.getElementById("rl-bet-controls")?.        classList.toggle("hidden", !isRoulette);
+    document.getElementById("casino-roulette-board")?.  classList.toggle("hidden", !isRoulette);
+    document.getElementById("casino-coming-soon")?.     classList.toggle("hidden", isBlackjack || isRoulette);
+
+    if      (isBlackjack)   renderBlackjackUI       ();
+    else if (isRoulette)    renderRouletteUI        ();
+    else                    document.getElementById ("casino-coming-soon-title").textContent = `${labels[val] || val}: Coming Soon`;
 });
 
 document.getElementById("bj-deal-btn")?.    addEventListener("click", () => runBlackjackAction("DEAL"));
 document.getElementById("bj-hit-btn")?.     addEventListener("click", () => runBlackjackAction("HIT"));
 document.getElementById("bj-stand-btn")?.   addEventListener("click", () => runBlackjackAction("STAND"));
+
+document.querySelectorAll(".rl-color-btn").forEach(btn => {btn.addEventListener("click", () => {
+    if (casinoBusy) return;
+
+    casinoRlSelectedBet = {type: "COLOR", value: btn.dataset.rlColor};
+    renderRouletteUI();
+})});
+
+document.getElementById("rl-number-grid")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".rl-number-btn");
+    if (!btn || casinoBusy) return;
+
+    casinoRlSelectedBet = {type: "NUMBER", value: Number(btn.dataset.rlNumber)};
+    renderRouletteUI();
+});
+
+document.getElementById("rl-spin-btn")?.addEventListener("click", runRouletteSpin);

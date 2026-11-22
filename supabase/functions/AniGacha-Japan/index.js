@@ -504,7 +504,8 @@ serve(async (req) => {
             QUIZ_COMPLETE           : 10,
             QUIZ_MISSION_PROGRESS   : 100,
             QUIZ_CLAIM_MISSION      : 100,
-            CASINO_BLACKJACK        : 100
+            CASINO_BLACKJACK        : 100,
+            CASINO_ROULETTE         : 100
         };
 
         const actionLimit = RATE_LIMITS[action] ?? 10;
@@ -1134,6 +1135,42 @@ serve(async (req) => {
             }
 
             throw new Error("Invalid Blackjack action");
+        } else if (action === "CASINO_ROULETTE") {
+            const RED_NUMBERS   = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+            const bet           = Math.floor(Number(body.bet));
+            const betColor      = body.color    != null ?   String(body.color).toUpperCase() : null;
+            const betNumber     = body.number   != null ?   Number(body.number) : null;
+            const validColor    = betColor      !== null && ["RED", "BLACK", "GREEN"].includes(betColor);
+            const validNumber   = betNumber     !== null && Number.isInteger(betNumber) && betNumber >= 1 && betNumber <= 36;
+
+            if ((!validColor && !validNumber) || (validColor && validNumber))   throw new Error("Invalid bet selection");
+            if (!Number.isFinite(bet) || bet < 1 || bet > 1000)                 throw new Error("Bet must be between 1 and 1,000 Stars");
+            if (save.stars < bet)                                               throw new Error("Not enough stars");
+
+            save.stars      -=  bet;
+            const pocket    =   Math.floor(Math.random() * 37);
+
+            const resultColor   = pocket === 0  ? "GREEN"                                                       : (RED_NUMBERS.has(pocket) ? "RED" : "BLACK");
+            const won           = validNumber   ? (pocket === betNumber)                                        : (resultColor === betColor);
+            const payout        = won           ? ((validNumber || betColor === "GREEN") ? bet * 36 : bet * 2)  : 0;
+
+            save.stars += payout;
+
+            const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+            if (conflictResponse) return conflictResponse;
+
+            return new Response(JSON.stringify({
+                save,
+                spin: {
+                    pocket,
+                    resultColor,
+                    betColor,
+                    betNumber,
+                    bet,
+                    payout,
+                    won
+                }
+            }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
         const lockedSet             = new Set(save.lockedCards || []);

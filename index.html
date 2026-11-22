@@ -726,7 +726,7 @@
             <div class="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-2"><div id="quiz-missions" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs"></div></div>
         </section>
     </main>
-    <main id="casino-page" class="hidden max-w-4xl mx-auto px-3 pt-1.5 pb-3 space-y-1.5">
+    <div id="casino-page" class="hidden max-w-5xl mx-auto px-3 sm:px-6 pt-3 pb-3 space-y-3">
         <section class="w-full bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
@@ -745,7 +745,7 @@
                         </svg>
                         <div class="custom-select-menu hidden absolute left-0 min-w-full mt-1 z-50 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg py-1"></div>
                     </div>
-                    <span id="bj-rules-pill" data-tooltip-title="Rules"
+                    <span id="casino-rules-pill" data-tooltip-title="Rules"
                         title="Uses your Deck Collection/basic cards for empty slots&#10;Jokers are worth 0 and never bust&#10;Dealer stands on &#8805;17s&#10;2-card Blackjack pays 3:2"
                         class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-help select-none">
                         ?
@@ -758,13 +758,20 @@
                         Deal
                     </button>
                 </div>
+                <div id="rl-bet-controls" class="hidden flex items-center gap-1.5">
+                    <input id="rl-bet-input" type="number" min="1" step="1" value="10"
+                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="rl-spin-btn" type="button" class="w-16 py-1 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        Spin
+                    </button>
+                </div>
             </div>
             <div id="casino-coming-soon" class="hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-8 text-center space-y-1">
                 <div id="casino-coming-soon-title" class="text-base font-bold text-slate-900 dark:text-white">Game: Coming Soon</div>
                 <p class="text-xs text-slate-500 dark:text-slate-400">This game is currently under development</p>
             </div>
-            <div id="casino-blackjack-board" class="space-y-3">
-                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 space-y-2">
+            <div id="casino-blackjack-board" class="flex flex-col gap-3">
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 flex flex-col gap-2">
                     <div class="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-800 dark:text-slate-100">
                         <span>Dealer:</span>
                         <span id="bj-dealer-score" class="tabular-nums">—</span>
@@ -774,20 +781,55 @@
                     </div>
                 </div>
                 <div id="bj-status-banner" class="hidden rounded-lg border px-3 py-2 text-center text-sm font-bold"></div>
-                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 space-y-2">
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 flex flex-col gap-2">
                     <div class="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-800 dark:text-slate-100">
                         <span>Your Hand:</span>
                         <span id="bj-player-score" class="tabular-nums">—</span>
                     </div>
                     <div id="bj-player-cards" class="flex flex-wrap justify-center gap-2 min-h-[8.5rem] items-center"></div>
                 </div>
-                <div id="bj-action-controls" class="hidden grid grid-cols-2 gap-2">
+                <div id="bj-action-controls" class="hidden grid-cols-2 gap-2 -mb-3">
                     <button id="bj-hit-btn" type="button" class="py-2 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Hit
                     </button>
                     <button id="bj-stand-btn" type="button" class="py-2 rounded-lg text-sm font-bold bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Stand
                     </button>
+                </div>
+            </div>
+            <div id="casino-roulette-board" class="hidden flex flex-col gap-3">
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4 flex items-center justify-center">
+                    <div class="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center select-none">
+                        <div class="absolute inset-0 rounded-full bg-slate-900 border-2 border-slate-300 dark:border-slate-700"></div>
+                        <div id="rl-wheel" class="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full overflow-hidden border border-slate-700 will-change-transform">
+                            <svg id="rl-wheel-svg" viewBox="-100 -100 200 200" class="w-full h-full block"></svg>
+                            <div class="absolute inset-[26%] rounded-full bg-slate-900 pointer-events-none"></div>
+                        </div>
+                        <div id="rl-ball-arm" class="absolute inset-0 pointer-events-none will-change-transform">
+                            <div id="rl-ball" style="top: 12px;"
+                                class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border border-slate-400 shadow-sm">
+                            </div>
+                        </div>
+                        <div id="rl-center-readout" class="hidden absolute w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center pointer-events-none transition-all">
+                            <span id="rl-pocket-number" class="text-3xl sm:text-4xl font-black tabular-nums leading-none">—</span>
+                            <span id="rl-pocket-color" class="text-sm font-bold mt-0.5"></span>
+                        </div>
+                    </div>
+                </div>
+                <div id="rl-status-banner" class="hidden rounded-lg border px-3 py-2 text-center text-sm font-bold"></div>
+                <div class="flex flex-col gap-1.5">
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" data-rl-color="RED" class="rl-color-btn py-2 rounded-lg bg-[#e11d48] hover:opacity-90 text-white text-sm font-bold transition">
+                            Red
+                        </button>
+                        <button type="button" data-rl-color="GREEN" class="rl-color-btn py-2 rounded-lg bg-[#059669] hover:opacity-90 text-white text-sm font-bold transition">
+                            Green (35:1)
+                        </button>
+                        <button type="button" data-rl-color="BLACK" class="rl-color-btn py-2 rounded-lg bg-[#0f172a] hover:opacity-90 text-white text-sm font-bold transition">
+                            Black
+                        </button>
+                    </div>
+                    <div id="rl-number-grid" class="grid grid-cols-9 sm:grid-cols-[repeat(18,minmax(0,1fr))] gap-1.5"></div>
                 </div>
             </div>
         </section>
