@@ -1400,12 +1400,12 @@ serve(async (req) => {
                 return lb - la;
             });
 
-            const evalSynergyHand = (keys, levelMap = null) => {
-                const chars = (keys || []).map(k => gameData.charMap.get(k)).filter(Boolean).slice(0, 7);
+            const evalSynergyHand = (keys, levelMap = null, maxSlots = 7) => {
+                const chars = (keys || []).map(k => gameData.charMap.get(k)).filter(Boolean).slice(0, maxSlots);
                 if (!chars.length) return 0;
 
                 const filled        = chars.length;
-                const completionPts = filled * 8 + (filled === 7 ? 64 : 0);
+                const completionPts = filled * 8 + (filled === maxSlots ? 64 : 0);
                 let powerPts        = 0;
 
                 const franchiseCounts   = new Map();
@@ -1600,9 +1600,9 @@ serve(async (req) => {
             }
 
             if (subAction === "FINISH") {
-                const playerSynergy     = evalSynergyHand(syn.playerHand);
+                const playerSynergy     = evalSynergyHand(syn.playerHand, null, 7);
                 const playerNetSynergy  = playerSynergy - syn.totalSwapCost;
-                const dealerSynergy     = evalSynergyHand(syn.dealerHand, syn.dealerLevels || {});
+                const dealerSynergy     = evalSynergyHand(syn.dealerHand, syn.dealerLevels || {}, 10);
                 const won               = playerNetSynergy > dealerSynergy;
                 const payout            = won ? syn.bet * 2 : 0;
 

@@ -515,7 +515,7 @@ document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
 
 const CASINO_RULES_TEXT = {
     BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
-    SYNERGY     : `Requires at least 28 owned cards\nPlayer draws 7 cards and may swap for other cards\nDealer draws 14 cards: 7 mirrors your initial hand rarity and levels, 7 random to your highest rarity\nSwap cost increases by ${SYNERGY_SWAP_STEP} and deducts from Net Synergy\nGet the higher Net Synergy to win 1:1\nDealer wins in a tie`,
+    SYNERGY     : `Requires ≥28 cards\nPlayer draws 7 cards; can swap for other cards\nSwap cost increases by ${SYNERGY_SWAP_STEP}; deducts from Net Synergy\nDealer draws 14 cards; scores from top 10\n7 mirrors pre-swap hand rarity-level\n7 random to highest pre-swap rarity\nHigher synergy wins 1:1; dealer wins ties`,
     ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1",
     FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers at ≤15% equity\nTake-Profit auto-closes at 4x margin\nAdditional orders in a session must match your initial direction\nSettle anytime before 05:00 or hold until market close"
 };
@@ -536,12 +536,12 @@ function shuffleArrayCopy(arr) {
     return copy;
 }
 
-function getClientHandSynergy(keys = [], levelMap = null) {
+function getClientHandSynergy(keys = [], levelMap = null, maxSlots = 7) {
     const chars     = (keys || []).map(k => characterMap?.get(k)).filter(Boolean);
     const getLevel  = levelMap ? (c) => (levelMap[c.uniqueKey] ?? 0) : null;
 
-    if (typeof computeHandSynergy === "function") return computeHandSynergy(chars, getLevel).score;
-    return chars.reduce((sum, c) => sum + (SYNERGY_RARITY_POINTS?.[c.rarity?.tier] || 1), 0);
+    if (typeof computeHandSynergy === "function") return computeHandSynergy(chars, getLevel, maxSlots).score;
+    return chars.slice(0, maxSlots).reduce((sum, c) => sum + (SYNERGY_RARITY_POINTS?.[c.rarity?.tier] || 1), 0);
 }
 
 function renderSynergyCardHTML(uniqueKey, {selectable = false, selected = false, hidden = false, isDealer = false, dealerLevel = 0} = {}) {
@@ -710,7 +710,7 @@ function renderSynergyUI() {
     if (isActive || dealerSynergy == null) dealerScoreEl.textContent = "?";
     else if (revealing || revealedSet.size < dealerHand.length) {
         const revealedKeys      = dealerHand.filter((_, idx) => revealedSet.has(idx));
-        const partialSynergy    = getClientHandSynergy(revealedKeys, dealerLevels);
+        const partialSynergy    = getClientHandSynergy(revealedKeys, dealerLevels, 10);
 
         dealerScoreEl.textContent       = `${partialSynergy .toLocaleString()}+?`;
     } else dealerScoreEl.textContent    = `${dealerSynergy  .toLocaleString()}`;
@@ -889,9 +889,9 @@ function handleGuestSynergy(subAction, bet = 10) {
     }
 
     if (subAction === "FINISH") {
-        const playerSynergy     = getClientHandSynergy(casinoSynGuestState.playerHand);
+        const playerSynergy     = getClientHandSynergy(casinoSynGuestState.playerHand, null, 7);
         const playerNetSynergy  = playerSynergy - casinoSynGuestState.totalSwapCost;
-        const dealerSynergy     = getClientHandSynergy(casinoSynGuestState.dealerHand, casinoSynGuestState.dealerLevels);
+        const dealerSynergy     = getClientHandSynergy(casinoSynGuestState.dealerHand, casinoSynGuestState.dealerLevels, 10);
         const won               = playerNetSynergy > dealerSynergy;
         const payout            = won ? activeBet * 2 : 0;
 

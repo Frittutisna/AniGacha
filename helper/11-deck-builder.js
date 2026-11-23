@@ -282,10 +282,10 @@ function computeDeckSynergies(deckObj = draftDeck, suit = activeDeckSuit, rank =
     };
 }
 
-function computeHandSynergy(chars = [], getLevel = null) {
-    const handChars = (chars || []).filter(Boolean).slice(0, 7);
+function computeHandSynergy(chars = [], getLevel = null, maxSlots = 7) {
+    const handChars = (chars || []).filter(Boolean).slice(0, maxSlots);
 
-    const base = evaluateGroupSynergy(handChars, 7, {
+    const base = evaluateGroupSynergy(handChars, maxSlots, {
         slotBase        : 8,
         fullBonus       : 64,
         franchiseWeight : 64,
