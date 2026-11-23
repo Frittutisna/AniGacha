@@ -277,13 +277,21 @@ const DECK_RANK_CURVE = [
 const DECK_SUITS            = ["Spades", "Hearts", "Diamonds", "Clubs"];
 const RARITY_RANK_PRIORITY  = new Map(RARITIES.map((r, idx) => [r.tier, idx]));
 
-function shuffleInPlace(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+function hashString(str) {
+    let h = 2166136261 >>> 0;
+
+    for (let i = 0; i < str.length; i++) {
+        h ^=    str.charCodeAt(i);
+        h =     Math.imul(h, 16777619);
     }
 
-    return arr;
+    return h >>> 0;
+}
+
+function deterministicSortIndices(charList, salt) {return charList
+    .map    ((c, i) => ({i, score: hashString(`${salt}:${c.uniqueKey}`)}))
+    .sort   ((a, b) => (a.score - b.score) || (a.i - b.i))
+    .map    (entry  => entry.i);
 }
 
 function buildBalancedDeckMeta(charList) {
@@ -296,7 +304,7 @@ function buildBalancedDeckMeta(charList) {
     const jokerEntry    = DECK_RANK_CURVE.find(entry => entry.rank === "R");
     const jokerDist     = jokerEntry ? jokerEntry.dist : 0.010;
     const jokerCount    = Math.min(totalCount, Math.round(totalCount * jokerDist));
-    const randomIndices = shuffleInPlace(charList.map((_, i) => i));
+    const randomIndices = deterministicSortIndices(charList, "joker");
     const jokerSet      = new Set(randomIndices.slice(0, jokerCount));
 
     for (const idx of jokerSet) rankByIdx[idx] = "R";
@@ -324,7 +332,7 @@ function buildBalancedDeckMeta(charList) {
 
     while (cursor < remainingTotal) rankByIdx[remainingIndices[cursor++]] = "2";
 
-    const suitIndices       = shuffleInPlace(charList.map((_, i) => i));
+    const suitIndices       = deterministicSortIndices(charList, "suit");
     const basePerSuit       = Math.floor(totalCount / DECK_SUITS.length);
     const remainderSuits    = totalCount % DECK_SUITS.length;
     const suitByIdx         = new Array(totalCount);
@@ -346,13 +354,31 @@ function buildBalancedDeckMeta(charList) {
 }
 
 const deckMetaByKey = buildBalancedDeckMeta(chars);
+const serverAnimes  = {};
+
+for (const [id, a] of animeMap.entries()) {
+    const root = resolveRootAnime(id) || a;
+
+    serverAnimes[id] = [
+        root.id,
+        root.rawDateInt,
+        Array.from(a.genres),
+        Array.from(a.tags),
+        Array.from(a.studios),
+        a.source
+    ];
+}
 
 const compactChars = chars.map(c => {
     const deck = deckMetaByKey.get(c.uniqueKey) || {rank: "2", suit: "Spades"};
     return [c.uniqueKey, c.tier, c.animeId, deck.rank, deck.suit];
 });
 
-fs.writeFileSync("./supabase/functions/AniGacha-Japan/server-data.json", JSON.stringify({chars: compactChars, themedOptions}));
+fs.writeFileSync("./supabase/functions/AniGacha-Japan/server-data.json", JSON.stringify({
+    animes          : serverAnimes,
+    chars           : compactChars,
+    themedOptions
+}));
 
 const clientChars = chars.map(c => {
     const [name, img]   = rawCharByKey.get(c.uniqueKey) || ["Unknown", null];

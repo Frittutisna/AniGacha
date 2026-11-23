@@ -107,7 +107,8 @@ function evaluateGroupSynergy(chars, maxSlots, {
     sourceWeight    = 1,
     eraWeight       = 4,
     genreWeight     = 2,
-    tagWeight       = 1
+    tagWeight       = 1,
+    getLevel        = null
 } = {}) {
     const filled = chars.length;
 
@@ -138,8 +139,8 @@ function evaluateGroupSynergy(chars, maxSlots, {
     const tagCounts         = new Map();
 
     for (const c of chars) {
-        const tierPts   = SYNERGY_RARITY_POINTS[c.rarity?.tier]     || 1;
-        const level     = getCharacterLevel(inventory[c.uniqueKey]  || 1);
+        const tierPts   = SYNERGY_RARITY_POINTS[c.rarity?.tier] || 1;
+        const level     = typeof getLevel === "function" ? getLevel(c) : getCharacterLevel(inventory[c.uniqueKey] || 1);
 
         powerPts += tierPts + level * 4;
 
@@ -281,7 +282,7 @@ function computeDeckSynergies(deckObj = draftDeck, suit = activeDeckSuit, rank =
     };
 }
 
-function computeHandSynergy(chars = []) {
+function computeHandSynergy(chars = [], getLevel = null) {
     const handChars = (chars || []).filter(Boolean).slice(0, 7);
 
     const base = evaluateGroupSynergy(handChars, 7, {
@@ -292,7 +293,8 @@ function computeHandSynergy(chars = []) {
         sourceWeight    : 1,
         eraWeight       : 16,
         genreWeight     : 8,
-        tagWeight       : 1
+        tagWeight       : 1,
+        getLevel
     });
 
     return {...base, score: base.score};

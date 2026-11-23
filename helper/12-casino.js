@@ -515,7 +515,7 @@ document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
 
 const CASINO_RULES_TEXT = {
     BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
-    SYNERGY     : `Requires at least 28 owned cards\nPlayer draws 7 cards and may swap for other cards\nDealer draws 14 cards with at least 1 card from each rarity\nSwap cost increases by ${SYNERGY_SWAP_STEP} and deduct from Net Synergy\nGet the higher Net Synergy to win 1:1\nDealer wins in a tie`,
+    SYNERGY     : `Requires at least 28 owned cards\nPlayer draws 7 cards and may swap for other cards\nDealer draws 14 cards: 7 mirrors your initial hand rarity and levels, 7 random to your highest rarity\nSwap cost increases by ${SYNERGY_SWAP_STEP} and deducts from Net Synergy\nGet the higher Net Synergy to win 1:1\nDealer wins in a tie`,
     ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1",
     FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers at ≤15% equity\nTake-Profit auto-closes at 4x margin\nAdditional orders in a session must match your initial direction\nSettle anytime before 05:00 or hold until market close"
 };
@@ -536,13 +536,15 @@ function shuffleArrayCopy(arr) {
     return copy;
 }
 
-function getClientHandSynergy(keys = []) {
-    const chars = (keys || []).map(k => characterMap?.get(k)).filter(Boolean);
-    if (typeof computeHandSynergy === "function") return computeHandSynergy(chars).score;
+function getClientHandSynergy(keys = [], levelMap = null) {
+    const chars     = (keys || []).map(k => characterMap?.get(k)).filter(Boolean);
+    const getLevel  = levelMap ? (c) => (levelMap[c.uniqueKey] ?? 0) : null;
+
+    if (typeof computeHandSynergy === "function") return computeHandSynergy(chars, getLevel).score;
     return chars.reduce((sum, c) => sum + (SYNERGY_RARITY_POINTS?.[c.rarity?.tier] || 1), 0);
 }
 
-function renderSynergyCardHTML(uniqueKey, {selectable = false, selected = false, hidden = false, isDealer = false} = {}) {
+function renderSynergyCardHTML(uniqueKey, {selectable = false, selected = false, hidden = false, isDealer = false, dealerLevel = 0} = {}) {
     if (hidden || !uniqueKey) return `
         <div class="w-full rounded-lg overflow-hidden bg-slate-800 border-2 border-slate-600 text-white flex flex-col select-none">
             <div class="relative aspect-[3/4] w-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900">
@@ -559,9 +561,9 @@ function renderSynergyCardHTML(uniqueKey, {selectable = false, selected = false,
 
     const r             = char.rarity;
     const safeName      = escapeHTML(char.name);
-    const listPrefix    = isListCharacter(char) ? "L" : "";
+    const listPrefix    = !isDealer && isListCharacter(char) ? "L" : "";
     const dupCount      = inventory?.[char.uniqueKey] || 1;
-    const dupLevel      = dupCount >= 6 ? "3" : dupCount >= 3 ? "2" : dupCount === 2 ? "1" : "";
+    const dupLevel      = isDealer ? (dealerLevel > 0 ? String(dealerLevel) : "") : (dupCount >= 6 ? "3" : dupCount >= 3 ? "2" : dupCount === 2 ? "1" : "");
     const isLocked      = lockedCards?.has(char.uniqueKey);
     const suit          = char.deckSuit || "Spades";
     const rank          = char.deckRank || "2";
@@ -675,6 +677,7 @@ function renderSynergyUI() {
         payout,
         playerHand              = [],
         dealerHand              = [],
+        dealerLevels            = {},
         revealedDealerIndices   = null,
         revealing               = false,
         playerSynergy           = 0,
@@ -692,7 +695,11 @@ function renderSynergyUI() {
 
     dealerWrap.innerHTML = isActive
         ? Array.from({length: Math.max(14, dealerHand.length || 14)}, () => renderSynergyCardHTML(null, {hidden: true, isDealer: true})).join("")
-        : dealerHand.map((k, idx) => renderSynergyCardHTML(revealedSet.has(idx) ? k : null, {hidden: !revealedSet.has(idx), isDealer: true})).join("");
+        : dealerHand.map((k, idx) => renderSynergyCardHTML(revealedSet.has(idx) ? k : null, {
+            hidden      : !revealedSet.has(idx),
+            isDealer    : true,
+            dealerLevel : dealerLevels[k] ?? 0
+        })).join("");
 
     playerWrap.innerHTML = playerHand.map(k => renderSynergyCardHTML(k, {
         selectable  : isActive && !casinoBusy,
@@ -702,8 +709,9 @@ function renderSynergyUI() {
 
     if (isActive || dealerSynergy == null) dealerScoreEl.textContent = "?";
     else if (revealing || revealedSet.size < dealerHand.length) {
-        const revealedKeys              = dealerHand.filter((_, idx) => revealedSet.has(idx));
-        const partialSynergy            = getClientHandSynergy(revealedKeys);
+        const revealedKeys      = dealerHand.filter((_, idx) => revealedSet.has(idx));
+        const partialSynergy    = getClientHandSynergy(revealedKeys, dealerLevels);
+
         dealerScoreEl.textContent       = `${partialSynergy .toLocaleString()}+?`;
     } else dealerScoreEl.textContent    = `${dealerSynergy  .toLocaleString()}`;
 
@@ -734,21 +742,26 @@ function renderSynergyUI() {
         const isWin     = status === "WIN";
 
         statusBanner.textContent = isWin
-            ? `You Win (${playerNetSynergy.toLocaleString()} vs ${Number(dealerSynergy).toLocaleString()}): Won ★ ${profit.toLocaleString()}`
-            : `Dealer Wins (${playerNetSynergy.toLocaleString()} vs ${Number(dealerSynergy).toLocaleString()}): Lost ★ ${bet.toLocaleString()}`;
+            ? `You Win ${playerNetSynergy.toLocaleString()}-${Number(dealerSynergy).toLocaleString()}: Won ★ ${profit.toLocaleString()}`
+            : `Dealer Wins ${Number(dealerSynergy).toLocaleString()}-${playerNetSynergy.toLocaleString()}: Lost ★ ${bet.toLocaleString()}`;
 
         statusBanner.className = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${isWin ? winCls : lossCls}`;
     }
 }
 
-function sortHandByRarity(keys = []) {return [...keys].sort((a, b) => {
+function sortHandByRarity(keys = [], levelMap = null) {return [...keys].sort((a, b) => {
     const ta = SYNERGY_TIER_ORDER[characterMap?.get(a)?.rarity?.tier] || 0;
     const tb = SYNERGY_TIER_ORDER[characterMap?.get(b)?.rarity?.tier] || 0;
 
-    return tb - ta;
+    if (tb !== ta) return tb - ta;
+
+    const la = levelMap ? (levelMap[a] ?? 0) : getCharacterLevel(inventory?.[a] || 1);
+    const lb = levelMap ? (levelMap[b] ?? 0) : getCharacterLevel(inventory?.[b] || 1);
+
+    return lb - la;
 })}
 
-function buildGuestDealerHand() {
+function buildGuestDealerHand(playerHand = []) {
     const globalKeys    = (characterPool || []).map(c => c.uniqueKey).filter(Boolean);
     const byTier        = new Map();
 
@@ -760,29 +773,44 @@ function buildGuestDealerHand() {
         byTier.get(t).push(c.uniqueKey);
     }
 
-    const picked    = [];
-    const used      = new Set();
+    const picked        = [];
+    const used          = new Set();
+    const dealerLevels  = {};
 
-    for (const tier of Object.keys(SYNERGY_TIER_ORDER)) {
-        const candidates    = shuffleArrayCopy(byTier.get(tier)     || globalKeys);
-        const chosen        = candidates.find(k => !used.has(k))    || candidates[0];
+    for (const pKey of playerHand) {
+        const pChar         = characterMap?.get(pKey);
+        const tier          = pChar?.rarity?.tier || "F";
+        const mirroredLevel = getCharacterLevel(inventory?.[pKey] || 1);
+        const candidates    = shuffleArrayCopy(byTier.get(tier) || globalKeys);
+        const chosen        = candidates.find(k => !used.has(k)) || candidates[0];
 
         if (chosen) {
-            picked  .push   (chosen);
-            used    .add    (chosen);
+            picked          .push   (chosen);
+            used            .add    (chosen);
+
+            dealerLevels[chosen] = mirroredLevel;
         }
     }
 
-    for (const k of shuffleArrayCopy(globalKeys)) {
+    const maxPlayerRank = Math.max(...playerHand.map    (k => SYNERGY_TIER_ORDER    [characterMap?.get(k)?.rarity?.tier] || 1));
+    const eligiblePool  = globalKeys.filter             (k => (SYNERGY_TIER_ORDER   [characterMap?.get(k)?.rarity?.tier] || 1) <= maxPlayerRank);
+
+    for (const k of shuffleArrayCopy(eligiblePool)) {
         if (picked.length >= 14) break;
 
         if (!used.has(k)) {
-            picked  .push   (k);
-            used    .add    (k);
+            picked          .push   (k);
+            used            .add    (k);
+
+            dealerLevels[k] = 0;
         }
     }
 
-    return {dealerHand: sortHandByRarity(picked.slice(0, 14)), dealerPoolSize: globalKeys.length};
+    return {
+        dealerHand      : sortHandByRarity(picked.slice(0, 14), dealerLevels),
+        dealerLevels,
+        dealerPoolSize  : globalKeys.length
+    };
 }
 
 function handleGuestSynergy(subAction, bet = 10) {
@@ -792,14 +820,15 @@ function handleGuestSynergy(subAction, bet = 10) {
     if (subAction === "START") {
         if (ownedKeys.length < 28) return null;
 
-        const playerHand                    = sortHandByRarity      (shuffleArrayCopy(ownedKeys).slice(0, 7));
-        const {dealerHand, dealerPoolSize}  = buildGuestDealerHand  ();
-        const playerSynergy                 = getClientHandSynergy  (playerHand);
+        const playerHand                                    = sortHandByRarity      (shuffleArrayCopy(ownedKeys).slice(0, 7));
+        const {dealerHand, dealerLevels, dealerPoolSize}    = buildGuestDealerHand  (playerHand);
+        const playerSynergy                                 = getClientHandSynergy  (playerHand);
 
         casinoSynGuestState = {
             bet             : fakeBet,
             playerHand,
             dealerHand,
+            dealerLevels,
             dealerPoolSize,
             swapCount       : 0,
             totalSwapCost   : 0
@@ -862,7 +891,7 @@ function handleGuestSynergy(subAction, bet = 10) {
     if (subAction === "FINISH") {
         const playerSynergy     = getClientHandSynergy(casinoSynGuestState.playerHand);
         const playerNetSynergy  = playerSynergy - casinoSynGuestState.totalSwapCost;
-        const dealerSynergy     = getClientHandSynergy(casinoSynGuestState.dealerHand);
+        const dealerSynergy     = getClientHandSynergy(casinoSynGuestState.dealerHand, casinoSynGuestState.dealerLevels);
         const won               = playerNetSynergy > dealerSynergy;
         const payout            = won ? activeBet * 2 : 0;
 
@@ -872,6 +901,7 @@ function handleGuestSynergy(subAction, bet = 10) {
             payout,
             playerHand      : [...casinoSynGuestState.playerHand],
             dealerHand      : [...casinoSynGuestState.dealerHand],
+            dealerLevels    : {...casinoSynGuestState.dealerLevels},
             dealerPoolSize  : casinoSynGuestState.dealerPoolSize,
             playerSynergy,
             swapCount       : casinoSynGuestState.swapCount,

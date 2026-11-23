@@ -62,6 +62,7 @@ function getGameData(adminClient) {
         }
 
         const parsed            = JSON.parse(await blob.text());
+        const animesMap         = parsed.animes || {};
         const charList          = parsed.chars;
         const charMap           = new Map();
         const animeToCharKeys   = new Map();
@@ -70,8 +71,25 @@ function getGameData(adminClient) {
         RARITIES.forEach(r => globalBuckets[r.tier] = []);
 
         for (const [uniqueKey, tier, animeId = null, deckRank = "2", deckSuit = "Spades"] of charList) {
-            const normAnimeId = animeId ? String(animeId).trim() : null;
-            charMap.set(uniqueKey, {uniqueKey, tier, animeId: normAnimeId, deckRank, deckSuit});
+            const normAnimeId   = animeId       ? String(animeId).trim()                    :   null;
+            const animeMeta     = normAnimeId   ? animesMap[normAnimeId]                    :   null;
+            const rawDateInt    = animeMeta?.[1]                                            ??  null;
+            const animeYear     = rawDateInt    ? Math.floor(Number(rawDateInt) / 10000)    :   null;
+
+            charMap.set(uniqueKey, {
+                uniqueKey,
+                tier,
+                animeId     : normAnimeId,
+                rootAnimeId : animeMeta?.[0] || normAnimeId,
+                animeYear,
+                genres      : Array.isArray(animeMeta?.[2]) ? animeMeta[2] : [],
+                tags        : Array.isArray(animeMeta?.[3]) ? animeMeta[3] : [],
+                studios     : Array.isArray(animeMeta?.[4]) ? animeMeta[4] : [],
+                source      : animeMeta?.[5] || null,
+                deckRank,
+                deckSuit
+            });
+
             globalBuckets[tier].push(uniqueKey);
 
             if (normAnimeId) {
@@ -1356,8 +1374,11 @@ serve(async (req) => {
             throw new Error("Invalid Forex action");
         } else if (action === "CASINO_SYNERGY") {
             const SWAP_STEP     = 5;
+            const TIER_ORDER    = ["SSR", "SR", "S", "A", "B", "C", "D", "E", "F"];
             const TIER_RANK     = {SSR: 9, SR: 8, S: 7, A: 6, B: 5, C: 4, D: 3, E: 2, F: 1};
             const RARITY_PTS    = {SSR: 128, SR: 64, S: 32, A: 16, B: 8, C: 4, D: 3, E: 2, F: 1};
+
+            const getCardLevel = (count) => count >= 6 ? 3 : count >= 3 ? 2 : count === 2 ? 1 : 0;
 
             const getEraKey = (year) => {
                 if (!year)          return null;
@@ -1368,42 +1389,67 @@ serve(async (req) => {
                 return `${start}-${start + 4}`;
             };
 
-            const sortByRarity = (keys) => [...keys].sort((a, b) => {
+            const sortByRarity = (keys, levelMap = null) => [...keys].sort((a, b) => {
                 const ta = TIER_RANK[gameData.charMap.get(a)?.tier] || 0;
                 const tb = TIER_RANK[gameData.charMap.get(b)?.tier] || 0;
 
-                return tb - ta;
+                if (tb !== ta) return tb - ta;
+
+                const la = levelMap ? (levelMap[a] ?? 0) : getCardLevel(save.inventory[a] || 1);
+                const lb = levelMap ? (levelMap[b] ?? 0) : getCardLevel(save.inventory[b] || 1);
+
+                return lb - la;
             });
 
-            const evalSynergyHand = (keys) => {
+            const evalSynergyHand = (keys, levelMap = null) => {
                 const chars = (keys || []).map(k => gameData.charMap.get(k)).filter(Boolean).slice(0, 7);
                 if (!chars.length) return 0;
 
                 const filled        = chars.length;
                 const completionPts = filled * 8 + (filled === 7 ? 64 : 0);
                 let powerPts        = 0;
-                const animeCounts   = new Map();
-                const eraCounts     = new Map();
+
+                const franchiseCounts   = new Map();
+                const studioCounts      = new Map();
+                const sourceCounts      = new Map();
+                const eraCounts         = new Map();
+                const genreCounts       = new Map();
+                const tagCounts         = new Map();
 
                 for (const c of chars) {
                     const tierPts   = RARITY_PTS[c.tier] || 1;
-                    const count     = save.inventory[c.uniqueKey] || 1;
-                    const level     = count >= 6 ? 3 : count >= 3 ? 2 : count === 2 ? 1 : 0;
+                    const level     = levelMap ? (levelMap[c.uniqueKey] ?? 0) : getCardLevel(save.inventory[c.uniqueKey] || 1);
 
                     powerPts += tierPts + level * 4;
-                    if (c.animeId) animeCounts.set(c.animeId, (animeCounts.get(c.animeId) || 0) + 1);
+
+                    if (c.rootAnimeId)  franchiseCounts .set(c.rootAnimeId, (franchiseCounts    .get(c.rootAnimeId) || 0) + 1);
+                    if (c.source)       sourceCounts    .set(c.source,      (sourceCounts       .get(c.source)      || 0) + 1);
 
                     const era = getEraKey(c.animeYear);
                     if (era) eraCounts.set(era, (eraCounts.get(era) || 0) + 1);
+
+                    for (const s of c.studios   || []) studioCounts .set(s, (studioCounts   .get(s) || 0) + 1);
+                    for (const g of c.genres    || []) genreCounts  .set(g, (genreCounts    .get(g) || 0) + 1);
+                    for (const t of c.tags      || []) tagCounts    .set(t, (tagCounts      .get(t) || 0) + 1);
                 }
 
-                const pairPts = (map, weight) => {
-                    let pts = 0;
-                    for (const cnt of map.values()) {if (cnt >= 2) pts += ((cnt * (cnt - 1)) / 2) * weight}
+                const calcPairSum = (countMap, weight, maxItems = Infinity) => {
+                    const counts    = Array.from(countMap.values()).filter (cnt => cnt >= 2).sort((a, b) => b - a).slice(0, maxItems);
+                    let pts         = 0;
+
+                    for (const cnt of counts) pts += ((cnt * (cnt - 1)) / 2) * weight;
                     return Math.round(pts);
                 };
 
-                return completionPts + powerPts + pairPts(animeCounts, 64) + pairPts(eraCounts, 16);
+                return (
+                    completionPts + powerPts +
+                    calcPairSum(franchiseCounts,    64)     +
+                    calcPairSum(studioCounts,       32)     +
+                    calcPairSum(sourceCounts,       1)      +
+                    calcPairSum(eraCounts,          16)     +
+                    calcPairSum(genreCounts,        8, 3)   +
+                    calcPairSum(tagCounts,          1, 3)
+                );
             };
 
             const ownedKeys = Object.entries(save.inventory || {}).filter(([k, cnt]) => cnt > 0 && gameData.charMap.has(k)).map(([k]) => k);
@@ -1441,33 +1487,45 @@ serve(async (req) => {
 
                 const pickedDealer  = [];
                 const usedDealer    = new Set();
+                const dealerLevels  = {};
 
-                for (const tier of Object.keys(TIER_RANK)) {
+                for (const pKey of playerHand) {
+                    const pChar         = gameData.charMap.get(pKey);
+                    const tier          = pChar?.tier || "F";
+                    const mirroredLevel = getCardLevel(save.inventory[pKey] || 1);
                     const candidates    = shuffle(byTier.get(tier) || globalKeys);
                     const chosen        = candidates.find(k => !usedDealer.has(k)) || candidates[0];
 
                     if (chosen) {
                         pickedDealer    .push   (chosen);
                         usedDealer      .add    (chosen);
+
+                        dealerLevels[chosen] = mirroredLevel;
                     }
                 }
 
-                for (const k of shuffle(globalKeys)) {
+                const maxPlayerRank = Math.max(...playerHand.map    (k => TIER_RANK     [gameData.charMap.get(k)?.tier] || 1));
+                const eligiblePool  = globalKeys.filter             (k => (TIER_RANK    [gameData.charMap.get(k)?.tier] || 1) <= maxPlayerRank);
+
+                for (const k of shuffle(eligiblePool)) {
                     if (pickedDealer.length >= 14) break;
 
                     if (!usedDealer.has(k)) {
                         pickedDealer    .push   (k);
                         usedDealer      .add    (k);
+
+                        dealerLevels[k] = 0;
                     }
                 }
 
-                const dealerHand        = sortByRarity(pickedDealer.slice(0, 14));
+                const dealerHand        = sortByRarity(pickedDealer.slice(0, 14), dealerLevels);
                 const dealerPoolSize    = globalKeys.length;
 
                 save.synergySession = {
                     bet,
                     playerHand,
                     dealerHand,
+                    dealerLevels,
                     dealerPoolSize,
                     swapCount       : 0,
                     totalSwapCost   : 0
@@ -1545,7 +1603,7 @@ serve(async (req) => {
             if (subAction === "FINISH") {
                 const playerSynergy     = evalSynergyHand(syn.playerHand);
                 const playerNetSynergy  = playerSynergy - syn.totalSwapCost;
-                const dealerSynergy     = evalSynergyHand(syn.dealerHand);
+                const dealerSynergy     = evalSynergyHand(syn.dealerHand, syn.dealerLevels || {});
                 const won               = playerNetSynergy > dealerSynergy;
                 const payout            = won ? syn.bet * 2 : 0;
 
@@ -1557,6 +1615,7 @@ serve(async (req) => {
                     payout,
                     playerHand      : syn.playerHand,
                     dealerHand      : syn.dealerHand,
+                    dealerLevels    : syn.dealerLevels || {},
                     dealerPoolSize  : syn.dealerPoolSize,
                     playerSynergy,
                     swapCount       : syn.swapCount,
