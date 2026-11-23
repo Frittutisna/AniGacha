@@ -517,7 +517,7 @@ const CASINO_RULES_TEXT = {
     BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
     SYNERGY     : `Requires at least 28 owned cards\nPlayer draws 7 cards and may swap for other cards\nDealer draws 14 cards with at least 1 card from each rarity\nSwap cost increases by ${SYNERGY_SWAP_STEP} and deduct from Net Synergy\nGet the higher Net Synergy to win 1:1\nDealer wins in a tie`,
     ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1",
-    FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers automatically at ≤15% margin\nSettle anytime before 05:00 or hold until market close"
+    FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers at ≤15% equity\nTake-Profit auto-closes at 4x margin\nAdditional orders in a session must match your initial direction\nSettle anytime before 05:00 or hold until market close"
 };
 
 function getOwnedCollectionKeys() {
@@ -1247,20 +1247,21 @@ async function runRouletteSpin() {
     }
 }
 
-function generateClientFxPath(pair) {
+function generateClientFxPath(pair, side = "LONG") {
     const configs = {
-        "USD/JPY": {base: 154.200,  vol: 0.00024, drift:  0.000006, jumpProb: 0.020, jumpScale: 0.0022, swapPerTick:  0.0000},
-        "AUD/JPY": {base: 100.400,  vol: 0.00033, drift:  0.000010, jumpProb: 0.018, jumpScale: 0.0030, swapPerTick:  0.0002},
-        "GBP/JPY": {base: 195.800,  vol: 0.00056, drift: -0.000008, jumpProb: 0.032, jumpScale: 0.0044, swapPerTick:  0.0000},
-        "EUR/CHF": {base: 0.94200,  vol: 0.00008, drift:  0.000000, jumpProb: 0.012, jumpScale: 0.0040, swapPerTick: -0.0002},
-        "ZAR/JPY": {base: 8.4500,   vol: 0.00036, drift: -0.000055, jumpProb: 0.020, jumpScale: 0.0028, swapPerTick:  0.0016},
-        "TRY/JPY": {base: 4.3800,   vol: 0.00052, drift: -0.000085, jumpProb: 0.028, jumpScale: 0.0042, swapPerTick:  0.0024}
+        "USD/JPY": {base: 154.200,  vol: 0.00024, drift:  0.000000, jumpProb: 0.020, jumpScale: 0.0022, swapLong: -0.0003, swapShort: -0.0003, spread: 0.00016},
+        "AUD/JPY": {base: 100.400,  vol: 0.00033, drift:  0.000000, jumpProb: 0.018, jumpScale: 0.0030, swapLong:  0.0001, swapShort: -0.0006, spread: 0.00020},
+        "GBP/JPY": {base: 195.800,  vol: 0.00056, drift:  0.000000, jumpProb: 0.032, jumpScale: 0.0044, swapLong: -0.0004, swapShort: -0.0004, spread: 0.00030},
+        "EUR/CHF": {base: 0.94200,  vol: 0.00008, drift:  0.000000, jumpProb: 0.012, jumpScale: 0.0040, swapLong: -0.0004, swapShort: -0.0004, spread: 0.00018},
+        "ZAR/JPY": {base: 8.4500,   vol: 0.00036, drift: -0.000012, jumpProb: 0.020, jumpScale: 0.0028, swapLong:  0.0012, swapShort: -0.0020, spread: 0.00032},
+        "TRY/JPY": {base: 4.3800,   vol: 0.00052, drift: -0.000018, jumpProb: 0.028, jumpScale: 0.0042, swapLong:  0.0018, swapShort: -0.0028, spread: 0.00045}
     };
 
     const cfg       = configs[pair] || configs["USD/JPY"];
     const randn     = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
+    const dir       = side === "LONG" ? 1 : -1;
     const candles   = [];
-    let price       = cfg.base;
+    let price       = cfg.base * (1 + dir * cfg.spread);
     let regime      = 0;
 
     for (let cIdx = 0; cIdx < 60; cIdx++) {
@@ -1271,11 +1272,11 @@ function generateClientFxPath(pair) {
         let close   = open;
 
         for (let t = 0; t < 5; t++) {
-            if (Math.random() < 0.04) regime = (Math.random() - 0.52) * cfg.vol * 1.5;
+            if (Math.random() < 0.05) regime = (Math.random() - 0.50) * cfg.vol * 1.6;
             let ret = cfg.drift + regime + randn() * cfg.vol;
 
             if (Math.random() < cfg.jumpProb) {
-                const jumpDir   =   pair === "EUR/CHF" || pair === "TRY/JPY" ? (Math.random() < 0.58 ? -1 : 1) : (Math.random() < 0.52 ? -1 : 1);
+                const jumpDir   =   Math.random() < 0.50 ? -1 : 1;
                 ret             +=  jumpDir * cfg.jumpScale * (0.65 + Math.random() * 0.95);
             }
 
@@ -1291,7 +1292,7 @@ function generateClientFxPath(pair) {
         price = close;
     }
 
-    return {candles, swapPerTick: cfg.swapPerTick};
+    return {candles, swapLong: cfg.swapLong, swapShort: cfg.swapShort, spread: cfg.spread};
 }
 
 function getVisibleFxCandles(candles, secIdx) {
@@ -1334,9 +1335,10 @@ function calcFxPortfolioState(run, secIdx) {
 
     for (const pos of run.positions) {
         const dir       = pos.side === "LONG" ? 1 : -1;
+        const swapRate  = pos.side === "LONG" ? run.swapLong : run.swapShort;
         const move      = ((price - pos.entryPrice) / pos.entryPrice) * dir;
         const posPnl    = pos.bet * pos.leverage * move;
-        const posSwap   = pos.bet * run.swapPerTick * Math.max(0, elapsed - pos.openSec) * dir;
+        const posSwap   = pos.bet * swapRate * Math.max(0, elapsed - pos.openSec);
 
         totalMargin += pos.bet;
         totalPnl    += posPnl;
@@ -1346,6 +1348,7 @@ function calcFxPortfolioState(run, secIdx) {
     const swapTotal     = Math.round(totalSwap);
     const rawEquity     = totalMargin + totalPnl + swapTotal;
     const marginCut     = totalMargin * 0.15;
+    const takeProfit    = totalMargin * 4;
     let weightedEntry   = 0;
     let weightedLiq     = 0;
 
@@ -1363,8 +1366,9 @@ function calcFxPortfolioState(run, secIdx) {
         swapTotal,
         weightedEntry,
         weightedLiq,
-        equity      : Math.max(0, Math.round(rawEquity)),
-        liquidated  : totalMargin > 0 && rawEquity <= marginCut
+        equity          : Math.min(takeProfit, Math.max(0, Math.round(rawEquity))),
+        liquidated      : totalMargin > 0 && rawEquity <= marginCut,
+        takeProfitHit   : totalMargin > 0 && rawEquity >= takeProfit
     };
 }
 
@@ -1437,21 +1441,22 @@ function renderForexChart(candles, entryPrice, liqPrice, _) {
 }
 
 function renderForexUI() {
-    const meta      = FX_PAIR_META[casinoFxPair] || FX_PAIR_META["USD/JPY"];
-    const isGuest   = !currentUser;
-    const isRunning = Boolean(casinoFxRun && !casinoFxRun.done);
-    const betInput  = document.getElementById("fx-bet-input");
-    const closeBtn  = document.getElementById("fx-close-btn");
-    const longBtn   = document.getElementById("fx-long-btn");
-    const shortBtn  = document.getElementById("fx-short-btn");
-    const overlay   = document.getElementById("fx-chart-overlay");
-    const banner    = document.getElementById("fx-status-banner");
+    const meta          = FX_PAIR_META[casinoFxPair] || FX_PAIR_META["USD/JPY"];
+    const isGuest       = !currentUser;
+    const isRunning     = Boolean(casinoFxRun && !casinoFxRun.done);
+    const betInput      = document.getElementById("fx-bet-input");
+    const closeBtn      = document.getElementById("fx-close-btn");
+    const longBtn       = document.getElementById("fx-long-btn");
+    const shortBtn      = document.getElementById("fx-short-btn");
+    const overlay       = document.getElementById("fx-chart-overlay");
+    const banner        = document.getElementById("fx-status-banner");
+    const activeSide    = isRunning ? casinoFxRun.positions[0]?.side : null;
 
     if (!betInput) return;
 
     betInput    .disabled = casinoBusy;
-    longBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
-    shortBtn    .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
+    longBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1) || activeSide === "SHORT";
+    shortBtn    .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1) || activeSide === "LONG";
 
     if (isGuest) {
         const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
@@ -1544,7 +1549,7 @@ async function settleForexPosition(secIdx) {
     const state                 = calcFxPortfolioState(casinoFxRun, clampedSec);
     casinoFxRun.sec             = clampedSec;
     casinoFxRun.currentPrice    = state.price;
-    casinoFxRun.equity          = state.equity;
+    casinoFxRun.equity          = state.liquidated ? 0 : state.equity;
     casinoFxRun.swapTotal       = state.swapTotal;
     casinoFxRun.liquidated      = state.liquidated;
     casinoFxRun.payout          = state.liquidated ? 0 : state.equity;
@@ -1597,7 +1602,7 @@ function startFxSecondLoop() {
         casinoFxRun.entryPrice      = state.weightedEntry;
         casinoFxRun.liqPrice        = state.weightedLiq;
 
-        if (state.liquidated) settleForexPosition(nextSec);
+        if (state.liquidated || state.takeProfitHit) settleForexPosition(nextSec);
         else renderForexUI();
     }, 1000);
 }
@@ -1622,14 +1627,16 @@ async function placeForexOrder(side) {
     try {
         if (!casinoFxRun || casinoFxRun.done) {
             if (!currentUser) {
-                const sim       = generateClientFxPath(casinoFxPair);
+                const sim       = generateClientFxPath(casinoFxPair, side);
                 const openPrice = sim.candles[0].open;
 
                 casinoFxRun = {
                     sessionId       : null,
                     pair            : casinoFxPair,
                     candles         : sim.candles,
-                    swapPerTick     : sim.swapPerTick,
+                    swapLong        : sim.swapLong,
+                    swapShort       : sim.swapShort,
+                    spread          : sim.spread,
                     sec             : 0,
                     currentPrice    : openPrice,
                     positions       : [{side, leverage: casinoFxLeverage, bet, entryPrice: openPrice, openSec: 0}],
@@ -1661,7 +1668,9 @@ async function placeForexOrder(side) {
                     sessionId       : s.sessionId,
                     pair            : s.pair,
                     candles         : s.candles,
-                    swapPerTick     : s.swapPerTick,
+                    swapLong        : s.swapLong,
+                    swapShort       : s.swapShort,
+                    spread          : s.spread,
                     sec             : 0,
                     currentPrice    : openPrice,
                     positions       : s.positions,
@@ -1692,11 +1701,13 @@ async function placeForexOrder(side) {
             const curSec = casinoFxRun.sec;
 
             if (!currentUser) {
+                const dir = side === "LONG" ? 1 : -1;
+
                 casinoFxRun.positions.push({
                     side,
                     leverage    : casinoFxLeverage,
                     bet,
-                    entryPrice  : casinoFxRun.currentPrice,
+                    entryPrice  : casinoFxRun.currentPrice * (1 + dir * (casinoFxRun.spread || 0)),
                     openSec     : curSec
                 });
 

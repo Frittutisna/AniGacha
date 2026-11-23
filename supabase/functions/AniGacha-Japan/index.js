@@ -1174,12 +1174,12 @@ serve(async (req) => {
             }), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         } else if (action === "CASINO_FX") {
             const FX_CONFIGS = {
-                "USD/JPY": {base: 154.200,  vol: 0.00024, drift:  0.000006, jumpProb: 0.020, jumpScale: 0.0022, swapPerTick:  0.0000, spread: 0.00012},
-                "AUD/JPY": {base: 100.400,  vol: 0.00033, drift:  0.000010, jumpProb: 0.018, jumpScale: 0.0030, swapPerTick:  0.0002, spread: 0.00016},
-                "GBP/JPY": {base: 195.800,  vol: 0.00056, drift: -0.000008, jumpProb: 0.032, jumpScale: 0.0044, swapPerTick:  0.0000, spread: 0.00024},
-                "EUR/CHF": {base: 0.94200,  vol: 0.00008, drift:  0.000000, jumpProb: 0.012, jumpScale: 0.0040, swapPerTick: -0.0002, spread: 0.00014},
-                "ZAR/JPY": {base: 8.4500,   vol: 0.00036, drift: -0.000055, jumpProb: 0.020, jumpScale: 0.0028, swapPerTick:  0.0016, spread: 0.00025},
-                "TRY/JPY": {base: 4.3800,   vol: 0.00052, drift: -0.000085, jumpProb: 0.028, jumpScale: 0.0042, swapPerTick:  0.0024, spread: 0.00035}
+                "USD/JPY": {base: 154.200,  vol: 0.00024, drift:  0.000000, jumpProb: 0.020, jumpScale: 0.0022, swapLong: -0.0003, swapShort: -0.0003, spread: 0.00016},
+                "AUD/JPY": {base: 100.400,  vol: 0.00033, drift:  0.000000, jumpProb: 0.018, jumpScale: 0.0030, swapLong:  0.0001, swapShort: -0.0006, spread: 0.00020},
+                "GBP/JPY": {base: 195.800,  vol: 0.00056, drift:  0.000000, jumpProb: 0.032, jumpScale: 0.0044, swapLong: -0.0004, swapShort: -0.0004, spread: 0.00030},
+                "EUR/CHF": {base: 0.94200,  vol: 0.00008, drift:  0.000000, jumpProb: 0.012, jumpScale: 0.0040, swapLong: -0.0004, swapShort: -0.0004, spread: 0.00018},
+                "ZAR/JPY": {base: 8.4500,   vol: 0.00036, drift: -0.000012, jumpProb: 0.020, jumpScale: 0.0028, swapLong:  0.0012, swapShort: -0.0020, spread: 0.00032},
+                "TRY/JPY": {base: 4.3800,   vol: 0.00052, drift: -0.000018, jumpProb: 0.028, jumpScale: 0.0042, swapLong:  0.0018, swapShort: -0.0028, spread: 0.00045}
             };
 
             const subAction = String(body.subAction || "");
@@ -1213,11 +1213,11 @@ serve(async (req) => {
                     let close   = open;
 
                     for (let t = 0; t < 5; t++) {
-                        if (Math.random() < 0.04) regime = (Math.random() - 0.52) * cfg.vol * 1.5;
+                        if (Math.random() < 0.05) regime = (Math.random() - 0.50) * cfg.vol * 1.6;
                         let ret = cfg.drift + regime + randn() * cfg.vol;
 
                         if (Math.random() < cfg.jumpProb) {
-                            const jumpDir   =   pair === "EUR/CHF" || pair === "TRY/JPY" ? (Math.random() < 0.58 ? -1 : 1) : (Math.random() < 0.52 ? -1 : 1);
+                            const jumpDir   =   Math.random() < 0.50 ? -1 : 1;
                             ret             +=  jumpDir * cfg.jumpScale * (0.65 + Math.random() * 0.95);
                         }
 
@@ -1239,7 +1239,9 @@ serve(async (req) => {
                     sessionId   : crypto.randomUUID(),
                     pair,
                     candles,
-                    swapPerTick : cfg.swapPerTick,
+                    swapLong    : cfg.swapLong,
+                    swapShort   : cfg.swapShort,
+                    spread      : cfg.spread,
                     totalMargin : bet,
                     positions   : [{side, leverage, bet, entryPrice, openSec: 0}]
                 };
@@ -1263,6 +1265,7 @@ serve(async (req) => {
 
                 if (!fxSession || fxSession.sessionId !== sessionId)    throw new Error("No active Forex session");
                 if (side !== "LONG" && side !== "SHORT")                throw new Error("Invalid trade direction");
+                if (fxSession.positions[0]?.side !== side)              throw new Error("Cannot hedge opposite direction in active session");
                 if (![100, 250, 500, 1000].includes(leverage))          throw new Error("Invalid leverage");
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000)     throw new Error("Bet must be between 1 and 1,000 Stars");
                 if (save.stars < bet)                                   throw new Error("Not enough stars");
@@ -1270,7 +1273,10 @@ serve(async (req) => {
                 save.stars -= bet;
 
                 const cIdx      = Math.floor(atSec / 5);
-                const markPrice = fxSession.candles[cIdx].close;
+                const subIdx    = atSec % 5;
+                const dir       = side === "LONG" ? 1 : -1;
+                const livePrice = fxSession.candles[cIdx].ticks?.[subIdx]?.close ?? fxSession.candles[cIdx].close;
+                const markPrice = livePrice * (1 + dir * (fxSession.spread || 0));
 
                 fxSession.positions.push({side, leverage, bet, entryPrice: markPrice, openSec: atSec});
                 fxSession.totalMargin += bet;
@@ -1302,10 +1308,12 @@ serve(async (req) => {
                     let swapSum = 0;
 
                     for (const pos of fxSession.positions) {
-                        const dir   =   pos.side === "LONG" ? 1 : -1;
-                        const move  =   ((price - pos.entryPrice) / pos.entryPrice) * dir;
-                        pnlSum      +=  pos.bet * pos.leverage * move;
-                        swapSum     +=  pos.bet * fxSession.swapPerTick * Math.max(0, (s + 1) - pos.openSec) * dir;
+                        const dir       = pos.side === "LONG" ? 1 : -1;
+                        const swapRate  = pos.side === "LONG" ? fxSession.swapLong : fxSession.swapShort;
+                        const move      = ((price - pos.entryPrice) / pos.entryPrice) * dir;
+
+                        pnlSum  += pos.bet * pos.leverage * move;
+                        swapSum += pos.bet * swapRate * Math.max(0, (s + 1) - pos.openSec);
                     }
 
                     swapTotal   = Math.round(swapSum);
@@ -1315,6 +1323,13 @@ serve(async (req) => {
                         liquidated  = true;
                         finalEquity = 0;
 
+                        break;
+                    }
+
+                    const maxPayout = fxSession.totalMargin * 4;
+
+                    if (eq >= maxPayout) {
+                        finalEquity = maxPayout;
                         break;
                     }
 
