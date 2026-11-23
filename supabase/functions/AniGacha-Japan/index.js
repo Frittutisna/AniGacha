@@ -1374,9 +1374,8 @@ serve(async (req) => {
             throw new Error("Invalid Forex action");
         } else if (action === "CASINO_SYNERGY") {
             const SWAP_STEP     = 5;
-            const TIER_ORDER    = ["SSR", "SR", "S", "A", "B", "C", "D", "E", "F"];
-            const TIER_RANK     = {SSR: 9, SR: 8, S: 7, A: 6, B: 5, C: 4, D: 3, E: 2, F: 1};
-            const RARITY_PTS    = {SSR: 128, SR: 64, S: 32, A: 16, B: 8, C: 4, D: 3, E: 2, F: 1};
+            const TIER_RANK     = {SSR: 9,      SR: 8,  S: 7,   A: 6,   B: 5, C: 4, D: 3, E: 2, F: 1};
+            const RARITY_PTS    = {SSR: 128,    SR: 64, S: 32,  A: 16,  B: 8, C: 4, D: 3, E: 2, F: 1};
 
             const getCardLevel = (count) => count >= 6 ? 3 : count >= 3 ? 2 : count === 2 ? 1 : 0;
 
