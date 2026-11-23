@@ -1467,7 +1467,7 @@ serve(async (req) => {
             const subAction = String(body.subAction || "");
 
             if (subAction === "START") {
-                if (ownedKeys.length < 28) throw new Error("You must have at least 28 cards in your collection to play Synergy");
+                if (ownedKeys.length < 56) throw new Error("You must have at least 56 cards in your collection to play Synergy");
                 const bet = Math.floor(Number(body.bet));
 
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");

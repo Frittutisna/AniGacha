@@ -515,7 +515,7 @@ document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
 
 const CASINO_RULES_TEXT = {
     BLACKJACK   : "Uses your Deck Collection/basic cards for empty slots\nJokers are worth 0 and never bust\nDealer stands on ≥17s\n2-card Blackjack pays 3:2",
-    SYNERGY     : `Requires ≥28 cards\nPlayer draws 7 cards; can swap for other cards\nSwap cost increases by ${SYNERGY_SWAP_STEP}; deducts from Net Synergy\nDealer draws 14 cards; scores from top 10\n7 mirrors pre-swap hand rarity-level\n7 random to highest pre-swap rarity\nHigher synergy wins 1:1; dealer wins ties`,
+    SYNERGY     : `Requires ≥56 cards\nPlayer draws 7 cards; can swap for other cards\nSwap cost increases by ${SYNERGY_SWAP_STEP}; deducts from Net Synergy\nDealer draws 14 cards; scores from top 10\n7 mirrors pre-swap hand rarity-level\n7 random to highest pre-swap rarity\nHigher synergy wins 1:1; dealer wins ties`,
     ROULETTE    : "Single-zero European wheel (0-36)\nRed/Black: 18 pockets, pays 1:1\nGreen/Numbers (1-6): 1 pocket, pays 35:1",
     FX          : "Compressed 5-minute FX chart (60 5-second candles)\nBlue = Bullish, Red = Bearish\nLoss-cut triggers at ≤15% equity\nTake-Profit auto-closes at 4x margin\nAdditional orders in a session must match your initial direction\nSettle anytime before 05:00 or hold until market close"
 };
@@ -640,7 +640,7 @@ function renderSynergyUI() {
 
     const isGuest       = !currentUser;
     const ownedKeys     = getOwnedCollectionKeys();
-    const hasMinCards   = ownedKeys.length >= 28;
+    const hasMinCards   = ownedKeys.length >= 56;
     const isActive      = casinoSynState?.status === "ACTIVE";
     betInput.disabled   = casinoBusy || isActive;
 
@@ -818,7 +818,7 @@ function handleGuestSynergy(subAction, bet = 10) {
     const fakeBet   = Math.min(1000, Math.max(1, Math.floor(Number(bet) || 10)));
 
     if (subAction === "START") {
-        if (ownedKeys.length < 28) return null;
+        if (ownedKeys.length < 56) return null;
 
         const playerHand                                    = sortHandByRarity      (shuffleArrayCopy(ownedKeys).slice(0, 7));
         const {dealerHand, dealerLevels, dealerPoolSize}    = buildGuestDealerHand  (playerHand);
@@ -927,8 +927,8 @@ async function runSynergyAction(subAction) {
     const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
     if (subAction === "START") {
-        if (getOwnedCollectionKeys().length < 28) {
-            alert("You need at least 28 cards in your collection to play Synergy");
+        if (getOwnedCollectionKeys().length < 56) {
+            alert("You need at least 56 cards in your collection to play Synergy");
             return;
         }
 
