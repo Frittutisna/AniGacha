@@ -1735,31 +1735,43 @@ serve(async (req) => {
                     const kind = types[i];
 
                     if (kind === "PERSON") {
-                        const mode = i % 3;
+                        const pools = [
+                            genres.length ? () => {
+                                const g = genres[Math.floor(rng() * genres.length)];
+                                return {kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from ${tabiWithArticle(g.title)} anime`}
+                            } : null,
 
-                        if (mode === 0 && genres.length) {
-                            const g = genres[Math.floor(rng() * genres.length)];
-                            prompts.push({kind: "PERSON", rule: "GENRE", value: g.title});
-                        } else if (mode === 1 && eras.length) {
-                            const e = eras[Math.floor(rng() * eras.length)];
-                            prompts.push({kind: "PERSON", rule: "ERA", value: e.title, idxs: new Set(e.idxs)});
-                        } else if (studios.length) {
-                            const s = studios[Math.floor(rng() * studios.length)];
-                            prompts.push({kind: "PERSON", rule: "STUDIO", value: s.title, idxs: new Set(s.idxs)});
-                        } else prompts.push({kind: "PERSON", rule: "ANY", value: "Any Character"});
+                            eras.length ? () => {
+                                const e = eras[Math.floor(rng() * eras.length)];
+                                return {kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from an anime in the ${e.title}`}
+                            } : null,
+
+                            studios.length ? () => {
+                                const s = studios[Math.floor(rng() * studios.length)];
+                                return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`}
+                            } : null
+                        ].filter(Boolean);
+
+                        if (pools.length) prompts.push(pools[i % pools.length]());
                     } else {
-                        const mode = i % 3;
+                        const pools = [
+                            genres.length ? () => {
+                                const g = genres[Math.floor(rng() * genres.length)];
+                                return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`}
+                            } : null,
 
-                        if (mode === 0 && genres.length) {
-                            const g = genres[Math.floor(rng() * genres.length)];
-                            prompts.push({kind: "WORK", rule: "GENRE", value: g.title});
-                        } else if (mode === 1 && sources.length) {
-                            const src = sources[Math.floor(rng() * sources.length)];
-                            prompts.push({kind: "WORK", rule: "SOURCE", value: src.title});
-                        } else if (tags.length) {
-                            const t = tags[Math.floor(rng() * tags.length)];
-                            prompts.push({kind: "WORK", rule: "TAG", value: t.title, idxs: new Set(t.idxs)});
-                        } else prompts.push({kind: "WORK", rule: "ANY", value: "Any Anime"});
+                            sources.length ? () => {
+                                const src = sources[Math.floor(rng() * sources.length)];
+                                return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`}
+                            } : null,
+
+                            tags.length ? () => {
+                                const t = tags[Math.floor(rng() * tags.length)];
+                                return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`}
+                            }: null
+                        ].filter(Boolean);
+
+                        if (pools.length) prompts.push(pools[i % pools.length]());
                     }
                 }
 
@@ -1852,7 +1864,7 @@ serve(async (req) => {
 
                         if (!save.tabiWeekly.completedDates.includes(dailyBanners.jstDate)) save.tabiWeekly.completedDates.push(dailyBanners.jstDate);
 
-                        if (save.tabiWeekly.completedDates.length >= 7 && !save.tabiWeekly.weeklyAwarded) {
+                        if (save.tabiWeekly.completedDates.length >= 6 && !save.tabiWeekly.weeklyAwarded) {
                             save.tabiWeekly.weeklyAwarded = true;
                             save.stars += 120;
                         }

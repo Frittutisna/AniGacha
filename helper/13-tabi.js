@@ -98,6 +98,7 @@ let tabiBusy                = false;
 let tabiTimerRaf            = null;
 let tabiActiveQuestionKey   = null;
 let tabiSelectedSuggestion  = null;
+let tabiSuggestionIndex     = -1;
 
 function tabiHashSeed(str) {
     let h = 1779033703 ^ str.length;
@@ -122,6 +123,13 @@ function tabiMulberry32(seed) {return function () {
 function tabiGetJstDow(jstDateStr) {
     const [y, m, d] = jstDateStr.split("-").map(Number);
     return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+function tabiWithArticle(word) {
+    const trimmed = String(word || "").trim();
+    const article = /^[aeiou]/i.test(trimmed) ? "an" : "a";
+
+    return `${article} ${trimmed}`;
 }
 
 function tabiBuildAnimeCatalog() {
@@ -182,31 +190,43 @@ function tabiGetDailyPrompts(jstDate) {
         const kind = types[i];
 
         if (kind === "PERSON") {
-            const mode = i % 3;
+            const pools = [
+                genres.length ? () => {
+                    const g = genres[Math.floor(rng() * genres.length)];
+                    return {kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from ${tabiWithArticle(g.title)} anime`}
+                } : null,
 
-            if (mode === 0 && genres.length) {
-                const g = genres[Math.floor(rng() * genres.length)];
-                prompts.push({kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from a(n) ${g.title} anime`});
-            } else if (mode === 1 && eras.length) {
-                const e = eras[Math.floor(rng() * eras.length)];
-                prompts.push({kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from the ${e.title}`});
-            } else if (studios.length) {
-                const s = studios[Math.floor(rng() * studios.length)];
-                prompts.push({kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`});
-            } else prompts.push({kind: "PERSON", rule: "ANY", value: "Any", text: "Name any anime character"});
+                eras.length ? () => {
+                    const e = eras[Math.floor(rng() * eras.length)];
+                    return {kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from an anime in the ${e.title}`}
+                } : null,
+
+                studios.length ? () => {
+                    const s = studios[Math.floor(rng() * studios.length)];
+                    return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`}
+                } : null
+            ].filter(Boolean);
+
+            if (pools.length) prompts.push(pools[i % pools.length]());
         } else {
-            const mode = i % 3;
+            const pools = [
+                genres.length ? () => {
+                    const g = genres[Math.floor(rng() * genres.length)];
+                    return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`}
+                } : null,
 
-            if (mode === 0 && genres.length) {
-                const g = genres[Math.floor(rng() * genres.length)];
-                prompts.push({kind: "WORK", rule: "GENRE", value: g.title, text: `Name a(n) ${g.title} anime`});
-            } else if (mode === 1 && sources.length) {
-                const src = sources[Math.floor(rng() * sources.length)];
-                prompts.push({kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from a(n) ${src.title}`});
-            } else if (tags.length) {
-                const t = tags[Math.floor(rng() * tags.length)];
-                prompts.push({kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`});
-            } else prompts.push({kind: "WORK", rule: "ANY", value: "Any", text: "Name any anime series"});
+                sources.length ? () => {
+                    const src = sources[Math.floor(rng() * sources.length)];
+                    return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`}
+                } : null,
+
+                tags.length ? () => {
+                    const t = tags[Math.floor(rng() * tags.length)];
+                    return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`}
+                }: null
+            ].filter(Boolean);
+
+            if (pools.length) prompts.push(pools[i % pools.length]());
         }
     }
 
@@ -293,23 +313,22 @@ function tabiRender() {
     const cfg       = SCHEDULE[dow];
     const prompts   = tabiGetDailyPrompts(jstDate);
 
-    document.getElementById("tabi-route-name").textContent = cfg.route;
     const curStationName = cfg.stations[tabiState.station] || "Tokyo";
+    document.getElementById("tabi-daily-reward").innerHTML = `<span>★</span> <span>${tabiState.dailyAwarded ? 120 : 0}/120</span>`;
 
-    document.getElementById("tabi-station-pos")     .textContent = curStationName;
-    document.getElementById("tabi-daily-reward")    .textContent = `★ ${tabiState.dailyAwarded ? 120 : 0}/120`;
-
-    const daysDone      = tabiWeeklyState.completedDates?.length || 0;
+    const daysDone      = Math.min(6, tabiWeeklyState.completedDates?.length || 0);
     const weeklyStar    = tabiWeeklyState.weeklyAwarded ? 120 : 0;
 
-    document.getElementById("tabi-weekly-reward")   .textContent = `${daysDone}/7 • ★ ${weeklyStar}/120`;
-    document.getElementById("tabi-track-start")     .textContent = `${cfg.stations[0]} (0)`;
-    document.getElementById("tabi-track-end")       .textContent = dow === 0 ? "Tokyo (30 / 5+ Laps)" : `${cfg.stations[20]} (20)`;
+    document.getElementById("tabi-weekly-label")    .textContent    = `Weekly Stars: ${daysDone}/6`;
+    document.getElementById("tabi-weekly-reward")   .innerHTML      = `<span>★</span> <span>${weeklyStar}/120</span>`;
 
-    const nodesEl = document.getElementById("tabi-track-nodes");
+    const routeEndpoints = dow === 0 ? "Tokyo ↻ Tokyo" : `${cfg.stations[0]} ➜ ${cfg.stations[20]}`;
+    document.getElementById("tabi-track-endpoints").textContent = `${cfg.route}: ${routeEndpoints}, currently in ${curStationName}`;
 
-    const orderedIndices    = dow === 0 ? cfg.stations.map((_, i) => i)                                         : [0, 1, 2, 3, 4, 5, 6, 13, 12, 11, 10, 9, 8, 7, 14, 15, 16, 17, 18, 19, 20];
-    nodesEl.className       = dow === 0 ? "grid grid-cols-6 sm:grid-cols-10 gap-2 justify-items-center py-1"    : "grid grid-cols-7 gap-2 justify-items-center py-1";
+    const nodesEl           = document.getElementById("tabi-track-nodes");
+    const isDesktop         = window.matchMedia("(min-width: 640px)").matches;
+    const orderedIndices    = (dow === 0 || isDesktop) ? cfg.stations.map((_, i) => i) : [0, 1, 2, 3, 4, 5, 6, 13, 12, 11, 10, 9, 8, 7, 14, 15, 16, 17, 18, 19, 20];
+    nodesEl.className       = dow === 0 ? "grid grid-cols-6 sm:flex sm:flex-nowrap sm:justify-between gap-1.5 sm:gap-1 justify-items-center py-1" : "grid grid-cols-7 sm:flex sm:flex-nowrap sm:justify-between gap-2 sm:gap-1.5 justify-items-center py-1";
 
     nodesEl.innerHTML = orderedIndices.map((idx) => {
         const stName    = cfg.stations[idx];
@@ -344,7 +363,7 @@ function tabiRender() {
         return `
             <div class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-xs">
                 <span class="truncate">Q${i + 1}: ${escapeHTML(entityTitle)}</span>
-                <span class="shrink-0 tabular-nums text-indigo-600 dark:text-indigo-400">${stepLabel}</span>
+                <span class="shrink-0 tabular-nums">${stepLabel}</span>
             </div>
         `;
     }).join("");
@@ -468,6 +487,8 @@ function tabiRenderSuggestions() {
     const inputEl = document.getElementById("tabi-answer-input");
     const sugWrap = document.getElementById("tabi-suggestions");
     const matches = tabiMatchSuggestions(inputEl.value);
+
+    tabiSuggestionIndex = -1;
 
     if (matches.length === 0) {
         sugWrap.classList.add("hidden");
@@ -601,12 +622,15 @@ async function tabiSubmitAnswer(timedOut = false) {
             tabiState.dailyAwarded = true;
 
             if (!tabiWeeklyState.completedDates.includes(jstDate))  tabiWeeklyState.completedDates.push(jstDate);
-            if (tabiWeeklyState.completedDates.length >= 7)         tabiWeeklyState.weeklyAwarded = true;
+            if (tabiWeeklyState.completedDates.length >= 6)         tabiWeeklyState.weeklyAwarded = true;
         }
     }
 
     document.getElementById("tabi-answer-input").value = "";
-    tabiSelectedSuggestion = null;
+
+    tabiSelectedSuggestion  = null;
+    tabiSuggestionIndex     = -1;
+
     tabiRender();
 }
 
@@ -614,20 +638,54 @@ document.getElementById("tabi-start-btn")?.     addEventListener("click", tabiHa
 document.getElementById("tabi-submit-btn")?.    addEventListener("click", () => tabiSubmitAnswer(false));
 
 document.getElementById("tabi-answer-input")?.addEventListener("input", () => {
-    tabiSelectedSuggestion = null;
+    tabiSelectedSuggestion  = null;
+    tabiSuggestionIndex     = -1;
+
     tabiRenderSuggestions();
 });
 
-document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) => {if (e.key === "Enter") {
-    e.preventDefault();
-    tabiSubmitAnswer(false);
-}});
+document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) => {
+    const sugWrap   = document.getElementById("tabi-suggestions");
+    const items     = sugWrap && !sugWrap.classList.contains("hidden") ? [...sugWrap.querySelectorAll("[data-tabi-id]")] : [];
+
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && items.length > 0) {
+        e.preventDefault();
+        tabiSuggestionIndex = (tabiSuggestionIndex + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+
+        items.forEach((b, i) => {
+            b.classList.toggle("bg-indigo-100",     i === tabiSuggestionIndex);
+            b.classList.toggle("dark:bg-slate-800", i === tabiSuggestionIndex);
+        });
+
+        items[tabiSuggestionIndex]?.scrollIntoView({block: "nearest"});
+        return;
+    }
+
+    if (e.key === "Escape" && items.length > 0) {
+        sugWrap.classList.add("hidden");
+        tabiSuggestionIndex = -1;
+        return;
+    }
+
+    if (e.key === "Enter") {
+        e.preventDefault();
+
+        if (tabiSuggestionIndex >= 0 && items[tabiSuggestionIndex]) {
+            items[tabiSuggestionIndex].click();
+            return;
+        }
+
+        const isEmpty = e.currentTarget.value.trim() === "";
+        tabiSubmitAnswer(isEmpty);
+    }
+});
 
 document.getElementById("tabi-suggestions")?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-tabi-id]");
     if (!btn) return;
 
-    tabiSelectedSuggestion = btn.getAttribute("data-tabi-id");
+    tabiSelectedSuggestion  = btn.getAttribute("data-tabi-id");
+    tabiSuggestionIndex     = -1;
 
     document.getElementById("tabi-answer-input").value = btn.getAttribute("data-tabi-label");
     document.getElementById("tabi-suggestions").classList.add("hidden");

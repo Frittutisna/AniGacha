@@ -1425,6 +1425,12 @@
   .py-8 {
     padding-block: calc(var(--spacing) * 8);
   }
+  .pt-0 {
+    padding-top: 0px;
+  }
+  .pt-0\.5 {
+    padding-top: calc(var(--spacing) * 0.5);
+  }
   .pt-1 {
     padding-top: var(--spacing);
   }
@@ -2143,14 +2149,23 @@
     .sm\:grid-cols-\[repeat\(18\,minmax\(0\,1fr\)\)\] {
       grid-template-columns: repeat(18,minmax(0,1fr));
     }
+    .sm\:flex-nowrap {
+      flex-wrap: nowrap;
+    }
     .sm\:flex-wrap {
       flex-wrap: wrap;
     }
     .sm\:items-center {
       align-items: center;
     }
+    .sm\:justify-between {
+      justify-content: space-between;
+    }
     .sm\:justify-center {
       justify-content: center;
+    }
+    .sm\:gap-1 {
+      gap: var(--spacing);
     }
     .sm\:gap-1\.5 {
       gap: calc(var(--spacing) * 1.5);
