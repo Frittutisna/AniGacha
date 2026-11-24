@@ -112,6 +112,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <th>Premium Spawn Rate (%)</th>
             <th>Spark Cost (Summons)</th>
             <th>Base Sell Price (★)</th>
+            <th>Card Power</th>
             <th>Auto-Lock</th>
             <th>50/50-Eligible</th>
         </tr>
@@ -125,6 +126,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td>0.25</td>
             <td>5,000</td>
             <td>256</td>
+            <td>128</td>
             <td rowspan=3 colspan=2>Yes</td>
         </tr>
         <tr>
@@ -135,6 +137,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td>0.5</td>
             <td>2,500</td>
             <td>128</td>
+            <td>64</td>
         </tr>
         <tr>
             <td>S</td>
@@ -144,6 +147,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td>1</td>
             <td>1,000</td>
             <td>64</td>
+            <td>32</td>
         </tr>
         <tr>
             <td>A</td>
@@ -152,6 +156,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td colspan=2>2</td>
             <td>500</td>
             <td>32</td>
+            <td>16</td>
             <td rowspan=6 colspan=2>No</td>
         </tr>
         <tr>
@@ -161,6 +166,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td colspan=2>4</td>
             <td>250</td>
             <td>16</td>
+            <td>8</td>
         </tr>
         <tr>
             <td>C</td>
@@ -169,6 +175,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td colspan=2>8</td>
             <td>100</td>
             <td>8</td>
+            <td>4</td>
         </tr>
         <tr>
             <td>D</td>
@@ -176,6 +183,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td colspan=3>16</td>
             <td>50</td>
             <td>4</td>
+            <td>3</td>
         </tr>
         <tr>
             <td>E</td>
@@ -183,7 +191,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td>25</td>
             <td colspan=2>32</td>
             <td>25</td>
-            <td>2</td>
+            <td colspan=2>2</td>
         </tr>
         <tr>
             <td>F</td>
@@ -192,7 +200,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td>37.125</td>
             <td>36.25</td>
             <td>10</td>
-            <td>1</td>
+            <td colspan=1>1</td>
         </tr>
     </tbody>
 </table>
@@ -435,7 +443,7 @@ Every character in the database is assigned one of **4** Deck Suits (Spades, Hea
 $$S_{\text{group}} = P_{\text{comp}} + P_{\text{power}} + \sum_{\text{attr}} w_{\text{attr}} \sum_{g} \binom{c_g}{2}$$
 
 * **Completion ($P_{\text{comp}}$)**: Awards **Slot Base** points per filled card plus **Full Bonus** points when all slots in that scope are filled
-* **Card Power ($P_{\text{power}}$)**: $\sum (\text{TierPts} + 4 \times \text{Level})$ where `TierPts` are `128/64/32/16/8/4/3/2/1` in descending rarity order
+* **Card Power ($P_{\text{power}}$)**: $\sum (\text{TierPts} + 4 \times \text{Level})$
 * **Attribute Pair Bonuses**: For each group of $c_g \ge 2$ cards sharing an attribute, adds $\frac{c_g(c_g - 1)}{2} \times w_{\text{attr}}$ (Genre/Tag are capped at the top **3** matching groups):
 
 <table>
@@ -713,7 +721,7 @@ $$C_{\text{swap}} = \sum_{k=1}^{n_{\text{swaps}}} 5k = \frac{5 \cdot n_{\text{sw
             <td>154.2</td>
             <td>0.024</td>
             <td rowspan="4">0</td>
-            <td>2.0</td>
+            <td>2</td>
             <td>0.22</td>
             <td colspan="2">-0.03</td>
             <td>0.016</td>
