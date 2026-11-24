@@ -200,7 +200,7 @@ Characters are divided into **9** rarity tiers. **Standard**, **Themed**, and **
             <td>37.125</td>
             <td>36.25</td>
             <td>10</td>
-            <td colspan=1>1</td>
+            <td colspan=2>1</td>
         </tr>
     </tbody>
 </table>
