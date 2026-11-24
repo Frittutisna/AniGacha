@@ -397,7 +397,8 @@ function applySaveState(data) {
         if (typeof aniQuizRenderMissions === "function") aniQuizRenderMissions();
     }
 
-    if (isSharedView) return;
+    if (typeof tabiApplyState === "function")   tabiApplyState(data);
+    if (isSharedView)                           return;
 
     inventory                   = data.inventory && typeof data.inventory === "object" ? data.inventory : {};
     const shouldDefaultOwned    = Boolean(currentUser);

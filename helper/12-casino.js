@@ -18,13 +18,15 @@ let casinoSynGuestState     = null;
 const NAV_ICONS = {
     HOME    : '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
     QUIZ    : '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
-    CASINO  : '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor"/>'
+    CASINO  : '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor"/>',
+    TABI    : '<rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="m8 19-2 3"/><path d="m18 22-2-3"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="15" r="1"/>'
 };
 
 const NAV_LABELS = {
     HOME    : "Home",
     QUIZ    : "Quiz",
-    CASINO  : "Casino"
+    CASINO  : "Casino",
+    TABI    : "Tabi"
 };
 
 const ROULETTE_RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
@@ -75,44 +77,39 @@ const SYNERGY_TIER_ORDER = {
 };
 
 function syncHeaderNavButtons(currentPage) {
-    const pairs = {
-        HOME    : ["QUIZ", "CASINO"],
-        QUIZ    : ["HOME", "CASINO"],
-        CASINO  : ["HOME", "QUIZ"]
+    const triples = {
+        HOME    : ["QUIZ", "CASINO",    "TABI"],
+        QUIZ    : ["HOME", "CASINO",    "TABI"],
+        CASINO  : ["HOME", "QUIZ",      "TABI"],
+        TABI    : ["HOME", "QUIZ",      "CASINO"]
     };
 
-    const [firstTarget, secondTarget] = pairs[currentPage] || pairs.HOME;
+    const [firstTarget, secondTarget, thirdTarget] = triples[currentPage] || triples.HOME;
 
-    const btn1  = document.getElementById("page-nav-btn");
-    const icon1 = document.getElementById("page-nav-icon");
-    const btn2  = document.getElementById("casino-nav-btn");
-    const icon2 = document.getElementById("casino-nav-icon");
+    const slots = [
+        {btn: document.getElementById("page-nav-btn"),      icon: document.getElementById("page-nav-icon"),     target: firstTarget},
+        {btn: document.getElementById("casino-nav-btn"),    icon: document.getElementById("casino-nav-icon"),   target: secondTarget},
+        {btn: document.getElementById("tabi-nav-btn"),      icon: document.getElementById("tabi-nav-icon"),     target: thirdTarget}
+    ];
 
-    if (btn1) {
-        btn1.dataset.targetPage = firstTarget;
-        btn1.setAttribute("aria-label", NAV_LABELS[firstTarget]);
+    for (const {btn, icon, target} of slots) {
+        if (btn) {
+            btn.dataset.targetPage = target;
+            btn.setAttribute("aria-label", NAV_LABELS[target]);
 
-        btn1.title = NAV_LABELS[firstTarget];
-        btn1.removeAttribute("data-tooltip");
+            btn.title = NAV_LABELS[target];
+            btn.removeAttribute("data-tooltip");
+        }
+
+        if (icon) icon.innerHTML = NAV_ICONS[target];
     }
-
-    if (icon1) icon1.innerHTML = NAV_ICONS[firstTarget];
-
-    if (btn2) {
-        btn2.dataset.targetPage = secondTarget;
-        btn2.setAttribute("aria-label", NAV_LABELS[secondTarget]);
-
-        btn2.title = NAV_LABELS[secondTarget];
-        btn2.removeAttribute("data-tooltip");
-    }
-
-    if (icon2) icon2.innerHTML = NAV_ICONS[secondTarget];
 }
 
 function switchHeaderPage(targetPage) {
     const mainPage      = document.getElementById("main-page");
     const quizPage      = document.getElementById("quiz-page");
     const casinoPage    = document.getElementById("casino-page");
+    const tabiPage      = document.getElementById("tabi-page");
     const leavingQuiz   = !quizPage.classList.contains("hidden") && targetPage !== "QUIZ";
 
     if (leavingQuiz && typeof aniQuizRun !== "undefined" && aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden")) {
@@ -126,6 +123,7 @@ function switchHeaderPage(targetPage) {
     mainPage    .classList.toggle("hidden", targetPage !== "HOME");
     quizPage    .classList.toggle("hidden", targetPage !== "QUIZ");
     casinoPage  .classList.toggle("hidden", targetPage !== "CASINO");
+    tabiPage?.   classList.toggle("hidden", targetPage !== "TABI");
 
     syncHeaderNavButtons(targetPage);
 
@@ -152,7 +150,7 @@ function switchHeaderPage(targetPage) {
         renderRouletteUI    ();
         renderForexUI       ();
         renderSynergyUI     ();
-    }
+    } else if (targetPage === "TABI" && typeof tabiOnPageOpen === "function") tabiOnPageOpen()
 
     window.scrollTo({top: 0, behavior: "instant"});
 }
@@ -547,6 +545,11 @@ syncHeaderNavButtons("HOME");
 
 document.getElementById("casino-nav-btn")?.addEventListener("click", () => {
     const targetPage = document.getElementById("casino-nav-btn").dataset.targetPage || "CASINO";
+    switchHeaderPage(targetPage);
+});
+
+document.getElementById("tabi-nav-btn")?.addEventListener("click", () => {
+    const targetPage = document.getElementById("tabi-nav-btn").dataset.targetPage || "TABI";
     switchHeaderPage(targetPage);
 });
 

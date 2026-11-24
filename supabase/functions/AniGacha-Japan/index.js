@@ -524,7 +524,9 @@ serve(async (req) => {
             CASINO_BLACKJACK        : 100,
             CASINO_SYNERGY          : 100,
             CASINO_ROULETTE         : 100,
-            CASINO_FX               : 100
+            CASINO_FX               : 100,
+            TABI_START              : 10,
+            TABI_ANSWER             : 100
         };
 
         const actionLimit = RATE_LIMITS[action] ?? 10;
@@ -666,6 +668,35 @@ serve(async (req) => {
             save.quizDaily.progress.shortTimeQuiz   = save.quizDaily.progress.shortTimeQuiz     === true;
             save.quizDaily.progress.allOptionsQuiz  = save.quizDaily.progress.allOptionsQuiz    === true;
         }
+
+        const getJstWeekMonday = (jstDateStr) => {
+            const [y, m, d] = jstDateStr.split("-").map(Number);
+            const dt        = new Date(Date.UTC(y, m - 1, d));
+            const day       = dt.getUTCDay();
+            const diffToMon = (day + 6) % 7;
+
+            dt.setUTCDate(dt.getUTCDate() - diffToMon);
+            return dt.toISOString().slice(0, 10);
+        };
+
+        const currentWeekStart = getJstWeekMonday(dailyBanners.jstDate);
+
+        if (!save.tabiWeekly || save.tabiWeekly.weekStart !== currentWeekStart) save.tabiWeekly = {
+            weekStart       : currentWeekStart,
+            completedDates  : [],
+            weeklyAwarded   : false
+        };
+
+        if (!save.tabiDaily || save.tabiDaily.date !== dailyBanners.jstDate) save.tabiDaily = {
+            date            : dailyBanners.jstDate,
+            started         : false,
+            completed       : false,
+            dailyAwarded    : false,
+            station         : 0,
+            laps            : 0,
+            qIndex          : 0,
+            answers         : []
+        };
 
         if (action === "INIT") {
             const incomingDiscordName = typeof body.discordName === "string" ? body.discordName.trim().slice(0, 24) : "";
@@ -1664,6 +1695,174 @@ serve(async (req) => {
             }
 
             throw new Error("Invalid Synergy action");
+        } else if (action === "TABI_START" || action === "TABI_ANSWER") {
+            const [y, m, d] = dailyBanners.jstDate.split("-").map(Number);
+            const dow       = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun, 1=Mon..6=Sat
+
+            const DAY_CONFIG = {
+                1: {route: "West",  qCount: 7, target: 20, maxStep: 5,  types: Array(7).fill("PERSON")},
+                2: {route: "North", qCount: 7, target: 20, maxStep: 5,  types: Array(7).fill("WORK")},
+                3: {route: "West",  qCount: 6, target: 20, maxStep: 5,  types: Array(6).fill("PERSON")},
+                4: {route: "North", qCount: 6, target: 20, maxStep: 5,  types: Array(6).fill("WORK")},
+                5: {route: "West",  qCount: 5, target: 20, maxStep: 5,  types: Array(5).fill("PERSON")},
+                6: {route: "North", qCount: 5, target: 20, maxStep: 5,  types: Array(5).fill("WORK")},
+                0: {route: "Loop",  qCount: 6, target: 30, maxStep: 30, types: null}
+            };
+
+            const cfg = DAY_CONFIG[dow];
+            const rng = mulberry32(hashSeed(`anigacha-tabi-${dailyBanners.jstDate}`));
+
+            const buildDailyPrompts = () => {
+                const types = dow === 0 ? (() => {
+                    const arr = ["PERSON", "PERSON", "PERSON", "WORK", "WORK", "WORK"];
+
+                    for (let i = arr.length - 1; i > 0; i--) {
+                        const j = Math.floor(rng() * (i + 1));
+                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                    }
+
+                    return arr;
+                })() : cfg.types;
+
+                const prompts   = [];
+                const eras      = gameData.themedOptions.ERA    || [];
+                const genres    = gameData.themedOptions.GENRE  || [];
+                const studios   = gameData.themedOptions.STUDIO || [];
+                const sources   = gameData.themedOptions.SOURCE || [];
+                const tags      = gameData.themedOptions.TAG    || [];
+
+                for (let i = 0; i < cfg.qCount; i++) {
+                    const kind = types[i];
+
+                    if (kind === "PERSON") {
+                        const mode = i % 3;
+
+                        if (mode === 0 && genres.length) {
+                            const g = genres[Math.floor(rng() * genres.length)];
+                            prompts.push({kind: "PERSON", rule: "GENRE", value: g.title});
+                        } else if (mode === 1 && eras.length) {
+                            const e = eras[Math.floor(rng() * eras.length)];
+                            prompts.push({kind: "PERSON", rule: "ERA", value: e.title, idxs: new Set(e.idxs)});
+                        } else if (studios.length) {
+                            const s = studios[Math.floor(rng() * studios.length)];
+                            prompts.push({kind: "PERSON", rule: "STUDIO", value: s.title, idxs: new Set(s.idxs)});
+                        } else prompts.push({kind: "PERSON", rule: "ANY", value: "Any Character"});
+                    } else {
+                        const mode = i % 3;
+
+                        if (mode === 0 && genres.length) {
+                            const g = genres[Math.floor(rng() * genres.length)];
+                            prompts.push({kind: "WORK", rule: "GENRE", value: g.title});
+                        } else if (mode === 1 && sources.length) {
+                            const src = sources[Math.floor(rng() * sources.length)];
+                            prompts.push({kind: "WORK", rule: "SOURCE", value: src.title});
+                        } else if (tags.length) {
+                            const t = tags[Math.floor(rng() * tags.length)];
+                            prompts.push({kind: "WORK", rule: "TAG", value: t.title, idxs: new Set(t.idxs)});
+                        } else prompts.push({kind: "WORK", rule: "ANY", value: "Any Anime"});
+                    }
+                }
+
+                return prompts;
+            };
+
+            const prompts = buildDailyPrompts();
+
+            if (action === "TABI_START") {
+                if (save.tabiDaily.completed) throw new Error("Today's Tabi has ended");
+                save.tabiDaily.started = true;
+            } else {
+                const td = save.tabiDaily;
+                if (!td.started)                    throw new Error("Start today's Tabi first");
+                if (td.completed)                   throw new Error("Today's Tabi has ended");
+                if (td.qIndex >= prompts.length)    throw new Error("No questions remaining");
+
+                const prompt        = prompts[td.qIndex];
+                const passed        = body.passed === true;
+                const uniqueKey     = typeof body.uniqueKey === "string" ? body.uniqueKey   .trim() : "";
+                const animeId       = typeof body.animeId   === "string" ? body.animeId     .trim() : "";
+                let stationsMoved   = 0;
+                let obscurityPct    = 0;
+
+                if (!passed) {
+                    if (td.answers.some(a => (uniqueKey && a.uniqueKey === uniqueKey) || (animeId && a.animeId === animeId))) throw new Error("Answer already used today");
+
+                    if (prompt.kind === "PERSON") {
+                        const char = gameData.charMap.get(uniqueKey);
+                        if (!char) throw new Error("Character not found");
+
+                        const charIdx       = gameData.charList.findIndex(row => row[0] === uniqueKey);
+                        const hasCharGenre  = Array.isArray(char.genres) ? char.genres.includes(prompt.value) : Boolean(char.genres?.has?.(prompt.value));
+
+                        if (prompt.rule === "GENRE"                                 && !hasCharGenre ||
+                            ((prompt.rule === "ERA" || prompt.rule === "STUDIO")    && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
+
+                        const rankRatio = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
+                        obscurityPct    = Math.round(rankRatio * 100);
+                        stationsMoved   = Math.max(1, Math.min(cfg.maxStep, Math.ceil(rankRatio * cfg.maxStep)));
+                        label           = uniqueKey;
+                    } else {
+                        const keysForAnime = gameData.animeToCharKeys.get(animeId);
+                        if (!keysForAnime || keysForAnime.length === 0) throw new Error("Anime not found");
+
+                        const repChar       = gameData.charMap.get(keysForAnime[0]);
+                        const repIdx        = gameData.charList.findIndex(row => row[0] === keysForAnime[0]);
+                        const hasRepGenre   = Array.isArray(repChar?.genres) ? repChar.genres.includes(prompt.value) : Boolean(repChar?.genres?.has?.(prompt.value));
+
+                        if ((prompt.rule === "GENRE"    && !hasRepGenre)                        ||
+                            (prompt.rule === "SOURCE"   && repChar?.source !== prompt.value)    ||
+                            (prompt.rule === "TAG"      && !prompt.idxs?.has(repIdx))) throw new Error("Wrong anime");
+
+                        const bestIdx = Math.min(...keysForAnime.map(k => {
+                            const idx = gameData.charList.findIndex(row => row[0] === k);
+                            return idx >= 0 ? idx : gameData.charList.length - 1;
+                        }));
+
+                        const rankRatio = bestIdx / Math.max(1, gameData.charList.length - 1);
+                        obscurityPct    = Math.round(rankRatio * 100);
+                        stationsMoved   = Math.max(1, Math.min(cfg.maxStep, Math.ceil(rankRatio * cfg.maxStep)));
+                        label           = animeId;
+                    }
+                }
+
+                if (dow === 0) {
+                    const totalSteps    =   td.station + stationsMoved;
+                    td.laps             +=  Math.floor(totalSteps / 30);
+                    td.station          =   totalSteps % 30;
+                } else td.station       =   Math.min(20, td.station + stationsMoved);
+
+                td.answers.push({
+                    qIndex      : td.qIndex,
+                    kind        : prompt.kind,
+                    uniqueKey   : prompt.kind === "PERSON"  ? uniqueKey : null,
+                    animeId     : prompt.kind === "WORK"    ? animeId   : null,
+                    stationsMoved, obscurityPct
+                });
+
+                td.qIndex += 1;
+
+                const reachedGoal = dow === 0 ? (td.qIndex === cfg.qCount && td.laps >= 5 && td.station === 0) : (td.station === 20);
+
+                if (td.qIndex >= cfg.qCount || (dow !== 0 && td.station === 20)) {
+                    td.completed = true;
+
+                    if (reachedGoal && !td.dailyAwarded) {
+                        td.dailyAwarded =   true;
+                        save.stars      +=  120;
+
+                        if (!save.tabiWeekly.completedDates.includes(dailyBanners.jstDate)) save.tabiWeekly.completedDates.push(dailyBanners.jstDate);
+
+                        if (save.tabiWeekly.completedDates.length >= 7 && !save.tabiWeekly.weeklyAwarded) {
+                            save.tabiWeekly.weeklyAwarded = true;
+                            save.stars += 120;
+                        }
+                    }
+                }
+            }
+
+            const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+            if (conflictResponse) return conflictResponse;
+            return new Response(JSON.stringify({save, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         }
 
         const lockedSet             = new Set(save.lockedCards || []);
