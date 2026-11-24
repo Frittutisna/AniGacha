@@ -133,6 +133,7 @@ let linkedAnilistHistory        = new Set();
 let lastAnilistChangeJstYear    = null;
 let listPulls                   = 0;
 let playerDeck                  = {};
+let casinoDailyBet              = null;
 
 const SUMMON_COSTS = {
     STANDARD    : 80,
@@ -388,6 +389,8 @@ function applySaveState(data) {
 
     updateHeaderProfileUI   ();
     updateStarsUI           ();
+
+    casinoDailyBet = data.casinoDailyBet && typeof data.casinoDailyBet === "object" ? {...data.casinoDailyBet} : null;
 
     if (typeof aniQuizDaily !== "undefined") {
         aniQuizDaily = data.quizDaily || null;

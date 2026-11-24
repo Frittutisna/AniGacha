@@ -638,6 +638,19 @@ serve(async (req) => {
             }
         });
 
+        const DAILY_CASINO_BET_LIMIT = 1000;
+
+        const emptyCasinoDailyBet = () => ({
+            date        : dailyBanners.jstDate,
+            BLACKJACK   : 0,
+            ROULETTE    : 0,
+            FX          : 0,
+            SYNERGY     : 0
+        });
+
+        if (!save.casinoDailyBet || save.casinoDailyBet.date !== dailyBanners.jstDate)  save.casinoDailyBet     = emptyCasinoDailyBet();
+        else for (const g of ["BLACKJACK", "ROULETTE", "FX", "SYNERGY"])                save.casinoDailyBet[g]  = Math.max(0, Math.floor(Number(save.casinoDailyBet[g]) || 0));
+
         if (!save.quizDaily || save.quizDaily.date !== dailyBanners.jstDate) save.quizDaily = emptyQuizDaily();
         else {
             save.quizDaily.quizEarned       = Math.max(0, Math.min(120, Number(save.quizDaily.quizEarned)       || 0));
@@ -1012,9 +1025,11 @@ serve(async (req) => {
             const subAction = body.subAction;
 
             if (subAction === "DEAL") {
-                const bet = Math.floor(Number(body.bet));
+                const bet               = Math.floor(Number(body.bet));
+                const remainingDaily    = DAILY_CASINO_BET_LIMIT - save.casinoDailyBet.BLACKJACK;
 
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (bet > remainingDaily)                           throw new Error(`Exceeds daily bet limit (${remainingDaily.toLocaleString()} Stars remaining)`);
                 if (save.stars < bet)                               throw new Error("Not enough stars");
 
                 const shoe = [];
@@ -1025,7 +1040,8 @@ serve(async (req) => {
                     [shoe[i], shoe[j]] = [shoe[j], shoe[i]];
                 }
 
-                save.stars -= bet;
+                save.stars                      -= bet;
+                save.casinoDailyBet.BLACKJACK   += bet;
 
                 const playerCards = [shoe.pop(), shoe.pop()];
                 const dealerCards = [shoe.pop(), shoe.pop()];
@@ -1155,19 +1171,23 @@ serve(async (req) => {
 
             throw new Error("Invalid Blackjack action");
         } else if (action === "CASINO_ROULETTE") {
-            const RED_NUMBERS   = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-            const bet           = Math.floor(Number(body.bet));
-            const betColor      = body.color    != null ?   String(body.color).toUpperCase() : null;
-            const betNumber     = body.number   != null ?   Number(body.number) : null;
-            const validColor    = betColor      !== null && ["RED", "BLACK", "GREEN"].includes(betColor);
-            const validNumber   = betNumber     !== null && Number.isInteger(betNumber) && betNumber >= 1 && betNumber <= 36;
+            const RED_NUMBERS       = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+            const bet               = Math.floor(Number(body.bet));
+            const betColor          = body.color    != null ?   String(body.color).toUpperCase() : null;
+            const betNumber         = body.number   != null ?   Number(body.number) : null;
+            const validColor        = betColor      !== null && ["RED", "BLACK", "GREEN"].includes(betColor);
+            const validNumber       = betNumber     !== null && Number.isInteger(betNumber) && betNumber >= 1 && betNumber <= 36;
+            const remainingDaily    = DAILY_CASINO_BET_LIMIT - save.casinoDailyBet.ROULETTE;
 
             if ((!validColor && !validNumber) || (validColor && validNumber))   throw new Error("Invalid bet selection");
             if (!Number.isFinite(bet) || bet < 1 || bet > 1000)                 throw new Error("Bet must be between 1 and 1,000 Stars");
+            if (bet > remainingDaily)                                           throw new Error(`Exceeds daily bet limit (${remainingDaily.toLocaleString()} Stars remaining)`);
             if (save.stars < bet)                                               throw new Error("Not enough stars");
 
-            save.stars      -=  bet;
-            const pocket    =   Math.floor(Math.random() * 37);
+            save.stars                   -=  bet;
+            save.casinoDailyBet.ROULETTE +=  bet;
+
+            const pocket = Math.floor(Math.random() * 37);
 
             const resultColor   = pocket === 0  ? "GREEN"                                                       : (RED_NUMBERS.has(pocket) ? "RED" : "BLACK");
             const won           = validNumber   ? (pocket === betNumber)                                        : (resultColor === betColor);
@@ -1203,18 +1223,21 @@ serve(async (req) => {
             const subAction = String(body.subAction || "");
 
             if (subAction === "OPEN") {
-                const pair      = String(body.pair || "");
-                const side      = String(body.side || "").toUpperCase();
-                const leverage  = Number(body.leverage);
-                const bet       = Math.floor(Number(body.bet));
+                const pair              = String(body.pair || "");
+                const side              = String(body.side || "").toUpperCase();
+                const leverage          = Number(body.leverage);
+                const bet               = Math.floor(Number(body.bet));
+                const remainingDaily    = DAILY_CASINO_BET_LIMIT - save.casinoDailyBet.FX;
 
                 if (!FX_CONFIGS[pair])                              throw new Error("Invalid currency pair");
                 if (side !== "LONG" && side !== "SHORT")            throw new Error("Invalid trade direction");
                 if (![100, 250, 500, 1000].includes(leverage))      throw new Error("Invalid leverage");
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (bet > remainingDaily)                           throw new Error(`Exceeds daily bet limit (${remainingDaily.toLocaleString()} Stars remaining)`);
                 if (save.stars < bet)                               throw new Error("Not enough stars");
 
-                save.stars -= bet;
+                save.stars              -= bet;
+                save.casinoDailyBet.FX  += bet;
 
                 const cfg       = FX_CONFIGS[pair];
                 const randn     = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
@@ -1274,21 +1297,24 @@ serve(async (req) => {
             }
 
             if (subAction === "ADD") {
-                const fxSession = save.fxSession;
-                const sessionId = String(body.sessionId || "");
-                const side      = String(body.side || "").toUpperCase();
-                const leverage  = Number(body.leverage);
-                const bet       = Math.floor(Number(body.bet));
-                const atSec     = Math.min(299, Math.max(0, Math.floor(Number(body.atSec) || 0)));
+                const fxSession         = save.fxSession;
+                const sessionId         = String(body.sessionId || "");
+                const side              = String(body.side || "").toUpperCase();
+                const leverage          = Number(body.leverage);
+                const bet               = Math.floor(Number(body.bet));
+                const atSec             = Math.min(299, Math.max(0, Math.floor(Number(body.atSec) || 0)));
+                const remainingDaily    = DAILY_CASINO_BET_LIMIT - save.casinoDailyBet.FX;
 
                 if (!fxSession || fxSession.sessionId !== sessionId)    throw new Error("No active Forex session");
                 if (side !== "LONG" && side !== "SHORT")                throw new Error("Invalid trade direction");
                 if (fxSession.positions[0]?.side !== side)              throw new Error("Cannot hedge opposite direction in active session");
                 if (![100, 250, 500, 1000].includes(leverage))          throw new Error("Invalid leverage");
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000)     throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (bet > remainingDaily)                               throw new Error(`Exceeds daily bet limit (${remainingDaily.toLocaleString()} Stars remaining)`);
                 if (save.stars < bet)                                   throw new Error("Not enough stars");
 
-                save.stars -= bet;
+                save.stars              -= bet;
+                save.casinoDailyBet.FX  += bet;
 
                 const cIdx      = Math.floor(atSec / 5);
                 const subIdx    = atSec % 5;
@@ -1468,12 +1494,15 @@ serve(async (req) => {
 
             if (subAction === "START") {
                 if (ownedKeys.length < 56) throw new Error("You must have at least 56 cards in your collection to play Synergy");
-                const bet = Math.floor(Number(body.bet));
+                const bet               = Math.floor(Number(body.bet));
+                const remainingDaily    = DAILY_CASINO_BET_LIMIT - save.casinoDailyBet.SYNERGY;
 
                 if (!Number.isFinite(bet) || bet < 1 || bet > 1000) throw new Error("Bet must be between 1 and 1,000 Stars");
+                if (bet > remainingDaily)                           throw new Error(`Exceeds daily bet limit (${remainingDaily.toLocaleString()} Stars remaining)`);
                 if (save.stars < bet)                               throw new Error("Not enough stars");
 
-                save.stars -= bet;
+                save.stars                  -= bet;
+                save.casinoDailyBet.SYNERGY += bet;
 
                 const globalKeys    = gameData.charList.map(([key]) => key);
                 const playerHand    = sortByRarity(shuffle(ownedKeys).slice(0, 7));

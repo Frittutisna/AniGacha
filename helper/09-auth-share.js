@@ -220,7 +220,8 @@ sb.auth.onAuthStateChange((event, session) => {
             anilistUsername             : null,
             anilistAnimeIds             : [],
             linkedAnilistHistory        : [],
-            lastAnilistChangeJstYear    : null
+            lastAnilistChangeJstYear    : null,
+            casinoDailyBet              : null
         });
 
         if (databaseReady) applyDailyBanners(getClientDailyBanners());

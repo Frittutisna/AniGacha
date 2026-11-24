@@ -39,8 +39,28 @@ const FX_PAIR_META = {
     "TRY/JPY": {decimals: 4, desc: "Carry yield on Longs, chaotic slides, violent spikes"}
 };
 
-const SYNERGY_DEALER_FACTOR = 2;
-const SYNERGY_SWAP_STEP     = 5;
+const SYNERGY_DEALER_FACTOR   = 2;
+const SYNERGY_SWAP_STEP       = 5;
+const CASINO_DAILY_BET_CAP    = 1000;
+
+function getCasinoClientJstDate() {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone    : "Asia/Tokyo",
+        year        : "numeric",
+        month       : "2-digit",
+        day         : "2-digit"
+    }).format(new Date());
+}
+
+function getRemainingDailyCasinoBet(gameKey) {
+    if (!currentUser) return CASINO_DAILY_BET_CAP;
+
+    const jstDate = activeDailyJstDate || getCasinoClientJstDate();
+    if (!casinoDailyBet || casinoDailyBet.date !== jstDate) return CASINO_DAILY_BET_CAP;
+
+    const used = Math.max(0, Math.floor(Number(casinoDailyBet[gameKey]) || 0));
+    return Math.max(0, CASINO_DAILY_BET_CAP - used);
+}
 
 const SYNERGY_TIER_ORDER = {
     SSR : 9,
@@ -287,7 +307,9 @@ function renderBlackjackUI() {
         actionRow       .classList  .remove ("grid");
         betControls     .classList  .remove ("opacity-50", "pointer-events-none");
 
-        dealBtn.disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
+        const remBj = getRemainingDailyCasinoBet("BLACKJACK");
+        dealBtn.disabled = casinoBusy || !databaseReady || (!isGuest && (stars < 1 || remBj < 1));
+
         return;
     }
 
@@ -308,7 +330,8 @@ function renderBlackjackUI() {
     betControls.classList.toggle("opacity-50",          isActive);
     betControls.classList.toggle("pointer-events-none", isActive);
 
-    dealBtn.disabled = casinoBusy || isActive || (!isGuest && stars < 1);
+    const remBj = getRemainingDailyCasinoBet("BLACKJACK");
+    dealBtn.disabled = casinoBusy || isActive || (!isGuest && (stars < 1 || remBj < 1));
 
     if (isActive) statusBanner.classList.add("hidden");
     else {
@@ -443,9 +466,23 @@ async function runBlackjackAction(subAction) {
     const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
     if (subAction === "DEAL") {
-        if (currentUser && stars < bet) {
-            alert("Not enough stars");
-            return;
+        if (currentUser) {
+            const remBj = getRemainingDailyCasinoBet("BLACKJACK");
+
+            if (remBj < 1) {
+                alert("Reached daily bet limit");
+                return;
+            }
+
+            if (bet > remBj) {
+                alert(`Exceeds daily bet limit (${remBj.toLocaleString()} Stars remaining)`);
+                return;
+            }
+
+            if (stars < bet) {
+                alert("Not enough stars");
+                return;
+            }
         }
 
         betInput.value = bet;
@@ -664,7 +701,9 @@ function renderSynergyUI() {
         actionRow?.     classList.remove    ("grid");
         betControls?.   classList.remove    ("opacity-50", "pointer-events-none");
 
-        startBtn.disabled = casinoBusy || !databaseReady || !hasMinCards || (!isGuest && stars < 1);
+        const remSyn = getRemainingDailyCasinoBet("SYNERGY");
+        startBtn.disabled = casinoBusy || !databaseReady || !hasMinCards || (!isGuest && (stars < 1 || remSyn < 1));
+
         return;
     }
 
@@ -732,7 +771,8 @@ function renderSynergyUI() {
     betControls?.classList.toggle("opacity-50",             isActive);
     betControls?.classList.toggle("pointer-events-none",    isActive);
 
-    startBtn.disabled = casinoBusy || isActive || !hasMinCards || (!isGuest && stars < 1);
+    const remSyn = getRemainingDailyCasinoBet("SYNERGY");
+    startBtn.disabled = casinoBusy || isActive || !hasMinCards || (!isGuest && (stars < 1 || remSyn < 1));
 
     if (isActive || revealing) statusBanner?.classList.add("hidden");
     else if (statusBanner) {
@@ -932,9 +972,23 @@ async function runSynergyAction(subAction) {
             return;
         }
 
-        if (currentUser && stars < bet) {
-            alert("Not enough stars");
-            return;
+        if (currentUser) {
+            const remSyn = getRemainingDailyCasinoBet("SYNERGY");
+
+            if (remSyn < 1) {
+                alert("Reached daily bet limit");
+                return;
+            }
+
+            if (bet > remSyn) {
+                alert(`Exceeds daily bet limit (${remSyn.toLocaleString()} Stars remaining)`);
+                return;
+            }
+
+            if (stars < bet) {
+                alert("Not enough stars");
+                return;
+            }
         }
 
         if (betInput) betInput.value = bet;
@@ -1161,9 +1215,10 @@ function renderRouletteUI() {
     const isGuest       = !currentUser;
 
     if (!betInput || !spinBtn) return;
+    betInput.disabled = casinoBusy;
 
-    betInput    .disabled = casinoBusy;
-    spinBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1);
+    const remRl = getRemainingDailyCasinoBet("ROULETTE");
+    spinBtn.disabled = casinoBusy || !databaseReady || (!isGuest && (stars < 1 || remRl < 1));
 
     if (isGuest) {
         const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
@@ -1230,9 +1285,23 @@ async function runRouletteSpin() {
     const rawBet    = Math.floor(Number(betInput.value) || 1);
     const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
-    if (currentUser && stars < bet) {
-        alert("Not enough stars");
-        return;
+    if (currentUser) {
+        const remRl = getRemainingDailyCasinoBet("ROULETTE");
+
+        if (remRl < 1) {
+            alert("Reached daily bet limit");
+            return;
+        }
+
+        if (bet > remRl) {
+            alert(`Exceeds daily bet limit (${remRl.toLocaleString()} Stars remaining)`);
+            return;
+        }
+
+        if (stars < bet) {
+            alert("Not enough stars");
+            return;
+        }
     }
 
     betInput.value      = bet;
@@ -1483,10 +1552,12 @@ function renderForexUI() {
     const activeSide    = isRunning ? casinoFxRun.positions[0]?.side : null;
 
     if (!betInput) return;
+    betInput.disabled = casinoBusy;
 
-    betInput    .disabled = casinoBusy;
-    longBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1) || activeSide === "SHORT";
-    shortBtn    .disabled = casinoBusy || !databaseReady || (!isGuest && stars < 1) || activeSide === "LONG";
+    const remFx = getRemainingDailyCasinoBet("FX");
+
+    longBtn     .disabled = casinoBusy || !databaseReady || (!isGuest && (stars < 1 || remFx < 1)) || activeSide === "SHORT";
+    shortBtn    .disabled = casinoBusy || !databaseReady || (!isGuest && (stars < 1 || remFx < 1)) || activeSide === "LONG";
 
     if (isGuest) {
         const clamped = Math.min(1000, Math.max(1, Math.floor(Number(betInput.value) || 10)));
@@ -1644,9 +1715,23 @@ async function placeForexOrder(side) {
     const rawBet    = Math.floor(Number(betInput.value) || 1);
     const bet       = currentUser ? Math.max(1, rawBet) : Math.min(1000, Math.max(1, rawBet));
 
-    if (currentUser && stars < bet) {
-        alert("Not enough stars");
-        return;
+    if (currentUser) {
+        const remFx = getRemainingDailyCasinoBet("FX");
+
+        if (remFx < 1) {
+            alert("Reached daily bet limit");
+            return;
+        }
+
+        if (bet > remFx) {
+            alert(`Exceeds daily bet limit (${remFx.toLocaleString()} Stars remaining)`);
+            return;
+        }
+
+        if (stars < bet) {
+            alert("Not enough stars");
+            return;
+        }
     }
 
     betInput.value = bet;

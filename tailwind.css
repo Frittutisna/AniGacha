@@ -523,9 +523,6 @@
   .h-64 {
     height: calc(var(--spacing) * 64);
   }
-  .h-\[calc\(\(100vw-3\.375rem\)\/5\+0\.5rem\)\] {
-    height: calc((100vw - 3.375rem) / 5 + 0.5rem);
-  }
   .h-\[calc\(\(100vw-3\.375rem\)\/5\+0\.5rem\+2px\)\] {
     height: calc((100vw - 3.375rem) / 5 + 0.5rem + 2px);
   }
@@ -699,9 +696,6 @@
   }
   .snap-center {
     scroll-snap-align: center;
-  }
-  .auto-rows-fr {
-    grid-auto-rows: minmax(0, 1fr);
   }
   .auto-rows-max {
     grid-auto-rows: max-content;
@@ -1870,9 +1864,6 @@
     }
     .sm\:h-72 {
       height: calc(var(--spacing) * 72);
-    }
-    .sm\:h-\[calc\(\(min\(100vw-2rem\,64rem\)-4\.875rem\)\/10\+0\.5rem\)\] {
-      height: calc((min(100vw - 2rem, 64rem) - 4.875rem) / 10 + 0.5rem);
     }
     .sm\:h-\[calc\(\(min\(100vw-2rem\,64rem\)-4\.875rem\)\/10\+0\.5rem\+2px\)\] {
       height: calc((min(100vw - 2rem, 64rem) - 4.875rem) / 10 + 0.5rem + 2px);

@@ -1,4 +1,4 @@
-# AniGacha v0.8.0-beta
+# AniGacha v0.8.1-beta
 
 ## Changelog
 1. Changed Sort/Filter to only show S+ rarity checkboxes when selecting 50/50s
@@ -17,3 +17,4 @@
     2. Synergy
     3. Roulette
     4. Forex
+9. Added daily per-game bet limits
