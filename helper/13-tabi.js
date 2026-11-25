@@ -338,7 +338,7 @@ function tabiRender() {
         const isPassed  = dow !== 0 && idx < tabiState.station;
 
         const dotClass = isCurrent
-            ? "bg-indigo-600 text-white ring-2 ring-indigo-400 scale-110"
+            ? "bg-indigo-600 text-white scale-110"
             : isPassed
                 ? "bg-emerald-500/80 text-white"
                 : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400";
@@ -393,10 +393,10 @@ function tabiRender() {
             }`;
 
             summaryEl.textContent = maxWon
-                ? `Reached the end of your Tabi! (+${dailyEarned} ★)`
+                ? `Reached the end of your Tabi! (★ ${dailyEarned})`
                 : dow === 0
-                    ? `Tabi ended at ${curStationName} after ${tabiState.laps} laps (+${dailyEarned} ★)`
-                    : `Tabi ended at ${curStationName} (+${dailyEarned} ★)`;
+                    ? `Tabi ended at ${curStationName} after ${tabiState.laps} laps (★ ${dailyEarned})`
+                    : `Tabi ended at ${curStationName} (★ ${dailyEarned})`;
         } else {
             startBtn.classList.remove("hidden");
             startBtn.disabled = tabiBusy;
@@ -419,8 +419,6 @@ function tabiRender() {
     const inputEl       = document.getElementById("tabi-answer-input");
     inputEl.placeholder = prompt.kind === "PERSON" ? "Search character name" : "Search anime title";
     inputEl.disabled    = tabiBusy;
-
-    document.getElementById("tabi-submit-btn").disabled = tabiBusy;
 
     const qKey = `${jstDate}:${tabiState.qIndex}`;
 
@@ -455,11 +453,7 @@ function tabiMatchSuggestions(query) {
 
         for (let i = 0; i < characterPool.length; i++) {
             const c = characterPool[i];
-
-            if (usedKeys.has(c.uniqueKey)   || !c.name.toLowerCase().includes(q))       continue;
-            if (prompt.rule === "GENRE"     && !tabiHasGenre(c.genres, prompt.value))   continue;
-            if (prompt.rule === "ERA"       && !prompt.keys?.has(c.uniqueKey))          continue;
-            if (prompt.rule === "STUDIO"    && !prompt.keys?.has(c.uniqueKey))          continue;
+            if (usedKeys.has(c.uniqueKey) || !c.name.toLowerCase().includes(q)) continue;
 
             const series = titleLang === "EN" ? (c.animeEnglish || c.animeRomaji || "") : (c.animeRomaji || c.animeEnglish || "");
             out.push({id: c.uniqueKey, label: c.name, sub: series, rankIdx: i});
@@ -472,12 +466,9 @@ function tabiMatchSuggestions(query) {
 
         for (const a of tabiAnimeCatalog) {
             if (usedAnimes.has(a.animeId)) continue;
-            const disp = titleLang === "EN" ? a.english : a.romaji;
 
-            if (!a.romaji.toLowerCase().includes(q) && !a.english.toLowerCase().includes(q))            continue;
-            if (prompt.rule === "GENRE"             && !tabiHasGenre(a.genres, prompt.value))           continue;
-            if (prompt.rule === "SOURCE"            && a.source !== prompt.value)                       continue;
-            if (prompt.rule === "TAG"               && ![...a.charKeys].some(k => prompt.keys?.has(k))) continue;
+            const disp = titleLang === "EN" ? a.english : a.romaji;
+            if (!a.romaji.toLowerCase().includes(q) && !a.english.toLowerCase().includes(q)) continue;
 
             out.push({id: a.animeId, label: disp, sub: a.source || "", rankIdx: a.bestRankIdx});
             if (out.length >= 30) break;
@@ -546,12 +537,46 @@ async function tabiSubmitAnswer(timedOut = false) {
     let selectedId = tabiSelectedSuggestion;
 
     if (!timedOut && !selectedId) {
-        const matches = tabiMatchSuggestions(document.getElementById("tabi-answer-input").value);
-        if (matches.length > 0) selectedId = matches[0].id;
+        alert("Select a valid option from the suggestions");
+        return;
     }
 
-    if (!timedOut && !selectedId) {
-        alert("Select a valid option from the suggestions");
+    const tabiIsAnswerValid = (p, id) => {
+        if (p.kind === "PERSON") {
+            const c = characterMap.get(id);
+            if (!c) return false;
+
+            if (p.rule === "GENRE")     return tabiHasGenre(c.genres, p.value);
+            if (p.rule === "ERA")       return Boolean(p.keys?.has(id));
+            if (p.rule === "STUDIO")    return Boolean(p.keys?.has(id));
+
+            return true;
+        } else {
+            const a = tabiAnimeCatalog.find(x => x.animeId === id);
+            if (!a) return false;
+
+            if (p.rule === "GENRE")     return tabiHasGenre(a.genres, p.value);
+            if (p.rule === "SOURCE")    return a.source === p.value;
+            if (p.rule === "TAG")       return [...a.charKeys].some(k => p.keys?.has(k));
+
+            return true;
+        }
+    };
+
+    const rejectWrongAnswer = (msg) => {
+        const inputEl = document.getElementById("tabi-answer-input");
+        inputEl.value = "";
+
+        tabiSelectedSuggestion  = null;
+        tabiSuggestionIndex     = -1;
+
+        document.getElementById("tabi-suggestions").classList.add("hidden");
+        alert(msg);
+        inputEl.focus();
+    };
+
+    if (!timedOut && !tabiIsAnswerValid(prompt, selectedId)) {
+        rejectWrongAnswer(prompt.kind === "PERSON" ? "Wrong character; try again" : "Wrong anime; try again");
         return;
     }
 
@@ -560,7 +585,8 @@ async function tabiSubmitAnswer(timedOut = false) {
 
     if (currentUser) {
         tabiBusy = true;
-        tabiRender();
+        document.getElementById("tabi-answer-input").disabled = true;
+        let res = null;
 
         try {
             const payload = {
@@ -570,7 +596,7 @@ async function tabiSubmitAnswer(timedOut = false) {
                 animeId   : prompt.kind === "WORK"   ? selectedId : null
             };
 
-            const res = await sendGachaAction(payload);
+            res = await sendGachaAction(payload);
 
             if (res) {
                 document.getElementById("tabi-answer-input").value = "";
@@ -578,7 +604,13 @@ async function tabiSubmitAnswer(timedOut = false) {
             }
         } finally {
             tabiBusy = false;
-            tabiRender();
+            if (res) tabiRender();
+            else {
+                const inputEl       = document.getElementById("tabi-answer-input");
+                inputEl.disabled    = false;
+
+                inputEl.focus();
+            }
         }
 
         return;
@@ -591,13 +623,13 @@ async function tabiSubmitAnswer(timedOut = false) {
         if (prompt.kind === "PERSON") {
             const idx           = characterPool.findIndex(c => c.uniqueKey === selectedId);
             const rankRatio     = idx >= 0 ? (idx / Math.max(1, characterPool.length - 1)) : 0;
-            const curvedRatio   = Math.pow      (rankRatio, 2.5);
+            const curvedRatio   = Math.pow      (rankRatio, 1);
             obscurityPct        = Math.round    (rankRatio * 100);
             stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         } else {
             const an            = tabiAnimeCatalog.find(a => a.animeId === selectedId);
             const rankRatio     = an ? (an.bestRankIdx / Math.max(1, characterPool.length - 1)) : 0;
-            const curvedRatio   = Math.pow      (rankRatio, 2.5);
+            const curvedRatio   = Math.pow      (rankRatio, 1);
             obscurityPct        = Math.round    (rankRatio * 100);
             stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         }
@@ -648,8 +680,7 @@ async function tabiSubmitAnswer(timedOut = false) {
     tabiRender();
 }
 
-document.getElementById("tabi-start-btn")?.     addEventListener("click", tabiHandleStart);
-document.getElementById("tabi-submit-btn")?.    addEventListener("click", () => tabiSubmitAnswer(false));
+document.getElementById("tabi-start-btn")?.addEventListener("click", tabiHandleStart);
 
 document.getElementById("tabi-answer-input")?.addEventListener("input", () => {
     tabiSelectedSuggestion  = null;

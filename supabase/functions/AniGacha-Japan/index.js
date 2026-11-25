@@ -1812,7 +1812,7 @@ serve(async (req) => {
                             ((prompt.rule === "ERA" || prompt.rule === "STUDIO")    && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
 
                         const rankRatio     = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
-                        const curvedRatio   = Math.pow      (rankRatio, 2.5);
+                        const curvedRatio   = Math.pow      (rankRatio, 1);
                         obscurityPct        = Math.round    (rankRatio * 100);
                         stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
                         label               = uniqueKey;
@@ -1834,7 +1834,7 @@ serve(async (req) => {
                         }));
 
                         const rankRatio     = bestIdx / Math.max(1, gameData.charList.length - 1);
-                        const curvedRatio   = Math.pow      (rankRatio, 2.5);
+                        const curvedRatio   = Math.pow      (rankRatio, 1);
                         obscurityPct        = Math.round    (rankRatio * 100);
                         stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
                         label               = animeId;
