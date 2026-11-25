@@ -679,14 +679,17 @@ function tabiRender() {
         playPanel.classList.add     ("hidden");
 
         historyEl.innerHTML = renderLogHTML();
+        const summaryRowEl  = document.getElementById("tabi-summary-row");
 
         if (tabiState.completed) {
             document.getElementById("tabi-start-wrap").classList.add("hidden");
-            summaryEl.classList.remove("hidden");
+
+            summaryRowEl?.  classList.remove("hidden");
+            summaryEl.      classList.remove("hidden");
 
             const maxWon = dailyEarned >= 120;
 
-            summaryEl.className = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${
+            summaryEl.className = `flex-1 min-w-0 rounded-lg border px-3 py-2 text-center text-sm font-bold ${
                 maxWon
                     ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                     : dailyEarned > 0
@@ -712,8 +715,10 @@ function tabiRender() {
                 rulesPill.removeAttribute   ("title");
             }
 
-            summaryEl.classList.add("hidden");
+            summaryRowEl?.  classList.add("hidden");
+            summaryEl.      classList.add("hidden");
         }
+
         return;
     }
 
@@ -925,4 +930,38 @@ document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) =>
         const isEmpty = e.currentTarget.value.trim() === "";
         tabiSubmitAnswer(isEmpty);
     }
+});
+
+function tabiBuildShareText() {
+    tabiEnsureLocalState();
+
+    const jstDate   = tabiState.date;
+    const dow       = tabiGetJstDow(jstDate);
+    const moves     = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("-");
+    const siteUrl   = "https://frittutisna.github.io/AniGacha";
+
+    if (dow === 0) {
+        const laps          = Number(tabiState.laps) || 0;
+        const lapPlural     = laps === 1 ? "" : "s";
+        const direction     = tabiState.station < 15 ? "past" : "from";
+        const distFromTokyo = Math.min(tabiState.station, 30 - tabiState.station);
+        const distPlural    = distFromTokyo === 1 ? "" : "s";
+
+        return [`AniGacha-Tabi: ${jstDate}`, `${laps} lap${lapPlural}, ${distFromTokyo} station${distPlural} ${direction} Tokyo Station`, moves, siteUrl].join("\n");
+    }
+
+    const totalStations = Number(tabiState.station) || 0;
+    return [`AniGacha-Tabi: ${jstDate}`, `${totalStations}: ${moves}`, siteUrl].join("\n");
+}
+
+document.getElementById("tabi-share-btn")?.addEventListener("click", async () => {
+    if (!tabiState?.completed) return;
+
+    const shareText     = tabiBuildShareText();
+    const shareModalEl  = document.getElementById("share-modal");
+
+    try {
+        await navigator.    clipboard.writeText (shareText);
+        shareModalEl?.      classList.remove    ("hidden");
+    } catch {prompt("Copy your Tabi result:", shareText);}
 });
