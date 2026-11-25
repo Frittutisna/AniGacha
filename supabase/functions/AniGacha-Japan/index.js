@@ -45,68 +45,69 @@ const AUTO_LOCK_TIERS   = new Set(["SSR", "SR", "S"]);
 const FIFTY_FIFTY_TIERS = new Set(["SSR", "SR", "S"]);
 const THEMED_KEYS       = ["ERA", "FRANCHISE", "GENRE", "SOURCE", "STUDIO", "TAG"];
 const rarityInfoMap     = new Map(RARITIES.map(r => [r.tier, r]));
+const SERVER_DATA_URL   = "https://frittutisna.github.io/AniGacha/supabase/functions/AniGacha-Japan/server-data.json";
 
 let cachedData      = null;
 let dataLoadPromise = null;
 
-function getGameData(adminClient) {
+function getGameData() {
     if (cachedData)         return cachedData;
     if (dataLoadPromise)    return dataLoadPromise;
 
     dataLoadPromise = (async () => {
-        const {data: blob, error} = await adminClient.storage.from("game-data").download("server-data.json");
+        try {
+            const response = await fetch(SERVER_DATA_URL);
+            if (!response.ok) throw new Error(`Failed to load server-data.json from GitHub Pages: (HTTP ${response.status})`)
 
-        if (error || !blob) {
-            dataLoadPromise = null;
-            throw new Error("Failed to load server-data.json from storage");
-        }
+            const parsed            = await response.json();
+            const animesMap         = parsed.animes || {};
+            const charList          = parsed.chars;
+            const charMap           = new Map();
+            const animeToCharKeys   = new Map();
+            const globalBuckets     = {};
 
-        const parsed            = JSON.parse(await blob.text());
-        const animesMap         = parsed.animes || {};
-        const charList          = parsed.chars;
-        const charMap           = new Map();
-        const animeToCharKeys   = new Map();
-        const globalBuckets     = {};
+            RARITIES.forEach(r => globalBuckets[r.tier] = []);
 
-        RARITIES.forEach(r => globalBuckets[r.tier] = []);
+            for (const [uniqueKey, tier, animeId = null, deckRank = "2", deckSuit = "Spades"] of charList) {
+                const normAnimeId   = animeId       ? String(animeId).trim()                    :   null;
+                const animeMeta     = normAnimeId   ? animesMap[normAnimeId]                    :   null;
+                const rawDateInt    = animeMeta?.[1]                                            ??  null;
+                const animeYear     = rawDateInt    ? Math.floor(Number(rawDateInt) / 10000)    :   null;
 
-        for (const [uniqueKey, tier, animeId = null, deckRank = "2", deckSuit = "Spades"] of charList) {
-            const normAnimeId   = animeId       ? String(animeId).trim()                    :   null;
-            const animeMeta     = normAnimeId   ? animesMap[normAnimeId]                    :   null;
-            const rawDateInt    = animeMeta?.[1]                                            ??  null;
-            const animeYear     = rawDateInt    ? Math.floor(Number(rawDateInt) / 10000)    :   null;
+                charMap.set(uniqueKey, {
+                    uniqueKey, tier,
+                    animeId     : normAnimeId,
+                    rootAnimeId : animeMeta?.[0] || normAnimeId,
+                    animeYear,
+                    genres      : Array.isArray(animeMeta?.[2]) ? animeMeta[2] : [],
+                    tags        : Array.isArray(animeMeta?.[3]) ? animeMeta[3] : [],
+                    studios     : Array.isArray(animeMeta?.[4]) ? animeMeta[4] : [],
+                    source      : animeMeta?.[5] || null,
+                    deckRank, deckSuit
+                });
 
-            charMap.set(uniqueKey, {
-                uniqueKey,
-                tier,
-                animeId     : normAnimeId,
-                rootAnimeId : animeMeta?.[0] || normAnimeId,
-                animeYear,
-                genres      : Array.isArray(animeMeta?.[2]) ? animeMeta[2] : [],
-                tags        : Array.isArray(animeMeta?.[3]) ? animeMeta[3] : [],
-                studios     : Array.isArray(animeMeta?.[4]) ? animeMeta[4] : [],
-                source      : animeMeta?.[5] || null,
-                deckRank,
-                deckSuit
-            });
+                globalBuckets[tier].push(uniqueKey);
 
-            globalBuckets[tier].push(uniqueKey);
+                if (normAnimeId) {
+                    let arr = animeToCharKeys.get(normAnimeId);
 
-            if (normAnimeId) {
-                let arr = animeToCharKeys.get(normAnimeId);
+                    if (!arr) {
+                        arr = [];
+                        animeToCharKeys.set(normAnimeId, arr);
+                    }
 
-                if (!arr) {
-                    arr = [];
-                    animeToCharKeys.set(normAnimeId, arr);
+                    arr.push(uniqueKey);
                 }
-
-                arr.push(uniqueKey);
             }
-        }
 
-        RARITIES.forEach(r => {if (globalBuckets[r.tier].length === 0) globalBuckets[r.tier].push(charList[0][0])});
-        cachedData = {charList, charMap, animeToCharKeys, globalBuckets, themedOptions: parsed.themedOptions};
-        return cachedData;
+            RARITIES.forEach(r => {if (globalBuckets[r.tier].length === 0) globalBuckets[r.tier].push(charList[0][0])});
+            cachedData = {charList, charMap, animeToCharKeys, globalBuckets, themedOptions: parsed.themedOptions};
+            return cachedData;
+
+        } catch (error) {
+            dataLoadPromise = null;
+            throw error;
+        }
     })();
 
     return dataLoadPromise;
@@ -559,7 +560,7 @@ serve(async (req) => {
         })}
 
         const [gameData, { data: existing, error: loadError }] = await Promise.all([
-            getGameData(adminClient),
+            getGameData(),
 
             adminClient
                 .from("player_saves")
