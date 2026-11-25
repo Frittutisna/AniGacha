@@ -201,32 +201,27 @@ function tabiLastAlpha(str) {
     return m ? m[0].toUpperCase() : null;
 }
 
-function tabiCheckLexicalPerson(c, lexRule, lexVal) {
-    const name  = String(c?.name || "").trim();
-    const words = name.split(/\s+/).filter(Boolean);
+function tabiCheckLexicalRule(rawStrings, lexRule, lexVal) {
+    const strings = (rawStrings || []).filter(Boolean).map(s => String(s).trim());
+    if (!strings.length) return false;
 
-    if (lexRule === "MONONYM")          return words.length === 1;
-    if (lexRule === "THREE_PLUS_WORDS") return words.length >=  3;
-    if (lexRule === "ALLITERATION")     return words.length >=  2 && tabiFirstAlpha(words[0]) !== null && tabiFirstAlpha(words[0]) === tabiFirstAlpha(words[words.length - 1]);
-    if (lexRule === "STARTS_WITH")      return tabiFirstAlpha   (name) === lexVal;
-    if (lexRule === "ENDS_WITH")        return tabiLastAlpha    (name) === lexVal;
-    if (lexRule === "DOUBLE_LETTER")    return /([A-Za-z])\1/i.test(name);
+    return strings.some(str => {
+        const words = str.split(/\s+/).filter(Boolean);
 
-    return false;
-}
+        if (lexRule === "ONE_WORD")         return words.length === 1;
+        if (lexRule === "TWO_WORDS")        return words.length === 2;
+        if (lexRule === "THREE_PLUS_WORDS") return words.length >=  3;
+        if (lexRule === "FIVE_PLUS_WORDS")  return words.length >=  5;
+        if (lexRule === "ALLITERATION")     return words.length >=  2 && tabiFirstAlpha(words[0]) !== null && tabiFirstAlpha(words[0]) === tabiFirstAlpha(words[words.length - 1]);
+        if (lexRule === "DOUBLE_LETTER")    return /([A-Za-z])\1/i          .test(str);
+        if (lexRule === "STARTS_WITH")      return tabiFirstAlpha   (str) === lexVal;
+        if (lexRule === "ENDS_WITH")        return tabiLastAlpha    (str) === lexVal;
+        if (lexRule === "HAS_LETTER")       return new RegExp(lexVal, "i")  .test(str);
+        if (lexRule === "HAS_NUMBER")       return /\d/                     .test(str);
+        if (lexRule === "HAS_PUNCTUATION")  return /[^\p{L}\p{N}\s]/u       .test(str);
 
-function tabiCheckLexicalWork(a, lexRule, lexVal) {
-    const titles = [a?.romaji, a?.english].filter(Boolean).map(t => String(t).trim());
-    if (!titles.length) return false;
-
-    if (lexRule === "ONE_WORD")         return titles.some(t => tabiCountWords(t) ===   1);
-    if (lexRule === "TWO_WORDS")        return titles.some(t => tabiCountWords(t) ===   2);
-    if (lexRule === "LONG_TITLE")       return titles.some(t => tabiCountWords(t) >=    5);
-    if (lexRule === "STARTS_WITH")      return titles.some(t => tabiFirstAlpha(t) ===   lexVal);
-    if (lexRule === "HAS_NUMBER")       return titles.some(t => /\d/.test(t));
-    if (lexRule === "HAS_PUNCTUATION")  return titles.some(t => /[:!?]/.test(t));
-
-    return false;
+        return false;
+    });
 }
 
 function tabiCheckPromptCandidate(p, id) {
@@ -241,7 +236,7 @@ function tabiCheckPromptCandidate(p, id) {
         if (p.rule === "INT_GENRE_SOURCE")                                                      return tabiHasGenre(c.genres, p.genre) && c.source === p.source;
         if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_FRANCHISE"] .includes(p.rule))  return c.source === p.source && Boolean(p.keys?.has(id));
         if (["INT_ERA_STUDIO", "INT_ERA_FRANCHISE", "INT_STUDIO_FRANCHISE"] .includes(p.rule))  return Boolean(p.keysA?.has(id)) && Boolean(p.keysB?.has(id));
-        if (p.rule === "LEX_PERSON")                                                            return tabiCheckLexicalPerson(c, p.lexRule, p.lexVal);
+        if (p.rule === "LEX")                                                                   return tabiCheckLexicalRule([c.name], p.lexRule, p.lexVal);
 
         return true;
     } else {
@@ -259,7 +254,7 @@ function tabiCheckPromptCandidate(p, id) {
         if (p.rule === "INT_GENRE_SOURCE")                                                  return tabiHasGenre(a.genres, p.genre) && a.source === p.source;
         if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_TAG"]   .includes(p.rule))  return a.source === p.source && hasAnime();
         if (["INT_ERA_STUDIO", "INT_ERA_TAG", "INT_STUDIO_TAG"]         .includes(p.rule))  return hasAnimeA() && hasAnimeB();
-        if (p.rule === "LEX_WORK")                                                          return tabiCheckLexicalWork(a, p.lexRule, p.lexVal);
+        if (p.rule === "LEX")                                                               return tabiCheckLexicalRule([a.romaji, a.english], p.lexRule, p.lexVal);
 
         return true;
     }
@@ -341,7 +336,28 @@ function tabiGetDailyPrompts(jstDate) {
     const letters           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
     const prompts           = [];
     const usedSignatures    = new Set();
+    let lastBucketIdx       = -1;
     const pick              = (arr) => arr[Math.floor(rng() * arr.length)];
+
+    const buildLexicalBuilders = (kind) => {
+        const subject       = kind === "PERSON" ? "a character" : "an anime";
+        const noun          = kind === "PERSON" ? "name"        : "title";
+        const possessive    = kind === "PERSON" ? "their"       : "its";
+
+        return [
+            () => (                                 {kind, rule: "LEX", lexRule: "ONE_WORD",                text: `Name ${subject} with a one-word ${noun}`}),
+            () => (                                 {kind, rule: "LEX", lexRule: "TWO_WORDS",               text: `Name ${subject} with a two-word ${noun}`}),
+            () => (                                 {kind, rule: "LEX", lexRule: "THREE_PLUS_WORDS",        text: `Name ${subject} whose ${noun} has 3 or more words`}),
+            () => (                                 {kind, rule: "LEX", lexRule: "FIVE_PLUS_WORDS",         text: `Name ${subject} whose ${noun} has 5 or more words`}),
+            () => (                                 {kind, rule: "LEX", lexRule: "ALLITERATION",            text: `Name ${subject} whose first and last words in ${possessive} ${noun} start with the same letter`}),
+            () => (                                 {kind, rule: "LEX", lexRule: "DOUBLE_LETTER",           text: `Name ${subject} whose ${noun} has doubled letters`}),
+            () => {const l = pick(letters); return  {kind, rule: "LEX", lexRule: "STARTS_WITH", lexVal: l,  text: `Name ${subject} whose ${noun} starts with the letter ${l}`}},
+            () => {const l = pick(letters); return  {kind, rule: "LEX", lexRule: "ENDS_WITH",   lexVal: l,  text: `Name ${subject} whose ${noun} ends with the letter ${l}`}},
+            () => {const l = pick(letters); return  {kind, rule: "LEX", lexRule: "HAS_LETTER",  lexVal: l,  text: `Name ${subject} whose ${noun} contains the letter ${l}`}},
+            () => (                                 {kind, rule: "LEX", lexRule: "HAS_NUMBER",              text: `Name ${subject} with a number in ${possessive} ${noun}`}),
+            () => (                                 {kind, rule: "LEX", lexRule: "HAS_PUNCTUATION",         text: `Name ${subject} with a punctuation or a symbol in ${possessive} ${noun}`})
+        ];
+    };
 
     for (let i = 0; i < cfg.qCount; i++) {
         const kind = types[i];
@@ -368,17 +384,16 @@ function tabiGetDailyPrompts(jstDate) {
                 (sources    .length && franchises   .length) ? () => {const src = pick(sources),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_SOURCE_FRANCHISE", source    : src.title,    franchise   : f.title, keys     : f.eligibleKeys,                           text: `Name a character from the ${f.title} franchise adapted from ${tabiWithArticle(src.title)}`}}             : null
             ].filter(Boolean);
 
-            const lexicalBuilders = [
-                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "MONONYM",                    text: "Name a character with a one-word name"}),
-                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "THREE_PLUS_WORDS",           text: "Name a character whose name has 3 or more words"}),
-                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "ALLITERATION",               text: "Name a character whose first and last name start with the same letter"}),
-                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "DOUBLE_LETTER",              text: "Name a character whose name has doubled letters"}),
-                () => {const l = pick(letters); return  {kind: "PERSON", rule: "LEX_PERSON", lexRule: "STARTS_WITH",    lexVal: l,  text: `Name a character whose name starts with the letter ${l}`}},
-                () => {const l = pick(letters); return  {kind: "PERSON", rule: "LEX_PERSON", lexRule: "ENDS_WITH",      lexVal: l,  text: `Name a character whose name ends with the letter ${l}`}}
-            ];
+            const lexicalBuilders   = buildLexicalBuilders(kind);
+            const buckets           = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
 
-            const buckets = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
-            if (buckets.length) prompts.push(tabiPickValidPrompt(rng, pick(buckets), usedSignatures));
+            if (buckets.length) {
+                const eligibleIndices   = buckets.map((_, idx) => idx).filter(idx => buckets.length === 1 || idx !== lastBucketIdx);
+                const chosenBucketIdx   = pick(eligibleIndices);
+                lastBucketIdx           = chosenBucketIdx;
+
+                prompts.push(tabiPickValidPrompt(rng, buckets[chosenBucketIdx], usedSignatures));
+            }
         } else {
             const singleBuilders = [
                 genres  .length ? () => {const g    = pick(genres);     return {kind: "WORK", rule: "GENRE",  value: g.title,                           text: `Name ${tabiWithArticle(g.title)} anime`}}                    : null,
@@ -401,17 +416,16 @@ function tabiGetDailyPrompts(jstDate) {
                 (sources    .length && tags     .length) ? () => {const src = pick(sources),    t   = pick(tags);       return {kind: "WORK", rule: "INT_SOURCE_TAG",     source    : src.title,    tag     : t.title,  keys    : t.eligibleKeys,                           text: `Name an anime adapted from ${tabiWithArticle(src.title)} with the ${t.title} tag`}}  : null
             ].filter(Boolean);
 
-            const lexicalBuilders = [
-                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "ONE_WORD",               text: "Name an anime with a one-word title"}),
-                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "TWO_WORDS",              text: "Name an anime with a two-word title"}),
-                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "LONG_TITLE",             text: "Name an anime with 5 or more words in its title"}),
-                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "HAS_NUMBER",             text: "Name an anime with a number in its title"}),
-                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "HAS_PUNCTUATION",        text: "Name an anime with :, !, or ? in its title"}),
-                () => {const l = pick(letters); return  {kind: "WORK", rule: "LEX_WORK", lexRule: "STARTS_WITH", lexVal: l, text: `Name an anime whose title starts with the letter ${l}`}}
-            ];
+            const lexicalBuilders   = buildLexicalBuilders(kind);
+            const buckets           = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
 
-            const buckets = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
-            if (buckets.length) prompts.push(tabiPickValidPrompt(rng, pick(buckets), usedSignatures));
+            if (buckets.length) {
+                const eligibleIndices   = buckets.map((_, idx) => idx).filter(idx => buckets.length === 1 || idx !== lastBucketIdx);
+                const chosenBucketIdx   = pick(eligibleIndices);
+                lastBucketIdx           = chosenBucketIdx;
+
+                prompts.push(tabiPickValidPrompt(rng, buckets[chosenBucketIdx], usedSignatures));
+            }
         }
     }
 
@@ -578,7 +592,7 @@ function tabiRender() {
         const stepLabel = a.stationsMoved > 0 ? `+${a.stationsMoved}` : "0";
 
         return `
-            <div class="flex items-center justify-between px-3 py-1.5 mt-3 mb-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-xs">
+            <div class="flex items-center justify-between px-3 py-1.5 mt-3 mb-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-xs text-bold">
                 <span class="truncate">Q${i + 1}: ${escapeHTML(entityTitle)}</span>
                 <span class="shrink-0 tabular-nums">${stepLabel}</span>
             </div>

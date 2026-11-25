@@ -1724,9 +1724,8 @@ serve(async (req) => {
                 0: {route: "Loop",  qCount: 6, target: 30, maxStep: 30, types: null}
             };
 
-            const cfg           = DAY_CONFIG[dow];
-            const rng           = mulberry32(hashSeed(`anigacha-tabi-${dailyBanners.jstDate}`));
-            const countWords    = (str) => String(str || "").trim().split(/\s+/).filter(Boolean).length;
+            const cfg = DAY_CONFIG[dow];
+            const rng = mulberry32(hashSeed(`anigacha-tabi-${dailyBanners.jstDate}`));
 
             const firstAlpha = (str) => {
                 const m = String(str || "").trim().match(/[A-Za-z]/);
@@ -1738,46 +1737,44 @@ serve(async (req) => {
                 return m ? m[0].toUpperCase() : null;
             };
 
-            const checkLexicalPerson = (char, lexRule, lexVal) => {
-                const name  = String(char?.name || "").trim();
-                const words = name.split(/\s+/).filter(Boolean);
+            const checkLexicalRule = (rawStrings, lexRule, lexVal) => {
+                const strings = (rawStrings || []).filter(Boolean).map(s => String(s).trim());
+                if (!strings.length) return false;
 
-                if (lexRule === "MONONYM")          return words.length === 1;
-                if (lexRule === "THREE_PLUS_WORDS") return words.length >=  3;
-                if (lexRule === "ALLITERATION")     return words.length >=  2 && firstAlpha(words[0]) !== null && firstAlpha(words[0]) === firstAlpha(words[words.length - 1]);
-                if (lexRule === "STARTS_WITH")      return firstAlpha   (name) === lexVal;
-                if (lexRule === "ENDS_WITH")        return lastAlpha    (name) === lexVal;
-                if (lexRule === "DOUBLE_LETTER")    return /([A-Za-z])\1/i.test(name);
+                return strings.some(str => {
+                    const words = str.split(/\s+/).filter(Boolean);
 
-                return false;
-            };
+                    if (lexRule === "ONE_WORD")         return words.length === 1;
+                    if (lexRule === "TWO_WORDS")        return words.length === 2;
+                    if (lexRule === "THREE_PLUS_WORDS") return words.length >=  3;
+                    if (lexRule === "FIVE_PLUS_WORDS")  return words.length >=  5;
+                    if (lexRule === "ALLITERATION")     return words.length >=  2 && firstAlpha(words[0]) !== null && firstAlpha(words[0]) === firstAlpha(words[words.length - 1]);
+                    if (lexRule === "DOUBLE_LETTER")    return /([A-Za-z])\1/i          .test(str);
+                    if (lexRule === "STARTS_WITH")      return firstAlpha   (str) === lexVal;
+                    if (lexRule === "ENDS_WITH")        return lastAlpha    (str) === lexVal;
+                    if (lexRule === "HAS_LETTER")       return new RegExp(lexVal, "i")  .test(str);
+                    if (lexRule === "HAS_NUMBER")       return /\d/                     .test(str);
+                    if (lexRule === "HAS_PUNCTUATION")  return /[^\p{L}\p{N}\s]/u       .test(str);
 
-            const checkLexicalWork = (romaji, english, lexRule, lexVal) => {
-                const titles = [romaji, english].filter(Boolean).map(t => String(t).trim());
-                if (!titles.length) return false;
-
-                if (lexRule === "ONE_WORD")         return titles.some(t => countWords(t) ===   1);
-                if (lexRule === "TWO_WORDS")        return titles.some(t => countWords(t) ===   2);
-                if (lexRule === "LONG_TITLE")       return titles.some(t => countWords(t) >=    5);
-                if (lexRule === "STARTS_WITH")      return titles.some(t => firstAlpha(t) ===   lexVal);
-                if (lexRule === "HAS_NUMBER")       return titles.some(t => /\d/.test(t));
-                if (lexRule === "HAS_PUNCTUATION")  return titles.some(t => /[:!?]/.test(t));
-
-                return false;
+                    return false;
+                });
             };
 
             const hasGenre = (target, g) => Array.isArray(target.genres) ? target.genres.includes(g) : Boolean(target.genres?.has?.(g));
 
             const checkPromptRule = (prompt, target, idxSetItem) => {
-                if (prompt.rule === "GENRE")                                                                                                return hasGenre(target, prompt.value);
-                if (prompt.rule === "SOURCE")                                                                                               return target.source === prompt.value;
-                if (["ERA", "STUDIO", "FRANCHISE", "TAG"].includes(prompt.rule))                                                            return Boolean(prompt.idxs?.has(idxSetItem));
-                if (["INT_GENRE_ERA", "INT_GENRE_STUDIO", "INT_GENRE_FRANCHISE", "INT_GENRE_TAG"]       .includes(prompt.rule))             return hasGenre(target, prompt.genre)           && Boolean(prompt.idxs?.has(idxSetItem))
-                if (prompt.rule === "INT_GENRE_SOURCE")                                                                                     return hasGenre(target, prompt.genre)           && target.source === prompt.source;
-                if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_FRANCHISE", "INT_SOURCE_TAG"]   .includes(prompt.rule))             return target.source === prompt.source          && Boolean(prompt.idxs?.has(idxSetItem));
-                if (["INT_ERA_STUDIO", "INT_ERA_FRANCHISE", "INT_ERA_TAG", "INT_STUDIO_FRANCHISE", "INT_STUDIO_TAG"].includes(prompt.rule)) return Boolean(prompt.idxsA?.has(idxSetItem))   && Boolean(prompt.idxsB?.has(idxSetItem))
-                if (prompt.rule === "LEX_PERSON")                                                                                           return checkLexicalPerson(target,                       prompt.lexRule, prompt.lexVal);
-                if (prompt.rule === "LEX_WORK")                                                                                             return checkLexicalWork(target.romaji, target.english,  prompt.lexRule, prompt.lexVal);
+                if (prompt.rule === "GENRE")                                                                                                    return hasGenre(target, prompt.value);
+                if (prompt.rule === "SOURCE")                                                                                                   return target.source === prompt.value;
+                if (["ERA", "STUDIO", "FRANCHISE", "TAG"].includes(prompt.rule))                                                                return Boolean(prompt.idxs?.has(idxSetItem));
+                if (["INT_GENRE_ERA", "INT_GENRE_STUDIO", "INT_GENRE_FRANCHISE", "INT_GENRE_TAG"]                       .includes(prompt.rule)) return hasGenre(target, prompt.genre)           && Boolean(prompt.idxs?.has(idxSetItem));
+                if (prompt.rule === "INT_GENRE_SOURCE")                                                                                         return hasGenre(target, prompt.genre)           && target.source === prompt.source;
+                if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_FRANCHISE", "INT_SOURCE_TAG"]                   .includes(prompt.rule)) return target.source === prompt.source          && Boolean(prompt.idxs?.has(idxSetItem));
+                if (["INT_ERA_STUDIO", "INT_ERA_FRANCHISE", "INT_ERA_TAG", "INT_STUDIO_FRANCHISE", "INT_STUDIO_TAG"]    .includes(prompt.rule)) return Boolean(prompt.idxsA?.has(idxSetItem))   && Boolean(prompt.idxsB?.has(idxSetItem));
+
+                if (prompt.rule === "LEX") {
+                    const strings = prompt.kind === "PERSON" ? [target.name] : [target.romaji, target.english];
+                    return checkLexicalRule(strings, prompt.lexRule, prompt.lexVal);
+                }
 
                 return false;
             };
@@ -1846,6 +1843,7 @@ serve(async (req) => {
 
                 const prompts           = [];
                 const usedSignatures    = new Set();
+                let lastBucketIdx       = -1;
                 const eras              = gameData.themedOptions.ERA        || [];
                 const franchises        = gameData.themedOptions.FRANCHISE  || [];
                 const genres            = gameData.themedOptions.GENRE      || [];
@@ -1854,6 +1852,20 @@ serve(async (req) => {
                 const tags              = gameData.themedOptions.TAG        || [];
                 const letters           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
                 const pick              = (arr) => arr[Math.floor(rng() * arr.length)];
+
+                const buildLexicalBuilders = (kind) => [
+                    () => ({kind, rule: "LEX", lexRule: "ONE_WORD"}),
+                    () => ({kind, rule: "LEX", lexRule: "TWO_WORDS"}),
+                    () => ({kind, rule: "LEX", lexRule: "THREE_PLUS_WORDS"}),
+                    () => ({kind, rule: "LEX", lexRule: "FIVE_PLUS_WORDS"}),
+                    () => ({kind, rule: "LEX", lexRule: "ALLITERATION"}),
+                    () => ({kind, rule: "LEX", lexRule: "DOUBLE_LETTER"}),
+                    () => ({kind, rule: "LEX", lexRule: "STARTS_WITH",  lexVal: pick(letters)}),
+                    () => ({kind, rule: "LEX", lexRule: "ENDS_WITH",    lexVal: pick(letters)}),
+                    () => ({kind, rule: "LEX", lexRule: "HAS_LETTER",   lexVal: pick(letters)}),
+                    () => ({kind, rule: "LEX", lexRule: "HAS_NUMBER"}),
+                    () => ({kind, rule: "LEX", lexRule: "HAS_PUNCTUATION"})
+                ];
 
                 for (let i = 0; i < cfg.qCount; i++) {
                     const kind = types[i];
@@ -1880,17 +1892,16 @@ serve(async (req) => {
                             (sources    .length && franchises   .length) ? () => {const src = pick(sources),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_SOURCE_FRANCHISE", source    : src.title,    franchise   : f.title, idxs     : new Set(f.idxs)}}                         : null
                         ].filter(Boolean);
 
-                        const lexicalBuilders = [
-                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "MONONYM"}),
-                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "THREE_PLUS_WORDS"}),
-                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "ALLITERATION"}),
-                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "DOUBLE_LETTER"}),
-                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "STARTS_WITH", lexVal: pick(letters)}),
-                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "ENDS_WITH",   lexVal: pick(letters)})
-                        ];
+                        const lexicalBuilders   = buildLexicalBuilders(kind);
+                        const buckets           = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
 
-                        const buckets = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
-                        if (buckets.length) prompts.push(pickValidPrompt(pick(buckets), usedSignatures));
+                        if (buckets.length) {
+                            const eligibleIndices   = buckets.map((_, idx) => idx).filter(idx => buckets.length === 1 || idx !== lastBucketIdx);
+                            const chosenBucketIdx   = pick(eligibleIndices);
+                            lastBucketIdx           = chosenBucketIdx;
+
+                            prompts.push(pickValidPrompt(buckets[chosenBucketIdx], usedSignatures));
+                        }
                     } else {
                         const singleBuilders = [
                             genres  .length ? () => {const g    = pick(genres);     return {kind: "WORK", rule: "GENRE",  value: g.title}}                          : null,
@@ -1913,17 +1924,16 @@ serve(async (req) => {
                             (sources    .length && tags     .length) ? () => {const src = pick(sources),    t   = pick(tags);       return {kind: "WORK", rule: "INT_SOURCE_TAG",     source    : src.title,    tag     : t.title, idxs     : new Set(t.idxs)}}                         : null
                         ].filter(Boolean);
 
-                        const lexicalBuilders = [
-                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "ONE_WORD"}),
-                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "TWO_WORDS"}),
-                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "LONG_TITLE"}),
-                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "HAS_NUMBER"}),
-                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "HAS_PUNCTUATION"}),
-                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "STARTS_WITH", lexVal: pick(letters)})
-                        ];
+                        const lexicalBuilders   = buildLexicalBuilders(kind);
+                        const buckets           = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
 
-                        const buckets = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
-                        if (buckets.length) prompts.push(pickValidPrompt(pick(buckets), usedSignatures));
+                        if (buckets.length) {
+                            const eligibleIndices   = buckets.map((_, idx) => idx).filter(idx => buckets.length === 1 || idx !== lastBucketIdx);
+                            const chosenBucketIdx   = pick(eligibleIndices);
+                            lastBucketIdx           = chosenBucketIdx;
+
+                            prompts.push(pickValidPrompt(buckets[chosenBucketIdx], usedSignatures));
+                        }
                     }
                 }
 
