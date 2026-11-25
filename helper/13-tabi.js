@@ -727,7 +727,7 @@ function tabiRender() {
     playPanel.classList.remove  ("hidden");
 
     const prompt    = prompts[tabiState.qIndex];
-    const typeLabel = prompt.kind === "PERSON" ? "Person" : "Work";
+    const typeLabel = prompt.kind === "PERSON" ? "Character" : "Anime";
 
     document.getElementById("tabi-prompt-subtitle") .textContent    = `Q${tabiState.qIndex + 1}/${cfg.qCount} • ${typeLabel}`;
     document.getElementById("tabi-prompt-text")     .textContent    = prompt.text;
