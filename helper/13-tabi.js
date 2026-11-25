@@ -957,8 +957,11 @@ function tabiBuildShareText() {
         return [`AniGacha-Tabi: ${jstDate}`, `${laps} lap${lapPlural}, ${distFromTokyo} station${distPlural} ${direction} Tokyo Station`, moves, siteUrl].join("\n");
     }
 
+    const cfg           = SCHEDULE[dow];
     const totalStations = Number(tabiState.station) || 0;
-    return [`AniGacha-Tabi: ${jstDate}`, `${totalStations}: ${moves}`, siteUrl].join("\n");
+    const stationName   = cfg.stations[totalStations] || "Tokyo";
+
+    return [`AniGacha-Tabi: ${jstDate}`, `${stationName} (${totalStations}/20): ${moves}`, siteUrl].join("\n");
 }
 
 document.getElementById("tabi-share-btn")?.addEventListener("click", async () => {
