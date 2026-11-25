@@ -1170,17 +1170,5 @@ document.getElementById("quiz-answer").addEventListener("input", e => {
     aniQuizRenderSuggestions(wrap, e.target);
 });
 
-const pageNavBtn = document.getElementById("page-nav-btn");
-
-if (pageNavBtn) pageNavBtn.addEventListener("click", () => {
-    if (isSharedView && typeof exitSharedCollection === "function") {
-        exitSharedCollection();
-        return;
-    }
-
-    const targetPage = pageNavBtn.dataset.targetPage || "QUIZ";
-    if (typeof switchHeaderPage === "function") switchHeaderPage(targetPage);
-});
-
 if (document.readyState === "loading")  document.addEventListener("DOMContentLoaded", () => {loadAniQuizData()}, {once: true});
 else                                    loadAniQuizData();

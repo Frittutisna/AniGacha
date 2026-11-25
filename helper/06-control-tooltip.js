@@ -517,3 +517,158 @@ function initGlobalTooltips() {
 }
 
 initGlobalTooltips();
+
+const PAGE_NAV_ICONS = {
+    HOME    : '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+    QUIZ    : '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+    CASINO  : '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor"/>',
+    TABI    : '<rect x="4" y="3" width="16" height="16" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="m8 19-2 3"/><path d="m18 22-2-3"/><circle cx="8" cy="15" r="1"/><circle cx="16" cy="15" r="1"/>'
+};
+
+const PAGE_NAV_LABELS = {
+    HOME    : "Home",
+    QUIZ    : "Quiz",
+    CASINO  : "Casino",
+    TABI    : "Tabi"
+};
+
+function syncPageNavigation(currentPage = "HOME") {
+    const trigger   = document.getElementById("page-nav-trigger");
+    const icon      = document.getElementById("page-nav-icon");
+    const menu      = document.getElementById("page-nav-menu");
+
+    if (!trigger || !icon || !menu) return;
+
+    const activePage    = PAGE_NAV_LABELS[currentPage] ? currentPage : "HOME";
+    icon.innerHTML      = PAGE_NAV_ICONS[activePage];
+
+    trigger.setAttribute("aria-label", `Open page navigation; currently on the ${PAGE_NAV_LABELS[activePage]} page`);
+
+    menu.innerHTML = Object.entries(PAGE_NAV_LABELS)
+        .filter(([page]) => page !== activePage)
+        .map(([page, pageLabel]) => `
+            <button type="button"
+                role="menuitem"
+                data-page-target="${page}"
+                class="w-full px-3 py-2.5 flex items-center gap-2.5 text-left text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    ${PAGE_NAV_ICONS[page]}
+                </svg>
+                <span>${pageLabel}</span>
+            </button>
+        `).join("");
+}
+
+function switchHeaderPage(targetPage) {
+    const mainPage      = document.getElementById("main-page");
+    const quizPage      = document.getElementById("quiz-page");
+    const casinoPage    = document.getElementById("casino-page");
+    const tabiPage      = document.getElementById("tabi-page");
+    const leavingQuiz   = !quizPage.classList.contains("hidden") && targetPage !== "QUIZ";
+
+    if (leavingQuiz && typeof aniQuizRun !== "undefined" && aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden")) {
+        aniQuizEndToHome = (targetPage === "HOME");
+        quizEndModal?.classList.remove("hidden");
+        document.getElementById("quiz-end-confirm")?.focus();
+
+        return;
+    }
+
+    mainPage.   classList.toggle("hidden", targetPage !== "HOME");
+    quizPage.   classList.toggle("hidden", targetPage !== "QUIZ");
+    casinoPage. classList.toggle("hidden", targetPage !== "CASINO");
+    tabiPage?.  classList.toggle("hidden", targetPage !== "TABI");
+
+    syncPageNavigation(targetPage);
+
+    if (targetPage === "QUIZ") {
+        if (typeof aniQuizRenderMissions        === "function") aniQuizRenderMissions           ();
+        if (typeof aniQuizUpdateSettingsPreview === "function") aniQuizUpdateSettingsPreview    ();
+        if (typeof loadAniQuizData              === "function") loadAniQuizData                 ();
+    } else if (targetPage === "CASINO") {
+        if (currentUser) {
+            const bjInput   = document.getElementById("bj-bet-input");
+            const rlInput   = document.getElementById("rl-bet-input");
+            const fxInput   = document.getElementById("fx-bet-input");
+            const synInput  = document.getElementById("syn-bet-input");
+
+            if      (casinoBjState?.status === "ACTIVE"     && casinoBjState.bet)                           bjInput     .value = casinoBjState.bet;
+            else if (stars > 0                              && Number(bjInput.value) > stars)               bjInput     .value = stars;
+            if      (stars > 0                              && Number(rlInput.value) > stars)               rlInput     .value = stars;
+            if      (stars > 0                              && Number(fxInput.value) > stars)               fxInput     .value = stars;
+            if      (casinoSynState?.status === "ACTIVE"    && casinoSynState.bet)                          synInput    .value = casinoSynState.bet;
+            else if (stars > 0                              && synInput && Number(synInput.value) > stars)  synInput    .value = stars;
+        }
+
+        renderBlackjackUI   ();
+        renderRouletteUI    ();
+        renderForexUI       ();
+        renderSynergyUI     ();
+    } else if (targetPage === "TABI" && typeof tabiOnPageOpen === "function") tabiOnPageOpen();
+
+    window.scrollTo({top: 0, behavior: "instant"});
+}
+
+function closeCasinoPage() {switchHeaderPage("HOME")}
+
+function initPageNavigationDropdown() {
+    const wrapper   = document.getElementById("page-nav-wrapper");
+    const trigger   = document.getElementById("page-nav-trigger");
+    const menu      = document.getElementById("page-nav-menu");
+    const chevron   = document.getElementById("page-nav-chevron");
+
+    if (!wrapper || !trigger || !menu) return;
+
+    function closeMenu() {
+        menu.       classList.add       ("hidden");
+        chevron?.   classList.remove    ("rotate-180");
+
+        trigger.setAttribute("aria-expanded", "false");
+    }
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation       ();
+        closeAllCustomSelects   ();
+
+        document.getElementById("sort-filter-menu")?.       classList.add       ("hidden");
+        document.getElementById("sort-filter-chevron")?.    classList.remove    ("rotate-180");
+        document.getElementById("quiz-settings-menu")?.     classList.add       ("hidden");
+        document.getElementById("quiz-settings-chevron")?.  classList.remove    ("rotate-180");
+
+        const isHidden = menu.classList.contains("hidden");
+
+        menu.       classList.toggle    ("hidden",          !isHidden);
+        chevron?.   classList.toggle    ("rotate-180",      isHidden);
+        trigger.    setAttribute        ("aria-expanded",   String(isHidden));
+    });
+
+    menu.addEventListener("click", async (e) => {
+        e.stopPropagation();
+
+        const option = e.target.closest("[data-page-target]");
+        if (!option) return;
+
+        const targetPage = option.dataset.pageTarget;
+        closeMenu();
+
+        if (isSharedView && typeof exitSharedCollection === "function") {
+            await exitSharedCollection();
+            if (targetPage !== "HOME") switchHeaderPage(targetPage);
+            return;
+        }
+
+        switchHeaderPage(targetPage);
+    });
+
+    document.addEventListener("click",      closeMenu);
+    document.addEventListener("keydown",    (e) => {if (e.key === "Escape") closeMenu()});
+}
+
+syncPageNavigation          ("HOME");
+initPageNavigationDropdown  ();

@@ -63,19 +63,7 @@ async function loadSharedCollection(targetUserId) {
         placeholder .classList.add      ("hidden");
     }
 
-    const navBtn    = document.getElementById("page-nav-btn");
-    const navIcon   = document.getElementById("page-nav-icon");
-
-    if (navBtn) {
-        navBtn.setAttribute("aria-label", "Home");
-        navBtn.title = "Home";
-    }
-
-    if (navIcon) navIcon.innerHTML = '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>';
-
-    document.getElementById("casino-nav-btn")?. classList.add("hidden");
-    document.getElementById("tabi-nav-btn")?.   classList.add("hidden");
-
+    if (typeof syncPageNavigation === "function") syncPageNavigation("HOME");
     renderInventory();
 }
 
@@ -102,11 +90,8 @@ async function exitSharedCollection() {
     topSection?.classList.remove    ("hidden");
     topSection?.classList.add       ("flex", "lg:grid");
 
-    document.getElementById("casino-nav-btn")?. classList.remove("hidden");
-    document.getElementById("tabi-nav-btn")?.   classList.remove("hidden");
-
-    if      (typeof closeCasinoPage         === "function") closeCasinoPage         ();
-    else if (typeof syncHeaderNavButtons    === "function") syncHeaderNavButtons    ("HOME");
+    if      (typeof closeCasinoPage     === "function") closeCasinoPage     ();
+    else if (typeof syncPageNavigation  === "function") syncPageNavigation  ("HOME");
 
     window.scrollTo({top: 0, behavior: "instant"});
 
