@@ -138,12 +138,12 @@ const chars = rawChars.map((row, idx) => {
     return {
         uniqueKey,
         animeId,
-        rootAnimeId : rootAnime ? rootAnime.id : animeId,
-        rawDateInt  : rootAnime ? rootAnime.rawDateInt : null,
-        genres      : directAnime ? Array.from(directAnime.genres) : [],
-        tags        : directAnime ? Array.from(directAnime.tags) : [],
-        studios     : directAnime ? Array.from(directAnime.studios) : [],
-        source      : directAnime ? directAnime.source : null,
+        rootAnimeId : rootAnime     ? rootAnime.id                          : animeId,
+        rawDateInt  : (directAnime?.rawDateInt ?? rootAnime?.rawDateInt) ?? null,
+        genres      : directAnime   ? Array.from(directAnime.genres)        : [],
+        tags        : directAnime   ? Array.from(directAnime.tags)          : [],
+        studios     : directAnime   ? Array.from(directAnime.studios)       : [],
+        source      : directAnime   ? directAnime.source : null,
         count       : parseFloat(getField(row, ["count"])) || 0,
         tier        : "F",
     };
@@ -236,17 +236,16 @@ for (const [id, a] of animeMap.entries()) {
     const root = resolveRootAnime(id) || a;
 
     clientAnimes[id] = [
-        root.romaji,
-        root.english,
+        a.romaji    || root.romaji  || null,
+        a.english   || root.english || null,
         root.animeCount,
-        root.animeDate,
-        root.rawDateInt,
+        a.animeDate     ?? root.animeDate,
+        a.rawDateInt    ?? root.rawDateInt,
         root.id,
         Array.from(a.genres),
         Array.from(a.tags),
         Array.from(a.studios),
-        a.source,
-        a.animeCount
+        a.source, a.animeCount
     ];
 }
 
@@ -362,7 +361,7 @@ for (const [id, a] of animeMap.entries()) {
     const root = resolveRootAnime(id) || a;
 
     serverAnimes[id] = [
-        root.id, root.rawDateInt,
+        root.id, (a.rawDateInt ?? root.rawDateInt) ?? null,
         Array.from(a.genres),
         Array.from(a.tags),
         Array.from(a.studios),

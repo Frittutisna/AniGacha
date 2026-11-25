@@ -95,9 +95,18 @@ let tabiWeeklyState         = null;
 let tabiAnimeCatalog        = [];
 let tabiPromptsCache        = {date: null, prompts: []};
 let tabiBusy                = false;
-let tabiTimerRaf            = null;
-let tabiActiveQuestionKey   = null;
-let tabiPendingTargetPage   = null;
+let tabiTimerRaf                = null;
+let tabiActiveQuestionKey       = null;
+let tabiPendingTargetPage       = null;
+let tabiFilteredSuggestions     = [];
+let tabiSuggestionIndex         = -1;
+let tabiRenderedSugCount        = 0;
+const TABI_SUG_BATCH_SIZE       = 50;
+
+function tabiIsLexicalPrompt(prompt) {
+    if (!prompt) return false;
+    return String(prompt.rule || "").startsWith("LEX") || String(prompt.rule || "").startsWith("INT_LEX_");
+}
 
 function tabiHashSeed(str) {
     let h = 1779033703 ^ str.length;
@@ -698,11 +707,14 @@ function tabiRender() {
                         : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
             }`;
 
-            summaryEl.textContent = maxWon
+            const mapsUrl       = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${curStationName} Station, Japan`)}`;
+            const stationLink   = `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer" class="underline decoration-dotted underline-offset-2 hover:opacity-80"> ${escapeHTML(curStationName)} Station</a>`;
+
+            summaryEl.innerHTML = maxWon
                 ? `Reached the end of your Tabi! (★ ${dailyEarned})`
                 : dow === 0
-                    ? `Tabi ended at ${curStationName} after ${tabiState.laps} laps (★ ${dailyEarned})`
-                    : `Tabi ended at ${curStationName} (★ ${dailyEarned})`;
+                    ? `Tabi ended at ${stationLink} after ${tabiState.laps} laps (★ ${dailyEarned})`
+                    : `Tabi ended at ${stationLink} (★ ${dailyEarned})`;
         } else {
             document.getElementById("tabi-start-wrap").classList.remove("hidden");
 
@@ -738,9 +750,20 @@ function tabiRender() {
     stepLogEl.innerHTML = logHTML;
     stepLogEl.classList.toggle("hidden", logHTML.trim() === "");
 
-    const inputEl       = document.getElementById("tabi-answer-input");
+    const inputEl = document.getElementById("tabi-answer-input");
+    const sugWrap = document.getElementById("tabi-suggestions");
+
     inputEl.placeholder = "";
     inputEl.disabled    = tabiBusy;
+
+    if (sugWrap) {
+        sugWrap.innerHTML = "";
+        sugWrap.classList.add("hidden");
+    }
+
+    tabiFilteredSuggestions = [];
+    tabiSuggestionIndex     = -1;
+    tabiRenderedSugCount    = 0;
 
     const qKey = `${jstDate}:${tabiState.qIndex}`;
 
@@ -929,11 +952,180 @@ async function tabiSubmitAnswer(timedOut = false) {
 
 document.getElementById("tabi-start-btn")?.addEventListener("click", tabiHandleStart);
 
+function tabiHideSuggestions() {
+    const wrap = document.getElementById("tabi-suggestions");
+
+    if (wrap) {
+        wrap.innerHTML = "";
+        wrap.classList.add("hidden");
+    }
+
+    tabiFilteredSuggestions = [];
+    tabiSuggestionIndex     = -1;
+    tabiRenderedSugCount    = 0;
+}
+
+function tabiGetCandidatePool(prompt) {
+    const seen = new Set();
+    const list = [];
+
+    if (prompt.kind === "PERSON") {
+        for (let i = 0; i < characterPool.length; i++) {
+            const name = characterPool[i].name;
+            const norm = name.trim().toLowerCase();
+
+            if (!norm || seen.has(norm)) continue;
+            seen.add(norm);
+            list.push({title: name, norm});
+        }
+    } else {
+        for (let i = 0; i < tabiAnimeCatalog.length; i++) {
+            const a = tabiAnimeCatalog[i];
+
+            for (const title of [a.romaji, a.english]) {
+                const norm = String(title || "").trim().toLowerCase();
+                if (!norm || seen.has(norm)) continue;
+                seen.add(norm);
+                list.push({title, norm});
+            }
+        }
+    }
+
+    return list;
+}
+
+function tabiRankMatches(candidates, normQuery) {
+    const matches = [];
+
+    for (let i = 0; i < candidates.length; i++) {
+        const {title, norm} = candidates[i];
+        if (!norm.includes(normQuery)) continue;
+
+        const matchTier = norm === normQuery ? 0 : norm.startsWith(normQuery) ? 1 : 2;
+        matches.push({title, norm, matchTier});
+    }
+
+    matches.sort((a, b) => a.matchTier - b.matchTier || a.norm.length - b.norm.length || a.title.localeCompare(b.title));
+    return matches.map(item => item.title);
+}
+
+function tabiAppendSuggestionBatch(wrap, inputEl, targetCount) {
+    const end = Math.min(tabiFilteredSuggestions.length, targetCount);
+    if (tabiRenderedSugCount >= end) return;
+
+    const frag = document.createDocumentFragment();
+
+    for (let i = tabiRenderedSugCount; i < end; i++) {
+        const v = tabiFilteredSuggestions[i];
+        const b = document.createElement("button");
+
+        b.type          = "button";
+        b.className     = `block w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 truncate ${i === tabiSuggestionIndex ? "bg-indigo-100 dark:bg-slate-800" : ""}`;
+        b.textContent   = v;
+
+        b.addEventListener("click", () => {
+            inputEl.value = v;
+            tabiHideSuggestions();
+            inputEl.focus();
+        });
+
+        frag.appendChild(b);
+    }
+
+    wrap.appendChild(frag);
+    tabiRenderedSugCount = end;
+}
+
+function tabiRenderSuggestions(wrap, inputEl) {
+    wrap.innerHTML          = "";
+    wrap.scrollTop          = 0;
+    tabiRenderedSugCount    = 0;
+
+    if (!tabiFilteredSuggestions.length) {
+        wrap.classList.add("hidden");
+        return;
+    }
+
+    tabiAppendSuggestionBatch(wrap, inputEl, TABI_SUG_BATCH_SIZE);
+    wrap.classList.remove("hidden");
+
+    wrap.style.maxHeight = "10rem";
+    wrap.style.overflowY = "auto";
+}
+
+document.getElementById("tabi-suggestions")?.addEventListener("scroll", (e) => {
+    const wrap = e.currentTarget;
+    if (tabiRenderedSugCount < tabiFilteredSuggestions.length && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 40) tabiAppendSuggestionBatch(wrap, document.getElementById("tabi-answer-input"), tabiRenderedSugCount + TABI_SUG_BATCH_SIZE);
+}, {passive: true});
+
+document.getElementById("tabi-answer-input")?.addEventListener("input", (e) => {
+    const wrap = document.getElementById("tabi-suggestions");
+    if (!wrap || !tabiState?.started || tabiState?.completed) return;
+
+    const prompt = tabiGetDailyPrompts(tabiState.date)?.[tabiState.qIndex];
+
+    if (!prompt || tabiIsLexicalPrompt(prompt)) {
+        tabiHideSuggestions();
+        return;
+    }
+
+    const q = String(e.target.value || "").trim().toLowerCase();
+    tabiSuggestionIndex = -1;
+
+    if (!q) {
+        tabiHideSuggestions();
+        return;
+    }
+
+    tabiFilteredSuggestions = tabiRankMatches(tabiGetCandidatePool(prompt), q);
+    tabiRenderSuggestions(wrap, e.target);
+});
+
 document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) => {
+    const wrap  = document.getElementById("tabi-suggestions");
+    const total = tabiFilteredSuggestions.length;
+
+    if (total && wrap && !wrap.classList.contains("hidden")) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+
+            tabiSuggestionIndex = (tabiSuggestionIndex + (e.key === "ArrowDown" ? 1 : -1) + total) % total;
+            if (tabiSuggestionIndex >= tabiRenderedSugCount)tabiAppendSuggestionBatch(wrap, e.currentTarget, tabiSuggestionIndex + TABI_SUG_BATCH_SIZE);
+
+            const items = wrap.querySelectorAll("button");
+
+            items.forEach((b, i) => {
+                b.classList.toggle("bg-indigo-100",     i === tabiSuggestionIndex);
+                b.classList.toggle("dark:bg-slate-800", i === tabiSuggestionIndex);
+            });
+
+            items[tabiSuggestionIndex]?.scrollIntoView({block: "nearest"});
+            return;
+        }
+
+        if (e.key === "Escape") {
+            e.stopPropagation   ();
+            tabiHideSuggestions ();
+
+            return;
+        }
+    }
+
     if (e.key === "Enter") {
         e.preventDefault();
 
         if (!document.getElementById("alert-modal")?.classList.contains("hidden")) return;
+
+        if (wrap && !wrap.classList.contains("hidden") && tabiSuggestionIndex >= 0) {
+            const choices = [...wrap.querySelectorAll("button")];
+
+            if (choices[tabiSuggestionIndex]) {
+                choices[tabiSuggestionIndex].click();
+                return;
+            }
+        }
+
+        tabiHideSuggestions();
         const isEmpty = e.currentTarget.value.trim() === "";
         tabiSubmitAnswer(isEmpty);
     }
@@ -944,7 +1136,7 @@ function tabiBuildShareText() {
 
     const jstDate   = tabiState.date;
     const dow       = tabiGetJstDow(jstDate);
-    const moves     = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("-");
+    const moves     = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("");
     const siteUrl   = "https://frittutisna.github.io/AniGacha";
 
     if (dow === 0) {
