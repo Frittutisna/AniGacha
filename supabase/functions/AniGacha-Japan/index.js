@@ -1770,16 +1770,24 @@ serve(async (req) => {
                 if (prompt.rule === "INT_GENRE_SOURCE")                                                                                         return hasGenre(target, prompt.genre)           && target.source === prompt.source;
                 if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_FRANCHISE", "INT_SOURCE_TAG"]                   .includes(prompt.rule)) return target.source === prompt.source          && Boolean(prompt.idxs?.has(idxSetItem));
                 if (["INT_ERA_STUDIO", "INT_ERA_FRANCHISE", "INT_ERA_TAG", "INT_STUDIO_FRANCHISE", "INT_STUDIO_TAG"]    .includes(prompt.rule)) return Boolean(prompt.idxsA?.has(idxSetItem))   && Boolean(prompt.idxsB?.has(idxSetItem));
+                if (prompt.rule === "INT_LEX_GENRE")                                                                                            return hasGenre(target, prompt.genre)           && checkLexicalRule(prompt.kind === "PERSON" ? [target.name] : [target.romaji, target.english], prompt.lexRule, prompt.lexVal);
+                if (prompt.rule === "INT_LEX_SOURCE")                                                                                           return target.source === prompt.source          && checkLexicalRule(prompt.kind === "PERSON" ? [target.name] : [target.romaji, target.english], prompt.lexRule, prompt.lexVal);
+                if (["INT_LEX_ERA", "INT_LEX_STUDIO", "INT_LEX_FRANCHISE", "INT_LEX_TAG"]                               .includes(prompt.rule)) return Boolean(prompt.idxs?.has(idxSetItem))    && checkLexicalRule(prompt.kind === "PERSON" ? [target.name] : [target.romaji, target.english], prompt.lexRule, prompt.lexVal);
 
                 if (prompt.rule === "LEX") {
                     const strings = prompt.kind === "PERSON" ? [target.name] : [target.romaji, target.english];
                     return checkLexicalRule(strings, prompt.lexRule, prompt.lexVal);
                 }
 
+                if (prompt.rule === "LEX_STARTS_ENDS") {
+                    const strings = (prompt.kind === "PERSON" ? [target.name] : [target.romaji, target.english]).filter(Boolean);
+                    return strings.some(str => firstAlpha(str) === prompt.lexVal && lastAlpha(str) === prompt.lexVal2);
+                }
+
                 return false;
             };
 
-            const getPromptSignature = (p) => [p.kind, p.rule, p.value, p.genre, p.era, p.studio, p.source, p.franchise, p.tag, p.lexRule, p.lexVal].filter(Boolean).join("|");
+            const getPromptSignature = (p) => [p.kind, p.rule, p.value, p.genre, p.era, p.studio, p.source, p.franchise, p.tag, p.lexRule, p.lexVal, p.lexVal2].filter(Boolean).join("|");
 
             const hasEnoughMatches = (prompt, minMatches = 25) => {
                 let count = 0;
@@ -1862,6 +1870,7 @@ serve(async (req) => {
                     () => ({kind, rule: "LEX", lexRule: "DOUBLE_LETTER"}),
                     () => ({kind, rule: "LEX", lexRule: "STARTS_WITH",  lexVal: pick(letters)}),
                     () => ({kind, rule: "LEX", lexRule: "ENDS_WITH",    lexVal: pick(letters)}),
+                    () => ({kind, rule: "LEX_STARTS_ENDS",              lexVal: pick(letters), lexVal2: pick(letters)}),
                     () => ({kind, rule: "LEX", lexRule: "HAS_LETTER",   lexVal: pick(letters)}),
                     () => ({kind, rule: "LEX", lexRule: "HAS_NUMBER"}),
                     () => ({kind, rule: "LEX", lexRule: "HAS_PUNCTUATION"})
@@ -1880,16 +1889,21 @@ serve(async (req) => {
                         ].filter(Boolean);
 
                         const intersectionBuilders = [
-                            (genres     .length && eras         .length) ? () => {const g   = pick(genres),     e   = pick(eras);       return {kind: "PERSON", rule: "INT_GENRE_ERA",        genre     : g.title,      era         : e.title, idxs     : new Set(e.idxs)}}                         : null,
-                            (genres     .length && studios      .length) ? () => {const g   = pick(genres),     s   = pick(studios);    return {kind: "PERSON", rule: "INT_GENRE_STUDIO",     genre     : g.title,      studio      : s.title, idxs     : new Set(s.idxs)}}                         : null,
-                            (genres     .length && sources      .length) ? () => {const g   = pick(genres),     src = pick(sources);    return {kind: "PERSON", rule: "INT_GENRE_SOURCE",     genre     : g.title,      source      : src.title}}                                                   : null,
-                            (genres     .length && franchises   .length) ? () => {const g   = pick(genres),     f   = pick(franchises); return {kind: "PERSON", rule: "INT_GENRE_FRANCHISE",  genre     : g.title,      franchise   : f.title, idxs     : new Set(f.idxs)}}                         : null,
-                            (eras       .length && studios      .length) ? () => {const e   = pick(eras),       s   = pick(studios);    return {kind: "PERSON", rule: "INT_ERA_STUDIO",       era       : e.title,      studio      : s.title, idxsA    : new Set(e.idxs), idxsB: new Set(s.idxs)}} : null,
-                            (eras       .length && sources      .length) ? () => {const e   = pick(eras),       src = pick(sources);    return {kind: "PERSON", rule: "INT_SOURCE_ERA",       source    : src.title,    era         : e.title, idxs     : new Set(e.idxs)}}                         : null,
-                            (eras       .length && franchises   .length) ? () => {const e   = pick(eras),       f   = pick(franchises); return {kind: "PERSON", rule: "INT_ERA_FRANCHISE",    era       : e.title,      franchise   : f.title, idxsA    : new Set(e.idxs), idxsB: new Set(f.idxs)}} : null,
-                            (studios    .length && sources      .length) ? () => {const s   = pick(studios),    src = pick(sources);    return {kind: "PERSON", rule: "INT_SOURCE_STUDIO",    source    : src.title,    studio      : s.title, idxs     : new Set(s.idxs)}}                         : null,
-                            (studios    .length && franchises   .length) ? () => {const s   = pick(studios),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_STUDIO_FRANCHISE", studio    : s.title,      franchise   : f.title, idxsA    : new Set(s.idxs), idxsB: new Set(f.idxs)}} : null,
-                            (sources    .length && franchises   .length) ? () => {const src = pick(sources),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_SOURCE_FRANCHISE", source    : src.title,    franchise   : f.title, idxs     : new Set(f.idxs)}}                         : null
+                            (genres     .length && eras         .length)    ? () => {const g    = pick(genres),     e   = pick(eras);       return {kind: "PERSON", rule: "INT_GENRE_ERA",          genre       : g.title,      era         : e.title,                  idxs    : new Set(e.idxs)}}                         : null,
+                            (genres     .length && studios      .length)    ? () => {const g    = pick(genres),     s   = pick(studios);    return {kind: "PERSON", rule: "INT_GENRE_STUDIO",       genre       : g.title,      studio      : s.title,                  idxs    : new Set(s.idxs)}}                         : null,
+                            (genres     .length && sources      .length)    ? () => {const g    = pick(genres),     src = pick(sources);    return {kind: "PERSON", rule: "INT_GENRE_SOURCE",       genre       : g.title,      source      : src.title}}                                                                   : null,
+                            (genres     .length && franchises   .length)    ? () => {const g    = pick(genres),     f   = pick(franchises); return {kind: "PERSON", rule: "INT_GENRE_FRANCHISE",    genre       : g.title,      franchise   : f.title,                  idxs    : new Set(f.idxs)}}                         : null,
+                            (eras       .length && studios      .length)    ? () => {const e    = pick(eras),       s   = pick(studios);    return {kind: "PERSON", rule: "INT_ERA_STUDIO",         era         : e.title,      studio      : s.title,                  idxsA   : new Set(e.idxs), idxsB: new Set(s.idxs)}} : null,
+                            (eras       .length && sources      .length)    ? () => {const e    = pick(eras),       src = pick(sources);    return {kind: "PERSON", rule: "INT_SOURCE_ERA",         source      : src.title,    era         : e.title,                  idxs    : new Set(e.idxs)}}                         : null,
+                            (eras       .length && franchises   .length)    ? () => {const e    = pick(eras),       f   = pick(franchises); return {kind: "PERSON", rule: "INT_ERA_FRANCHISE",      era         : e.title,      franchise   : f.title,                  idxsA   : new Set(e.idxs), idxsB: new Set(f.idxs)}} : null,
+                            (studios    .length && sources      .length)    ? () => {const s    = pick(studios),    src = pick(sources);    return {kind: "PERSON", rule: "INT_SOURCE_STUDIO",      source      : src.title,    studio      : s.title,                  idxs    : new Set(s.idxs)}}                         : null,
+                            (studios    .length && franchises   .length)    ? () => {const s    = pick(studios),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_STUDIO_FRANCHISE",   studio      : s.title,      franchise   : f.title,                  idxsA   : new Set(s.idxs), idxsB: new Set(f.idxs)}} : null,
+                            (sources    .length && franchises   .length)    ? () => {const src  = pick(sources),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_SOURCE_FRANCHISE",   source      : src.title,    franchise   : f.title,                  idxs    : new Set(f.idxs)}}                         : null,
+                            genres      .length                             ? () => {const g    = pick(genres),     l   = pick(letters);    return {kind: "PERSON", rule: "INT_LEX_GENRE",          genre       : g.title,      lexRule     : "STARTS_WITH", lexVal: l}}                                                    : null,
+                            eras        .length                             ? () => {const e    = pick(eras),       l   = pick(letters);    return {kind: "PERSON", rule: "INT_LEX_ERA",            era         : e.title,      lexRule     : "STARTS_WITH", lexVal: l, idxs    : new Set(e.idxs)}}                         : null,
+                            studios     .length                             ? () => {const s    = pick(studios),    l   = pick(letters);    return {kind: "PERSON", rule: "INT_LEX_STUDIO",         studio      : s.title,      lexRule     : "STARTS_WITH", lexVal: l, idxs    : new Set(s.idxs)}}                         : null,
+                            sources     .length                             ? () => {const src  = pick(sources),    l   = pick(letters);    return {kind: "PERSON", rule: "INT_LEX_SOURCE",         source      : src.title,    lexRule     : "STARTS_WITH", lexVal: l}}                                                    : null,
+                            franchises  .length                             ? () => {const f    = pick(franchises), l   = pick(letters);    return {kind: "PERSON", rule: "INT_LEX_FRANCHISE",      franchise   : f.title,      lexRule     : "STARTS_WITH", lexVal: l, idxs    : new Set(f.idxs)}}                         : null
                         ].filter(Boolean);
 
                         const lexicalBuilders   = buildLexicalBuilders(kind);
@@ -1912,16 +1926,21 @@ serve(async (req) => {
                         ].filter(Boolean);
 
                         const intersectionBuilders = [
-                            (genres     .length && eras     .length) ? () => {const g   = pick(genres),     e   = pick(eras);       return {kind: "WORK", rule: "INT_GENRE_ERA",      genre     : g.title,      era     : e.title, idxs     : new Set(e.idxs)}}                         : null,
-                            (genres     .length && studios  .length) ? () => {const g   = pick(genres),     s   = pick(studios);    return {kind: "WORK", rule: "INT_GENRE_STUDIO",   genre     : g.title,      studio  : s.title, idxs     : new Set(s.idxs)}}                         : null,
-                            (genres     .length && sources  .length) ? () => {const g   = pick(genres),     src = pick(sources);    return {kind: "WORK", rule: "INT_GENRE_SOURCE",   genre     : g.title,      source  : src.title}}                                                   : null,
-                            (genres     .length && tags     .length) ? () => {const g   = pick(genres),     t   = pick(tags);       return {kind: "WORK", rule: "INT_GENRE_TAG",      genre     : g.title,      tag     : t.title, idxs     : new Set(t.idxs)}}                         : null,
-                            (eras       .length && studios  .length) ? () => {const e   = pick(eras),       s   = pick(studios);    return {kind: "WORK", rule: "INT_ERA_STUDIO",     era       : e.title,      studio  : s.title, idxsA    : new Set(e.idxs), idxsB: new Set(s.idxs)}} : null,
-                            (eras       .length && sources  .length) ? () => {const e   = pick(eras),       src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_ERA",     source    : src.title,    era     : e.title, idxs     : new Set(e.idxs)}}                         : null,
-                            (eras       .length && tags     .length) ? () => {const e   = pick(eras),       t   = pick(tags);       return {kind: "WORK", rule: "INT_ERA_TAG",        era       : e.title,      tag     : t.title, idxsA    : new Set(e.idxs), idxsB: new Set(t.idxs)}} : null,
-                            (studios    .length && sources  .length) ? () => {const s   = pick(studios),    src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_STUDIO",  source    : src.title,    studio  : s.title, idxs     : new Set(s.idxs)}}                         : null,
-                            (studios    .length && tags     .length) ? () => {const s   = pick(studios),    t   = pick(tags);       return {kind: "WORK", rule: "INT_STUDIO_TAG",     studio    : s.title,      tag     : t.title, idxsA    : new Set(s.idxs), idxsB: new Set(t.idxs)}} : null,
-                            (sources    .length && tags     .length) ? () => {const src = pick(sources),    t   = pick(tags);       return {kind: "WORK", rule: "INT_SOURCE_TAG",     source    : src.title,    tag     : t.title, idxs     : new Set(t.idxs)}}                         : null
+                            (genres     .length && eras     .length)    ? () => {const g    = pick(genres),     e   = pick(eras);       return {kind: "WORK", rule: "INT_GENRE_ERA",        genre   : g.title,      era     : e.title,                  idxs    : new Set(e.idxs)}}                         : null,
+                            (genres     .length && studios  .length)    ? () => {const g    = pick(genres),     s   = pick(studios);    return {kind: "WORK", rule: "INT_GENRE_STUDIO",     genre   : g.title,      studio  : s.title,                  idxs    : new Set(s.idxs)}}                         : null,
+                            (genres     .length && sources  .length)    ? () => {const g    = pick(genres),     src = pick(sources);    return {kind: "WORK", rule: "INT_GENRE_SOURCE",     genre   : g.title,      source  : src.title}}                                                                   : null,
+                            (genres     .length && tags     .length)    ? () => {const g    = pick(genres),     t   = pick(tags);       return {kind: "WORK", rule: "INT_GENRE_TAG",        genre   : g.title,      tag     : t.title,                  idxs    : new Set(t.idxs)}}                         : null,
+                            (eras       .length && studios  .length)    ? () => {const e    = pick(eras),       s   = pick(studios);    return {kind: "WORK", rule: "INT_ERA_STUDIO",       era     : e.title,      studio  : s.title,                  idxsA   : new Set(e.idxs), idxsB: new Set(s.idxs)}} : null,
+                            (eras       .length && sources  .length)    ? () => {const e    = pick(eras),       src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_ERA",       source  : src.title,    era     : e.title,                  idxs    : new Set(e.idxs)}}                         : null,
+                            (eras       .length && tags     .length)    ? () => {const e    = pick(eras),       t   = pick(tags);       return {kind: "WORK", rule: "INT_ERA_TAG",          era     : e.title,      tag     : t.title,                  idxsA   : new Set(e.idxs), idxsB: new Set(t.idxs)}} : null,
+                            (studios    .length && sources  .length)    ? () => {const s    = pick(studios),    src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_STUDIO",    source  : src.title,    studio  : s.title,                  idxs    : new Set(s.idxs)}}                         : null,
+                            (studios    .length && tags     .length)    ? () => {const s    = pick(studios),    t   = pick(tags);       return {kind: "WORK", rule: "INT_STUDIO_TAG",       studio  : s.title,      tag     : t.title,                  idxsA   : new Set(s.idxs), idxsB: new Set(t.idxs)}} : null,
+                            (sources    .length && tags     .length)    ? () => {const src  = pick(sources),    t   = pick(tags);       return {kind: "WORK", rule: "INT_SOURCE_TAG",       source  : src.title,    tag     : t.title,                  idxs    : new Set(t.idxs)}}                         : null,
+                            genres      .length                         ? () => {const g    = pick(genres),     l   = pick(letters);    return {kind: "WORK", rule: "INT_LEX_GENRE",        genre   : g.title,      lexRule : "STARTS_WITH", lexVal: l}}                                                    : null,
+                            eras        .length                         ? () => {const e    = pick(eras),       l   = pick(letters);    return {kind: "WORK", rule: "INT_LEX_ERA",          era     : e.title,      lexRule : "STARTS_WITH", lexVal: l, idxs    : new Set(e.idxs)}}                         : null,
+                            studios     .length                         ? () => {const s    = pick(studios),    l   = pick(letters);    return {kind: "WORK", rule: "INT_LEX_STUDIO",       studio  : s.title,      lexRule : "STARTS_WITH", lexVal: l, idxs    : new Set(s.idxs)}}                         : null,
+                            sources     .length                         ? () => {const src  = pick(sources),    l   = pick(letters);    return {kind: "WORK", rule: "INT_LEX_SOURCE",       source  : src.title,    lexRule : "STARTS_WITH", lexVal: l}}                                                    : null,
+                            tags        .length                         ? () => {const t    = pick(tags),       l   = pick(letters);    return {kind: "WORK", rule: "INT_LEX_TAG",          tag     : t.title,      lexRule : "STARTS_WITH", lexVal: l, idxs    : new Set(t.idxs)}}                         : null
                         ].filter(Boolean);
 
                         const lexicalBuilders   = buildLexicalBuilders(kind);
