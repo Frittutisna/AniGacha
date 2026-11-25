@@ -279,6 +279,7 @@ function tabiEnsureLocalState() {
         started         : false,
         completed       : false,
         dailyAwarded    : false,
+        dailyEarned     : 0,
         station         : 0,
         laps            : 0,
         qIndex          : 0,
@@ -308,13 +309,14 @@ function tabiRender() {
     tabiBuildAnimeCatalog   ();
     tabiEnsureLocalState    ();
 
-    const jstDate   = tabiState.date;
-    const dow       = tabiGetJstDow(jstDate);
-    const cfg       = SCHEDULE[dow];
-    const prompts   = tabiGetDailyPrompts(jstDate);
+    const jstDate           = tabiState.date;
+    const dow               = tabiGetJstDow(jstDate);
+    const cfg               = SCHEDULE[dow];
+    const prompts           = tabiGetDailyPrompts(jstDate);
+    const curStationName    = cfg.stations[tabiState.station] || "Tokyo";
+    const dailyEarned       = tabiState.dailyEarned ?? (tabiState.dailyAwarded ? 120 : 0);
 
-    const curStationName = cfg.stations[tabiState.station] || "Tokyo";
-    document.getElementById("tabi-daily-reward").innerHTML = `<span>★</span> <span>${tabiState.dailyAwarded ? 120 : 0}/120</span>`;
+    document.getElementById("tabi-daily-reward").innerHTML = `<span>★</span> <span>${dailyEarned}/120</span>`;
 
     const daysDone      = Math.min(6, tabiWeeklyState.completedDates?.length || 0);
     const weeklyStar    = tabiWeeklyState.weeklyAwarded ? 120 : 0;
@@ -380,19 +382,21 @@ function tabiRender() {
             startBtn    .classList.add      ("hidden");
             summaryEl   .classList.remove   ("hidden");
 
-            const won = tabiState.dailyAwarded;
+            const maxWon = dailyEarned >= 120;
 
             summaryEl.className = `rounded-lg border px-3 py-2 text-center text-sm font-bold ${
-                won
+                maxWon
                     ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                    : dailyEarned > 0
+                        ? "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
             }`;
 
-            summaryEl.textContent = won
-                ? "Reached the end of your Tabi!"
+            summaryEl.textContent = maxWon
+                ? `Reached the end of your Tabi! (+${dailyEarned} ★)`
                 : dow === 0
-                    ? `Tabi ended at ${curStationName} after ${tabiState.laps} laps; need 5+ laps and land in Tokyo`
-                    : `Tabi ended at ${curStationName}`;
+                    ? `Tabi ended at ${curStationName} after ${tabiState.laps} laps (+${dailyEarned} ★)`
+                    : `Tabi ended at ${curStationName} (+${dailyEarned} ★)`;
         } else {
             startBtn.classList.remove("hidden");
             startBtn.disabled = tabiBusy;
@@ -585,15 +589,17 @@ async function tabiSubmitAnswer(timedOut = false) {
 
     if (!timedOut) {
         if (prompt.kind === "PERSON") {
-            const idx       = characterPool.findIndex(c => c.uniqueKey === selectedId);
-            const rankRatio = idx >= 0 ? (idx / Math.max(1, characterPool.length - 1)) : 0;
-            obscurityPct    = Math.round(rankRatio * 100);
-            stationsMoved   = Math.max(1, Math.min(cfg.maxStep, Math.ceil(rankRatio * cfg.maxStep)));
+            const idx           = characterPool.findIndex(c => c.uniqueKey === selectedId);
+            const rankRatio     = idx >= 0 ? (idx / Math.max(1, characterPool.length - 1)) : 0;
+            const curvedRatio   = Math.pow      (rankRatio, 2.5);
+            obscurityPct        = Math.round    (rankRatio * 100);
+            stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         } else {
-            const an        = tabiAnimeCatalog.find(a => a.animeId === selectedId);
-            const rankRatio = an ? (an.bestRankIdx / Math.max(1, characterPool.length - 1)) : 0;
-            obscurityPct    = Math.round(rankRatio * 100);
-            stationsMoved   = Math.max(1, Math.min(cfg.maxStep, Math.ceil(rankRatio * cfg.maxStep)));
+            const an            = tabiAnimeCatalog.find(a => a.animeId === selectedId);
+            const rankRatio     = an ? (an.bestRankIdx / Math.max(1, characterPool.length - 1)) : 0;
+            const curvedRatio   = Math.pow      (rankRatio, 2.5);
+            obscurityPct        = Math.round    (rankRatio * 100);
+            stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         }
     }
 
@@ -613,16 +619,24 @@ async function tabiSubmitAnswer(timedOut = false) {
 
     tabiState.qIndex += 1;
 
-    const reachedGoal = dow === 0 ? (tabiState.qIndex === cfg.qCount && tabiState.laps >= 5 && tabiState.station === 0) : (tabiState.station === 20);
-
     if (tabiState.qIndex >= cfg.qCount || (dow !== 0 && tabiState.station === 20)) {
         tabiState.completed = true;
 
-        if (reachedGoal && !tabiState.dailyAwarded) {
-            tabiState.dailyAwarded = true;
+        if (!tabiState.dailyAwarded) {
+            tabiState.dailyAwarded  = true;
+            let earnedStars         = 0;
 
-            if (!tabiWeeklyState.completedDates.includes(jstDate))  tabiWeeklyState.completedDates.push(jstDate);
-            if (tabiWeeklyState.completedDates.length >= 6)         tabiWeeklyState.weeklyAwarded = true;
+            if (dow === 0) {
+                const distFromTokyo = Math.min(tabiState.station, 30 - tabiState.station);
+                earnedStars         = (20 * Math.min(5, tabiState.laps)) + Math.max(0, 20 - (5 * distFromTokyo));
+            } else earnedStars      = 6 * tabiState.station;
+
+            tabiState.dailyEarned = earnedStars;
+
+            if (earnedStars >= 120) {
+                if (!tabiWeeklyState.completedDates.includes(jstDate))  tabiWeeklyState.completedDates.push(jstDate);
+                if (tabiWeeklyState.completedDates.length >= 6)         tabiWeeklyState.weeklyAwarded = true;
+            }
         }
     }
 

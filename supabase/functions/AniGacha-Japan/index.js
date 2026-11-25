@@ -693,6 +693,7 @@ serve(async (req) => {
             started         : false,
             completed       : false,
             dailyAwarded    : false,
+            dailyEarned     : 0,
             station         : 0,
             laps            : 0,
             qIndex          : 0,
@@ -1810,10 +1811,11 @@ serve(async (req) => {
                         if (prompt.rule === "GENRE"                                 && !hasCharGenre ||
                             ((prompt.rule === "ERA" || prompt.rule === "STUDIO")    && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
 
-                        const rankRatio = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
-                        obscurityPct    = Math.round(rankRatio * 100);
-                        stationsMoved   = Math.max(1, Math.min(cfg.maxStep, Math.ceil(rankRatio * cfg.maxStep)));
-                        label           = uniqueKey;
+                        const rankRatio     = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
+                        const curvedRatio   = Math.pow      (rankRatio, 2.5);
+                        obscurityPct        = Math.round    (rankRatio * 100);
+                        stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
+                        label               = uniqueKey;
                     } else {
                         const keysForAnime = gameData.animeToCharKeys.get(animeId);
                         if (!keysForAnime || keysForAnime.length === 0) throw new Error("Anime not found");
@@ -1831,10 +1833,11 @@ serve(async (req) => {
                             return idx >= 0 ? idx : gameData.charList.length - 1;
                         }));
 
-                        const rankRatio = bestIdx / Math.max(1, gameData.charList.length - 1);
-                        obscurityPct    = Math.round(rankRatio * 100);
-                        stationsMoved   = Math.max(1, Math.min(cfg.maxStep, Math.ceil(rankRatio * cfg.maxStep)));
-                        label           = animeId;
+                        const rankRatio     = bestIdx / Math.max(1, gameData.charList.length - 1);
+                        const curvedRatio   = Math.pow      (rankRatio, 2.5);
+                        obscurityPct        = Math.round    (rankRatio * 100);
+                        stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
+                        label               = animeId;
                     }
                 }
 
@@ -1854,20 +1857,28 @@ serve(async (req) => {
 
                 td.qIndex += 1;
 
-                const reachedGoal = dow === 0 ? (td.qIndex === cfg.qCount && td.laps >= 5 && td.station === 0) : (td.station === 20);
-
                 if (td.qIndex >= cfg.qCount || (dow !== 0 && td.station === 20)) {
                     td.completed = true;
 
-                    if (reachedGoal && !td.dailyAwarded) {
-                        td.dailyAwarded =   true;
-                        save.stars      +=  120;
+                    if (!td.dailyAwarded) {
+                        td.dailyAwarded = true;
+                        let earnedStars = 0;
 
-                        if (!save.tabiWeekly.completedDates.includes(dailyBanners.jstDate)) save.tabiWeekly.completedDates.push(dailyBanners.jstDate);
+                        if (dow === 0) {
+                            const distFromTokyo = Math.min(td.station, 30 - td.station);
+                            earnedStars         = (20 * Math.min(5, td.laps)) + Math.max(0, 20 - (5 * distFromTokyo));
+                        } else earnedStars      = 6 * td.station;
 
-                        if (save.tabiWeekly.completedDates.length >= 6 && !save.tabiWeekly.weeklyAwarded) {
-                            save.tabiWeekly.weeklyAwarded = true;
-                            save.stars += 120;
+                        td.dailyEarned  = earnedStars;
+                        save.stars      += earnedStars;
+
+                        if (earnedStars >= 120) {
+                            if (!save.tabiWeekly.completedDates.includes(dailyBanners.jstDate)) save.tabiWeekly.completedDates.push(dailyBanners.jstDate);
+
+                            if (save.tabiWeekly.completedDates.length >= 6 && !save.tabiWeekly.weeklyAwarded) {
+                                save.tabiWeekly.weeklyAwarded = true;
+                                save.stars += 120;
+                            }
                         }
                     }
                 }
