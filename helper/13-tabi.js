@@ -782,11 +782,22 @@ function tabiFindExactMatch(rawInput, prompt) {
     if (!q || !prompt || !tabiState) return null;
 
     if (prompt.kind === "PERSON") {
-        const match = characterPool.find(c => c.name.trim().toLowerCase() === q);
-        return match ? match.uniqueKey : null;
+        const matches = characterPool.filter(c => c.name.trim().toLowerCase() === q && tabiCheckPromptCandidate(prompt, c.uniqueKey));
+        if (!matches.length) return null;
+
+        return matches.reduce((best, c) => {
+            const idx       = characterPool.findIndex(x => x.uniqueKey === c.uniqueKey);
+            const rankRatio = idx / Math.max(1, characterPool.length - 1);
+            const bestIdx   = characterPool.findIndex(x => x.uniqueKey === best.uniqueKey);
+            const bestRatio = bestIdx / Math.max(1, characterPool.length - 1);
+
+            return rankRatio > bestRatio ? c : best;
+        }).uniqueKey;
     } else {
-        const match = tabiAnimeCatalog.find(a => a.romaji.trim().toLowerCase() === q || a.english.trim().toLowerCase() === q);
-        return match ? match.animeId : null;
+        const matches = tabiAnimeCatalog.filter(a => (a.romaji.trim().toLowerCase() === q || a.english.trim().toLowerCase() === q) && tabiCheckPromptCandidate(prompt, a.animeId));
+        if (!matches.length) return null;
+
+        return matches.reduce((best, a) => a.animeRankIdx > best.animeRankIdx ? a : best).animeId;
     }
 }
 
@@ -803,28 +814,23 @@ async function tabiSubmitAnswer(timedOut = false) {
 
     let selectedId = null;
 
-    if (!timedOut) {
-        const rawText   = document.getElementById("tabi-answer-input")?.value || "";
-        selectedId      = tabiFindExactMatch(rawText, prompt);
-    }
-
-    if (!timedOut && !selectedId) {
-        showAlertModal(prompt.kind === "PERSON" ? "Character not found in database" : "Anime not found in database", "Tabi", () => {document.getElementById("tabi-answer-input")?.focus()});
-        return;
-    }
-
-    const tabiIsAnswerValid = (p, id) => tabiCheckPromptCandidate(p, id);
-
     const rejectWrongAnswer = () => {
         const inputEl = document.getElementById("tabi-answer-input");
-        inputEl.value = "";
+        if (!inputEl) return;
 
+        inputEl.value = "";
         inputEl.classList.add("border-rose-500", "ring-2", "ring-rose-500/40");
-        setTimeout(() => inputEl.classList.remove("border-rose-500", "ring-2", "ring-rose-500/40"), 250);
+
+        setTimeout(() => {inputEl.classList.remove("border-rose-500", "ring-2", "ring-rose-500/40")}, 250);
         inputEl.focus();
     };
 
-    if (!timedOut && !tabiIsAnswerValid(prompt, selectedId)) {
+    if (!timedOut) {
+        const rawText = document.getElementById("tabi-answer-input")?.value || "";
+        selectedId = tabiFindExactMatch(rawText, prompt);
+    }
+
+    if (!timedOut && !selectedId) {
         rejectWrongAnswer();
         return;
     }
