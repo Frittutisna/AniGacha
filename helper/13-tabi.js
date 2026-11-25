@@ -114,8 +114,8 @@ function tabiHashSeed(str) {
 function tabiMulberry32(seed) {return function () {
     let t = (seed += 0x6D2B79F5);
 
-    t =     Math.imul(t ^ (t >>> 15),   t | 1);
-    t ^=    Math.imul(t ^ (t >>> 7),    t | 61) + t
+    t =         Math.imul(t ^ (t >>> 15),   t | 1);
+    t ^= t +    Math.imul(t ^ (t >>> 7),    t | 61);
 
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }}
@@ -132,12 +132,17 @@ function tabiWithArticle(word) {
     return `${article} ${trimmed}`;
 }
 
+let tabiAnimeMap    = new Map();
+let tabiWarmPromise = null;
+
 function tabiBuildAnimeCatalog() {
     if (tabiAnimeCatalog.length > 0 || !characterPool.length) return;
     const byAnime = new Map();
 
-    characterPool.forEach((c, rankIdx) => {
-        if (!c.animeId) return;
+    for (let i = 0; i < characterPool.length; i++) {
+        const c = characterPool[i];
+        if (!c.animeId) continue;
+
         let entry = byAnime.get(c.animeId);
 
         if (!entry) {
@@ -156,10 +161,124 @@ function tabiBuildAnimeCatalog() {
 
             byAnime.set(c.animeId, entry);
         } else entry.charKeys.add(c.uniqueKey);
-    });
+    }
 
-    tabiAnimeCatalog = Array.from(byAnime.values()).sort((a, b) => b.animeCount - a.animeCount);
-    tabiAnimeCatalog.forEach((entry, idx) => { entry.animeRankIdx = idx; });
+    tabiAnimeCatalog    = Array.from(byAnime.values()).sort((a, b) => (b.animeCount - a.animeCount) || a.animeId.localeCompare(b.animeId));
+    tabiAnimeMap        = new Map();
+
+    for (let idx = 0; idx < tabiAnimeCatalog.length; idx++) {
+        const entry         = tabiAnimeCatalog[idx];
+        entry.animeRankIdx  = idx;
+
+        tabiAnimeMap.set(entry.animeId, entry);
+    }
+}
+
+function tabiGetPromptAnimeSet(p) {
+    if (!p.keys)        return null;
+    if (p._animeIds)    return p._animeIds;
+
+    const ids = new Set();
+
+    for (const k of p.keys) {
+        const animeId = characterMap.get(k)?.animeId;
+        if (animeId) ids.add(animeId);
+    }
+
+    p._animeIds = ids;
+    return ids;
+}
+
+function tabiCountWords(str) {return String(str || "").trim().split(/\s+/).filter(Boolean).length}
+
+function tabiFirstAlpha(str) {
+    const m = String(str || "").trim().match(/[A-Za-z]/);
+    return m ? m[0].toUpperCase() : null;
+}
+
+function tabiCheckLexicalPerson(c, lexRule, lexVal) {
+    const name  = String(c?.name || "").trim();
+    const words = name.split(/\s+/).filter(Boolean);
+
+    if (lexRule === "MONONYM")      return words.length === 1;
+    if (lexRule === "ALLITERATION") return words.length >= 2 && tabiFirstAlpha(words[0]) !== null && tabiFirstAlpha(words[0]) === tabiFirstAlpha(words[words.length - 1]);
+    if (lexRule === "STARTS_WITH")  return tabiFirstAlpha(name) === lexVal;
+
+    return false;
+}
+
+function tabiCheckLexicalWork(a, lexRule, lexVal) {
+    const titles = [a?.romaji, a?.english].filter(Boolean).map(t => String(t).trim());
+    if (!titles.length) return false;
+
+    if (lexRule === "ONE_WORD")     return titles.some(t => tabiCountWords(t) ===   1);
+    if (lexRule === "LONG_TITLE")   return titles.some(t => tabiCountWords(t) >=    5);
+    if (lexRule === "STARTS_WITH")  return titles.some(t => tabiFirstAlpha(t) ===   lexVal);
+
+    return false;
+}
+
+function tabiCheckPromptCandidate(p, id) {
+    if (p.kind === "PERSON") {
+        const c = characterMap.get(id);
+        if (!c) return false;
+
+        if (p.rule === "GENRE")             return tabiHasGenre(c.genres, p.value);
+        if (p.rule === "ERA")               return Boolean(p.keys?.has(id));
+        if (p.rule === "STUDIO")            return Boolean(p.keys?.has(id));
+        if (p.rule === "SOURCE")            return c.source === p.value;
+        if (p.rule === "FRANCHISE")         return Boolean(p.keys?.has(id));
+        if (p.rule === "INT_GENRE_ERA")     return tabiHasGenre(c.genres, p.genre) && Boolean(p.keys?.has(id));
+        if (p.rule === "INT_GENRE_STUDIO")  return tabiHasGenre(c.genres, p.genre) && Boolean(p.keys?.has(id));
+        if (p.rule === "INT_SOURCE_ERA")    return c.source === p.source && Boolean(p.keys?.has(id));
+        if (p.rule === "LEX_PERSON")        return tabiCheckLexicalPerson(c, p.lexRule, p.lexVal);
+
+        return true;
+    } else {
+        const a = tabiAnimeMap.get(id);
+        if (!a) return false;
+
+        const hasAnime = () => Boolean(tabiGetPromptAnimeSet(p)?.has(id));
+
+        if (p.rule === "GENRE")             return tabiHasGenre(a.genres, p.value);
+        if (p.rule === "ERA")               return hasAnime();
+        if (p.rule === "STUDIO")            return hasAnime();
+        if (p.rule === "SOURCE")            return a.source === p.value;
+        if (p.rule === "TAG")               return hasAnime();
+        if (p.rule === "INT_GENRE_ERA")     return tabiHasGenre(a.genres, p.genre) && hasAnime();
+        if (p.rule === "INT_GENRE_STUDIO")  return tabiHasGenre(a.genres, p.genre) && hasAnime();
+        if (p.rule === "INT_GENRE_TAG")     return tabiHasGenre(a.genres, p.genre) && hasAnime();
+        if (p.rule === "LEX_WORK")          return tabiCheckLexicalWork(a, p.lexRule, p.lexVal);
+
+        return true;
+    }
+}
+
+function tabiHasEnoughMatches(prompt, minMatches = 25) {
+    let count = 0;
+
+    if (prompt.kind === "PERSON") {
+        for (let i = 0; i < characterPool.length; i++) {
+            if (tabiCheckPromptCandidate(prompt, characterPool[i].uniqueKey) && ++count >= minMatches) return true;
+        }
+    } else {
+        for (let i = 0; i < tabiAnimeCatalog.length; i++) {
+            if (tabiCheckPromptCandidate(prompt, tabiAnimeCatalog[i].animeId) && ++count >= minMatches) return true;
+        }
+    }
+
+    return false;
+}
+
+function tabiPickValidPrompt(rng, builders) {
+    for (let attempt = 0; attempt < 25; attempt++) {
+        const fn        = builders[Math.floor(rng() * builders.length)];
+        const candidate = fn();
+
+        if (candidate && tabiHasEnoughMatches(candidate, 25)) return candidate;
+    }
+
+    return builders[0]();
 }
 
 function tabiGetDailyPrompts(jstDate) {
@@ -186,69 +305,132 @@ function tabiGetDailyPrompts(jstDate) {
     const studios       = THEMED_BANNERS.STUDIO     ?.allOptions || [];
     const sources       = THEMED_BANNERS.SOURCE     ?.allOptions || [];
     const tags          = THEMED_BANNERS.TAG        ?.allOptions || [];
+    const letters       = "ABCDEFGHKLMNOPRSTW".split("");
     const prompts       = [];
 
     for (let i = 0; i < cfg.qCount; i++) {
         const kind = types[i];
 
         if (kind === "PERSON") {
-            const pools = [
+            const singleBuilders = [
                 genres.length ? () => {
                     const g = genres[Math.floor(rng() * genres.length)];
-                    return {kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from ${tabiWithArticle(g.title)} anime`}
+                    return {kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from ${tabiWithArticle(g.title)} anime`};
                 } : null,
 
                 eras.length ? () => {
                     const e = eras[Math.floor(rng() * eras.length)];
-                    return {kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from an anime in the ${e.title}`}
+                    return {kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from an anime in the ${e.title}`};
                 } : null,
 
                 studios.length ? () => {
                     const s = studios[Math.floor(rng() * studios.length)];
-                    return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`}
+                    return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`};
                 } : null,
 
                 sources.length ? () => {
                     const src = sources[Math.floor(rng() * sources.length)];
-                    return {kind: "PERSON", rule: "SOURCE", value: src.title, text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)}`}
+                    return {kind: "PERSON", rule: "SOURCE", value: src.title, text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)}`};
                 } : null,
 
                 franchises.length ? () => {
                     const f = franchises[Math.floor(rng() * franchises.length)];
-                    return {kind: "PERSON", rule: "FRANCHISE", value: f.title, keys: f.eligibleKeys, text: `Name a character from the ${f.title} franchise`}
+                    return {kind: "PERSON", rule: "FRANCHISE", value: f.title, keys: f.eligibleKeys, text: `Name a character from the ${f.title} franchise`};
                 } : null
             ].filter(Boolean);
 
-            if (pools.length) prompts.push(pools[i % pools.length]());
+            const intersectionBuilders = [
+                (genres.length && eras.length) ? () => {
+                    const g = genres[Math.floor(rng() * genres.length)];
+                    const e = eras  [Math.floor(rng() * eras  .length)];
+                    return {kind: "PERSON", rule: "INT_GENRE_ERA", genre: g.title, era: e.title, keys: e.eligibleKeys, text: `Name a character from ${tabiWithArticle(g.title)} anime in the ${e.title}`};
+                } : null,
+
+                (genres.length && studios.length) ? () => {
+                    const g = genres [Math.floor(rng() * genres .length)];
+                    const s = studios[Math.floor(rng() * studios.length)];
+                    return {kind: "PERSON", rule: "INT_GENRE_STUDIO", genre: g.title, studio: s.title, keys: s.eligibleKeys, text: `Name a character from ${tabiWithArticle(g.title)} anime made by ${s.title}`};
+                } : null,
+
+                (sources.length && eras.length) ? () => {
+                    const src = sources[Math.floor(rng() * sources.length)];
+                    const e   = eras   [Math.floor(rng() * eras   .length)];
+                    return {kind: "PERSON", rule: "INT_SOURCE_ERA", source: src.title, era: e.title, keys: e.eligibleKeys, text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)} in the ${e.title}`};
+                } : null
+            ].filter(Boolean);
+
+            const lexicalBuilders = [
+                () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "MONONYM", text: "Name a character with a one-word name (mononym)"}),
+                () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "ALLITERATION", text: "Name a character whose first and last name start with the same letter"}),
+
+                () => {
+                    const l = letters[Math.floor(rng() * letters.length)];
+                    return {kind: "PERSON", rule: "LEX_PERSON", lexRule: "STARTS_WITH", lexVal: l, text: `Name a character whose name starts with the letter ${l}`};
+                }
+            ];
+
+            const bucket = (i % 3 === 1 && intersectionBuilders.length) ? intersectionBuilders : (i % 3 === 2 ? lexicalBuilders : singleBuilders);
+            if (bucket.length) prompts.push(tabiPickValidPrompt(rng, bucket));
         } else {
-            const pools = [
+            const singleBuilders = [
                 genres.length ? () => {
                     const g = genres[Math.floor(rng() * genres.length)];
-                    return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`}
+                    return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`};
                 } : null,
 
                 eras.length ? () => {
                     const e = eras[Math.floor(rng() * eras.length)];
-                    return {kind: "WORK", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name an anime from the ${e.title}`}
+                    return {kind: "WORK", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name an anime from the ${e.title}`};
                 } : null,
 
                 studios.length ? () => {
                     const s = studios[Math.floor(rng() * studios.length)];
-                    return {kind: "WORK", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name an anime made by ${s.title}`}
+                    return {kind: "WORK", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name an anime made by ${s.title}`};
                 } : null,
 
                 sources.length ? () => {
                     const src = sources[Math.floor(rng() * sources.length)];
-                    return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`}
+                    return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`};
                 } : null,
 
                 tags.length ? () => {
                     const t = tags[Math.floor(rng() * tags.length)];
-                    return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`}
+                    return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`};
                 } : null
             ].filter(Boolean);
 
-            if (pools.length) prompts.push(pools[i % pools.length]());
+            const intersectionBuilders = [
+                (genres.length && eras.length) ? () => {
+                    const g = genres[Math.floor(rng() * genres.length)];
+                    const e = eras  [Math.floor(rng() * eras  .length)];
+                    return {kind: "WORK", rule: "INT_GENRE_ERA", genre: g.title, era: e.title, keys: e.eligibleKeys, text: `Name ${tabiWithArticle(g.title)} anime from the ${e.title}`};
+                } : null,
+
+                (genres.length && studios.length) ? () => {
+                    const g = genres [Math.floor(rng() * genres .length)];
+                    const s = studios[Math.floor(rng() * studios.length)];
+                    return {kind: "WORK", rule: "INT_GENRE_STUDIO", genre: g.title, studio: s.title, keys: s.eligibleKeys, text: `Name ${tabiWithArticle(g.title)} anime made by ${s.title}`};
+                } : null,
+
+                (genres.length && tags.length) ? () => {
+                    const g = genres[Math.floor(rng() * genres.length)];
+                    const t = tags  [Math.floor(rng() * tags  .length)];
+                    return {kind: "WORK", rule: "INT_GENRE_TAG", genre: g.title, tag: t.title, keys: t.eligibleKeys, text: `Name ${tabiWithArticle(g.title)} anime with the ${t.title} tag`};
+                } : null
+            ].filter(Boolean);
+
+            const lexicalBuilders = [
+                () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "ONE_WORD", text: "Name an anime with a one-word title"}),
+                () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "LONG_TITLE", text: "Name an anime with 5 or more words in its title"}),
+
+                () => {
+                    const l = letters[Math.floor(rng() * letters.length)];
+                    return {kind: "WORK", rule: "LEX_WORK", lexRule: "STARTS_WITH", lexVal: l, text: `Name an anime whose title starts with the letter ${l}`};
+                }
+            ];
+
+            const bucket = (i % 3 === 1 && intersectionBuilders.length) ? intersectionBuilders : (i % 3 === 2 ? lexicalBuilders : singleBuilders);
+            if (bucket.length) prompts.push(tabiPickValidPrompt(rng, bucket));
         }
     }
 
@@ -319,10 +501,40 @@ function tabiApplyState(saveData) {
     tabiRender();
 }
 
+function tabiWarmUp() {
+    if (tabiWarmPromise)                            return tabiWarmPromise;
+    if (!databaseReady || !characterPool.length)    return Promise.resolve();
+
+    tabiWarmPromise = new Promise((resolve) => {
+        const run = () => {
+            tabiBuildAnimeCatalog   ();
+            tabiEnsureLocalState    ();
+            tabiGetDailyPrompts     (tabiState.date);
+            resolve                 ();
+        };
+
+        if (typeof requestIdleCallback === "function")  requestIdleCallback(run, {timeout: 1500});
+        else                                            setTimeout(run, 0);
+    });
+
+    return tabiWarmPromise;
+}
+
 function tabiOnPageOpen() {
-    tabiBuildAnimeCatalog   ();
-    tabiEnsureLocalState    ();
-    tabiRender              ();
+    if (!databaseReady) return;
+
+    if (tabiAnimeCatalog.length > 0 && tabiPromptsCache.date === (tabiState?.date || activeDailyJstDate || getCurrentJstDate())) {
+        tabiEnsureLocalState    ();
+        tabiRender              ();
+
+        return;
+    }
+
+    requestAnimationFrame(() => {
+        tabiBuildAnimeCatalog   ();
+        tabiEnsureLocalState    ();
+        tabiRender              ();
+    });
 }
 
 function tabiRender() {
@@ -378,7 +590,7 @@ function tabiRender() {
 
         if (a.uniqueKey) entityTitle = characterMap.get(a.uniqueKey)?.name || a.uniqueKey;
         else if (a.animeId) {
-            const an = tabiAnimeCatalog.find(x => x.animeId === a.animeId);
+            const an = tabiAnimeMap.get(a.animeId);
             entityTitle = an ? (titleLang === "EN" ? an.english : an.romaji) : a.animeId;
         }
 
@@ -426,7 +638,7 @@ function tabiRender() {
             const rulesPill     = document.getElementById("tabi-rules-pill");
 
             if (rulesPill) {
-                const rulesText = "Travel between stations by entering the answers to each question\nReach the terminus in the allocated questions\nQuestion count reduces as the week progresses\nOn Sundays, you must do 5+ laps and return to Tokyo\nObscure answers move you further20 seconds per question\n6 perfect days in a week awards ★ 120";
+                const rulesText = "Travel between stations by entering the answers to each question\nReach the terminus in the allocated questions\nQuestion count reduces as the week progresses\nOn Sundays, you must do 5+ laps and return to Tokyo\nObscure answers move you further\n20 seconds per question\n6 perfect days in a week awards ★ 120";
 
                 rulesPill.setAttribute      ("data-tooltip", rulesText);
                 rulesPill.removeAttribute   ("title");
@@ -590,31 +802,7 @@ async function tabiSubmitAnswer(timedOut = false) {
         return;
     }
 
-    const tabiIsAnswerValid = (p, id) => {
-        if (p.kind === "PERSON") {
-            const c = characterMap.get(id);
-            if (!c) return false;
-
-            if (p.rule === "GENRE")     return tabiHasGenre(c.genres, p.value);
-            if (p.rule === "ERA")       return Boolean(p.keys?.has(id));
-            if (p.rule === "STUDIO")    return Boolean(p.keys?.has(id));
-            if (p.rule === "SOURCE")    return c.source === p.value;
-            if (p.rule === "FRANCHISE") return Boolean(p.keys?.has(id));
-
-            return true;
-        } else {
-            const a = tabiAnimeCatalog.find(x => x.animeId === id);
-            if (!a) return false;
-
-            if (p.rule === "GENRE")     return tabiHasGenre(a.genres, p.value);
-            if (p.rule === "ERA")       return [...a.charKeys].some(k => p.keys?.has(k));
-            if (p.rule === "STUDIO")    return [...a.charKeys].some(k => p.keys?.has(k));
-            if (p.rule === "SOURCE")    return a.source === p.value;
-            if (p.rule === "TAG")       return [...a.charKeys].some(k => p.keys?.has(k));
-
-            return true;
-        }
-    };
+    const tabiIsAnswerValid = (p, id) => tabiCheckPromptCandidate(p, id);
 
     const rejectWrongAnswer = () => {
         const inputEl = document.getElementById("tabi-answer-input");
@@ -630,7 +818,7 @@ async function tabiSubmitAnswer(timedOut = false) {
     };
 
     if (!timedOut && !tabiIsAnswerValid(prompt, selectedId)) {
-        rejectWrongAnswer(prompt.kind === "PERSON" ? "Wrong character; try again" : "Wrong anime; try again");
+        rejectWrongAnswer();
         return;
     }
 
@@ -681,7 +869,7 @@ async function tabiSubmitAnswer(timedOut = false) {
             obscurityPct        = Math.round    (rankRatio * 100);
             stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         } else {
-            const an            = tabiAnimeCatalog.find(a => a.animeId === selectedId);
+            const an            = tabiAnimeMap.get(selectedId);
             const rankRatio     = an ? (an.animeRankIdx / Math.max(1, tabiAnimeCatalog.length - 1)) : 0;
             const curvedRatio   = Math.pow      (rankRatio, 0.5);
             obscurityPct        = Math.round    (rankRatio * 100);

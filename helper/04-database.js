@@ -11,7 +11,7 @@ async function initDatabase() {
         for (const [id, a] of Object.entries(animes)) hydratedAnimes.set(id, {
             animeRomaji : a[0],
             animeEnglish: a[1],
-            animeCount  : a[2],
+            animeCount  : a[10],
             animeDate   : a[3],
             rawDateInt  : a[4],
             animeYear   : a[4] ? Math.floor(a[4] / 10000) : null,
@@ -54,7 +54,9 @@ async function initDatabase() {
 
         rebuildAnilistEligibleKeys();
         ALL_THEMED_KEYS.forEach(key => {THEMED_BANNERS[key].allOptions = (themedOptions[key] || []).map(opt => ({...opt, eligibleKeys: new Set(opt.idxs.map(idx => chars[idx]?.uniqueKey).filter(Boolean))}))});
+
         databaseReady = true;
+        tabiWarmUp();
 
         if (isSharedView) {
             await loadSharedCollection(sharedUserId);

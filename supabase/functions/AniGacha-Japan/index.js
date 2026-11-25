@@ -68,17 +68,21 @@ function getGameData() {
 
             RARITIES.forEach(r => globalBuckets[r.tier] = []);
 
-            for (const [uniqueKey, tier, animeId = null, deckRank = "2", deckSuit = "Spades"] of charList) {
+            for (let charIdx = 0; charIdx < charList.length; charIdx++) {
+                const [uniqueKey, tier, animeId = null, deckRank = "2", deckSuit = "Spades", name = ""] = charList[charIdx];
+
                 const normAnimeId   = animeId       ? String(animeId).trim()                    :   null;
                 const animeMeta     = normAnimeId   ? animesMap[normAnimeId]                    :   null;
                 const rawDateInt    = animeMeta?.[1]                                            ??  null;
                 const animeYear     = rawDateInt    ? Math.floor(Number(rawDateInt) / 10000)    :   null;
 
                 charMap.set(uniqueKey, {
-                    uniqueKey, tier,
+                    charIdx, uniqueKey, tier, name,
                     animeId     : normAnimeId,
                     rootAnimeId : animeMeta?.[0] || normAnimeId,
                     animeYear,
+                    romaji      : animeMeta?.[6] || null,
+                    english     : animeMeta?.[7] || null,
                     genres      : Array.isArray(animeMeta?.[2]) ? animeMeta[2] : [],
                     tags        : Array.isArray(animeMeta?.[3]) ? animeMeta[3] : [],
                     studios     : Array.isArray(animeMeta?.[4]) ? animeMeta[4] : [],
@@ -101,10 +105,10 @@ function getGameData() {
             }
 
             const sortedAnimeIds = Array.from(animeToCharKeys.keys()).sort((a, b) => {
-                const countA = Number(animesMap[a]?.[6]) || 0;
-                const countB = Number(animesMap[b]?.[6]) || 0;
+                const countA = Number(animesMap[a]?.[8]) || 0;
+                const countB = Number(animesMap[b]?.[8]) || 0;
 
-                return countB - countA;
+                return (countB - countA) || a.localeCompare(b);
             });
 
             const animeRankMap = new Map(sortedAnimeIds.map((id, idx) => [id, idx]));
@@ -478,7 +482,7 @@ serve(async (req) => {
 
             if (error || !row?.save_data) return new Response(JSON.stringify({error: "Shared collection not found"}), {
                 status  : 404,
-                header  : {...corsHeaders, "Content-Type": "application/json"},
+                headers : {...corsHeaders, "Content-Type": "application/json"},
             });
 
             const s = row.save_data;
@@ -1720,8 +1724,92 @@ serve(async (req) => {
                 0: {route: "Loop",  qCount: 6, target: 30, maxStep: 30, types: null}
             };
 
-            const cfg = DAY_CONFIG[dow];
-            const rng = mulberry32(hashSeed(`anigacha-tabi-${dailyBanners.jstDate}`));
+            const cfg           = DAY_CONFIG[dow];
+            const rng           = mulberry32(hashSeed(`anigacha-tabi-${dailyBanners.jstDate}`));
+            const countWords    = (str) => String(str || "").trim().split(/\s+/).filter(Boolean).length;
+
+            const firstAlpha = (str) => {
+                const m = String(str || "").trim().match(/[A-Za-z]/);
+                return m ? m[0].toUpperCase() : null;
+            };
+
+            const checkLexicalPerson = (char, lexRule, lexVal) => {
+                const name  = String(char?.name || "").trim();
+                const words = name.split(/\s+/).filter(Boolean);
+
+                if (lexRule === "MONONYM")      return words.length === 1;
+                if (lexRule === "ALLITERATION") return words.length >= 2 && firstAlpha(words[0]) !== null && firstAlpha(words[0]) === firstAlpha(words[words.length - 1]);
+                if (lexRule === "STARTS_WITH")  return firstAlpha(name) === lexVal;
+
+                return false;
+            };
+
+            const checkLexicalWork = (romaji, english, lexRule, lexVal) => {
+                const titles = [romaji, english].filter(Boolean).map(t => String(t).trim());
+                if (!titles.length) return false;
+
+                if (lexRule === "ONE_WORD")     return titles.some(t => countWords(t) ===   1);
+                if (lexRule === "LONG_TITLE")   return titles.some(t => countWords(t) >=    5);
+                if (lexRule === "STARTS_WITH")  return titles.some(t => firstAlpha(t) ===   lexVal);
+
+                return false;
+            };
+
+            const checkPromptRule = (prompt, target, idxSetItem) => {
+                if (prompt.rule === "GENRE")                                        return Array.isArray(target.genres) ? target.genres.includes(prompt.value) : Boolean(target.genres?.has?.(prompt.value));
+                if (prompt.rule === "SOURCE")                                       return target.source === prompt.value;
+                if (["ERA", "STUDIO", "FRANCHISE", "TAG"].includes(prompt.rule))    return Boolean(prompt.idxs?.has(idxSetItem));
+
+                if (prompt.rule === "INT_GENRE_ERA") {
+                    const okGenre = Array.isArray(target.genres) ? target.genres.includes(prompt.genre) : Boolean(target.genres?.has?.(prompt.genre));
+                    return okGenre && Boolean(prompt.idxs?.has(idxSetItem));
+                }
+
+                if (prompt.rule === "INT_GENRE_STUDIO") {
+                    const okGenre = Array.isArray(target.genres) ? target.genres.includes(prompt.genre) : Boolean(target.genres?.has?.(prompt.genre));
+                    return okGenre && Boolean(prompt.idxs?.has(idxSetItem));
+                }
+
+                if (prompt.rule === "INT_SOURCE_ERA") return target.source === prompt.source && Boolean(prompt.idxs?.has(idxSetItem));
+
+                if (prompt.rule === "INT_GENRE_TAG") {
+                    const okGenre = Array.isArray(target.genres) ? target.genres.includes(prompt.genre) : Boolean(target.genres?.has?.(prompt.genre));
+                    return okGenre && Boolean(prompt.idxs?.has(idxSetItem));
+                }
+
+                if (prompt.rule === "LEX_PERSON")   return checkLexicalPerson   (target,                        prompt.lexRule, prompt.lexVal);
+                if (prompt.rule === "LEX_WORK")     return checkLexicalWork     (target.romaji, target.english, prompt.lexRule, prompt.lexVal);
+
+                return false;
+            };
+
+            const hasEnoughMatches = (prompt, minMatches = 25) => {
+                let count = 0;
+
+                if (prompt.kind === "PERSON") {
+                    for (const c of gameData.charMap.values()) {
+                        if (checkPromptRule(prompt, c, c.charIdx) && ++count >= minMatches) return true;
+                    }
+                } else {
+                    for (const [, keysForAnime] of gameData.animeToCharKeys.entries()) {
+                        const repChar = gameData.charMap.get(keysForAnime[0]);
+                        if (repChar && checkPromptRule(prompt, repChar, repChar.charIdx) && ++count >= minMatches) return true;
+                    }
+                }
+
+                return false;
+            };
+
+            const pickValidPrompt = (builders) => {
+                for (let attempt = 0; attempt < 25; attempt++) {
+                    const fn        = builders[Math.floor(rng() * builders.length)];
+                    const candidate = fn();
+
+                    if (candidate && hasEnoughMatches(candidate, 25)) return candidate;
+                }
+
+                return builders[0]();
+            };
 
             const buildDailyPrompts = () => {
                 const types = dow === 0 ? (() => {
@@ -1742,12 +1830,13 @@ serve(async (req) => {
                 const studios       = gameData.themedOptions.STUDIO     || [];
                 const sources       = gameData.themedOptions.SOURCE     || [];
                 const tags          = gameData.themedOptions.TAG        || [];
+                const letters       = "ABCDEFGHKLMNOPRSTW".split("");
 
                 for (let i = 0; i < cfg.qCount; i++) {
                     const kind = types[i];
 
                     if (kind === "PERSON") {
-                        const pools = [
+                        const singleBuilders = [
                             genres.length ? () => {
                                 const g = genres[Math.floor(rng() * genres.length)];
                                 return {kind: "PERSON", rule: "GENRE", value: g.title}
@@ -1774,9 +1863,39 @@ serve(async (req) => {
                             } : null
                         ].filter(Boolean);
 
-                        if (pools.length) prompts.push(pools[i % pools.length]());
+                        const intersectionBuilders = [
+                            (genres.length && eras.length) ? () => {
+                                const g = genres    [Math.floor(rng() * genres  .length)];
+                                const e = eras      [Math.floor(rng() * eras    .length)];
+
+                                return {kind: "PERSON", rule: "INT_GENRE_ERA", genre: g.title, era: e.title, idxs: new Set(e.idxs)};
+                            } : null,
+
+                            (genres.length && studios.length) ? () => {
+                                const g = genres    [Math.floor(rng() * genres  .length)];
+                                const s = studios   [Math.floor(rng() * studios .length)];
+
+                                return {kind: "PERSON", rule: "INT_GENRE_STUDIO", genre: g.title, studio: s.title, idxs: new Set(s.idxs)};
+                            } : null,
+
+                            (sources.length && eras.length) ? () => {
+                                const src   = sources   [Math.floor(rng() * sources .length)];
+                                const e     = eras      [Math.floor(rng() * eras    .length)];
+
+                                return {kind: "PERSON", rule: "INT_SOURCE_ERA", source: src.title, era: e.title, idxs: new Set(e.idxs)};
+                            } : null
+                        ].filter(Boolean);
+
+                        const lexicalBuilders = [
+                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "MONONYM"}),
+                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "ALLITERATION"}),
+                            () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "STARTS_WITH", lexVal: letters[Math.floor(rng() * letters.length)]})
+                        ];
+
+                        const bucket = (i % 3 === 1 && intersectionBuilders.length) ? intersectionBuilders : (i % 3 === 2 ? lexicalBuilders : singleBuilders);
+                        if (bucket.length) prompts.push(pickValidPrompt(bucket));
                     } else {
-                        const pools = [
+                        const singleBuilders = [
                             genres.length ? () => {
                                 const g = genres[Math.floor(rng() * genres.length)];
                                 return {kind: "WORK", rule: "GENRE", value: g.title}
@@ -1803,7 +1922,37 @@ serve(async (req) => {
                             } : null
                         ].filter(Boolean);
 
-                        if (pools.length) prompts.push(pools[i % pools.length]());
+                        const intersectionBuilders = [
+                            (genres.length && eras.length) ? () => {
+                                const g = genres    [Math.floor(rng() * genres  .length)];
+                                const e = eras      [Math.floor(rng() * eras    .length)];
+
+                                return {kind: "WORK", rule: "INT_GENRE_ERA", genre: g.title, era: e.title, idxs: new Set(e.idxs)};
+                            } : null,
+
+                            (genres.length && studios.length) ? () => {
+                                const g = genres    [Math.floor(rng() * genres  .length)];
+                                const s = studios   [Math.floor(rng() * studios .length)];
+
+                                return {kind: "WORK", rule: "INT_GENRE_STUDIO", genre: g.title, studio: s.title, idxs: new Set(s.idxs)};
+                            } : null,
+
+                            (genres.length && tags.length) ? () => {
+                                const g = genres    [Math.floor(rng() * genres  .length)];
+                                const t = tags      [Math.floor(rng() * tags    .length)];
+
+                                return {kind: "WORK", rule: "INT_GENRE_TAG", genre: g.title, tag: t.title, idxs: new Set(t.idxs)};
+                            } : null
+                        ].filter(Boolean);
+
+                        const lexicalBuilders = [
+                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "ONE_WORD"}),
+                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "LONG_TITLE"}),
+                            () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "STARTS_WITH", lexVal: letters[Math.floor(rng() * letters.length)]})
+                        ];
+
+                        const bucket = (i % 3 === 1 && intersectionBuilders.length) ? intersectionBuilders : (i % 3 === 2 ? lexicalBuilders : singleBuilders);
+                        if (bucket.length) prompts.push(pickValidPrompt(bucket));
                     }
                 }
 
@@ -1833,36 +1982,25 @@ serve(async (req) => {
                         const char = gameData.charMap.get(uniqueKey);
                         if (!char) throw new Error("Character not found");
 
-                        const charIdx       = gameData.charList.findIndex(row => row[0] === uniqueKey);
-                        const hasCharGenre  = Array.isArray(char.genres) ? char.genres.includes(prompt.value) : Boolean(char.genres?.has?.(prompt.value));
-
-                        if ((prompt.rule === "GENRE"    && !hasCharGenre)                   ||
-                            (prompt.rule === "SOURCE"   && char.source !== prompt.value)    ||
-                            (["ERA", "STUDIO", "FRANCHISE"].includes(prompt.rule) && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
+                        const charIdx = char.charIdx;
+                        if (!checkPromptRule(prompt, char, charIdx)) throw new Error("Wrong character");
 
                         const rankRatio     = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
                         const curvedRatio   = Math.pow      (rankRatio, 0.5);
                         obscurityPct        = Math.round    (rankRatio * 100);
                         stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
-                        label               = uniqueKey;
                     } else {
                         const keysForAnime = gameData.animeToCharKeys.get(animeId);
                         if (!keysForAnime || keysForAnime.length === 0) throw new Error("Anime not found");
 
-                        const repChar       = gameData.charMap.get(keysForAnime[0]);
-                        const repIdx        = gameData.charList.findIndex(row => row[0] === keysForAnime[0]);
-                        const hasRepGenre   = Array.isArray(repChar?.genres) ? repChar.genres.includes(prompt.value) : Boolean(repChar?.genres?.has?.(prompt.value));
-
-                        if ((prompt.rule === "GENRE"    && !hasRepGenre)                        ||
-                            (prompt.rule === "SOURCE"   && repChar?.source !== prompt.value)    ||
-                            (["ERA", "STUDIO", "TAG"].includes(prompt.rule) && !prompt.idxs?.has(repIdx))) throw new Error("Wrong anime");
+                        const repChar = gameData.charMap.get(keysForAnime[0]);
+                        if (!repChar || !checkPromptRule(prompt, repChar, repChar.charIdx)) throw new Error("Wrong anime");
 
                         const animeIdx      = gameData.animeRankMap.get(animeId) ?? Math.max(0, gameData.animeRankMap.size - 1);
                         const rankRatio     = animeIdx / Math.max(1, gameData.animeRankMap.size - 1);
                         const curvedRatio   = Math.pow      (rankRatio, 0.5);
                         obscurityPct        = Math.round    (rankRatio * 100);
                         stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
-                        label               = animeId;
                     }
                 }
 

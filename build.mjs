@@ -361,18 +361,22 @@ for (const [id, a] of animeMap.entries()) {
     const root = resolveRootAnime(id) || a;
 
     serverAnimes[id] = [
-        root.id,
-        root.rawDateInt,
+        root.id, root.rawDateInt,
         Array.from(a.genres),
         Array.from(a.tags),
         Array.from(a.studios),
-        a.source
+        a.source,
+        a.romaji    || root.romaji  || null,
+        a.english   || root.english || null,
+        a.animeCount
     ];
 }
 
 const compactChars = chars.map(c => {
-    const deck = deckMetaByKey.get(c.uniqueKey) || {rank: "2", suit: "Spades"};
-    return [c.uniqueKey, c.tier, c.animeId, deck.rank, deck.suit];
+    const [name]    = rawCharByKey  .get(c.uniqueKey) || ["Unknown"];
+    const deck      = deckMetaByKey .get(c.uniqueKey) || {rank: "2", suit: "Spades"};
+
+    return [c.uniqueKey, c.tier, c.animeId, deck.rank, deck.suit, name];
 });
 
 fs.writeFileSync("./supabase/functions/AniGacha-Japan/server-data.json", JSON.stringify({
