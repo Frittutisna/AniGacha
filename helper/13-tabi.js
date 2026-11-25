@@ -270,6 +270,30 @@ function tabiCheckPromptCandidate(p, id) {
 
 function tabiGetPromptSignature(p) {return [p.kind, p.rule, p.value, p.genre, p.era, p.studio, p.source, p.franchise, p.tag, p.lexRule, p.lexVal, p.lexVal2].filter(Boolean).join("|")}
 
+function tabiGetPromptCriteria(p) {
+    const criteria = [];
+
+    if (["GENRE", "ERA", "STUDIO", "SOURCE", "FRANCHISE", "TAG"].includes(p.rule) && p.value)   criteria.push(`${p.rule}:${p.value}`);
+    if (p.genre)                                                                                criteria.push(`GENRE:${p.genre}`);
+    if (p.era)                                                                                  criteria.push(`ERA:${p.era}`);
+    if (p.studio)                                                                               criteria.push(`STUDIO:${p.studio}`);
+    if (p.source)                                                                               criteria.push(`SOURCE:${p.source}`);
+    if (p.franchise)                                                                            criteria.push(`FRANCHISE:${p.franchise}`);
+    if (p.tag)                                                                                  criteria.push(`TAG:${p.tag}`);
+
+    if (p.rule === "LEX_STARTS_ENDS") {
+        criteria.push("LEX:LEX_STARTS_ENDS");
+
+        if (p.lexVal)   criteria.push(`LEX_VAL:${p.lexVal}`);
+        if (p.lexVal2)  criteria.push(`LEX_VAL:${p.lexVal2}`);
+    } else if (p.lexRule) {
+        criteria.push(`LEX:${p.lexRule}`);
+        if (p.lexVal) criteria.push(`LEX_VAL:${p.lexVal}`);
+    }
+
+    return criteria;
+}
+
 function tabiHasEnoughMatches(prompt, minMatches = 25) {
     let count = 0;
 
@@ -286,18 +310,27 @@ function tabiHasEnoughMatches(prompt, minMatches = 25) {
     return false;
 }
 
-function tabiPickValidPrompt(rng, builders, usedSignatures) {
+function tabiPickValidPrompt(rng, builders, usedSignatures, usedCriteria) {
+    const isUnused = (_, sig, criteria) => !usedSignatures.has(sig) && !criteria.some(c => usedCriteria.has(c));
+
+    const recordUsed = (sig, criteria) => {
+        usedSignatures.add(sig);
+        for (const c of criteria) usedCriteria.add(c);
+    };
+
     for (let attempt = 0; attempt < 50; attempt++) {
         const fn        = builders[Math.floor(rng() * builders.length)];
         const candidate = fn();
 
         if (!candidate) continue;
 
-        const sig = tabiGetPromptSignature(candidate);
-        if (usedSignatures.has(sig)) continue;
+        const sig       = tabiGetPromptSignature    (candidate);
+        const criteria  = tabiGetPromptCriteria     (candidate);
+
+        if (!isUnused(candidate, sig, criteria)) continue;
 
         if (tabiHasEnoughMatches(candidate, 25)) {
-            usedSignatures.add(sig);
+            recordUsed(sig, criteria);
             return candidate;
         }
     }
@@ -306,10 +339,11 @@ function tabiPickValidPrompt(rng, builders, usedSignatures) {
         const fallback = fn();
         if (!fallback) continue;
 
-        const sig = tabiGetPromptSignature(fallback);
+        const sig       = tabiGetPromptSignature    (fallback);
+        const criteria  = tabiGetPromptCriteria     (fallback);
 
-        if (!usedSignatures.has(sig)) {
-            usedSignatures.add(sig);
+        if (isUnused(fallback, sig, criteria)) {
+            recordUsed(sig, criteria);
             return fallback;
         }
     }
@@ -344,6 +378,7 @@ function tabiGetDailyPrompts(jstDate) {
     const letters           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
     const prompts           = [];
     const usedSignatures    = new Set();
+    const usedCriteria      = new Set();
     let lastBucketIdx       = -1;
     const pick              = (arr) => arr[Math.floor(rng() * arr.length)];
 
@@ -406,7 +441,7 @@ function tabiGetDailyPrompts(jstDate) {
                 const chosenBucketIdx   = pick(eligibleIndices);
                 lastBucketIdx           = chosenBucketIdx;
 
-                prompts.push(tabiPickValidPrompt(rng, buckets[chosenBucketIdx], usedSignatures));
+                prompts.push(tabiPickValidPrompt(rng, buckets[chosenBucketIdx], usedSignatures, usedCriteria));
             }
         } else {
             const singleBuilders = [
@@ -443,7 +478,7 @@ function tabiGetDailyPrompts(jstDate) {
                 const chosenBucketIdx   = pick(eligibleIndices);
                 lastBucketIdx           = chosenBucketIdx;
 
-                prompts.push(tabiPickValidPrompt(rng, buckets[chosenBucketIdx], usedSignatures));
+                prompts.push(tabiPickValidPrompt(rng, buckets[chosenBucketIdx], usedSignatures, usedCriteria));
             }
         }
     }
@@ -575,23 +610,44 @@ function tabiRender() {
     const routeEndpoints = dow === 0 ? "Tokyo ↻ Tokyo" : `${cfg.stations[0]} ➜ ${cfg.stations[20]}`;
     document.getElementById("tabi-track-endpoints").textContent = `${cfg.route}: ${routeEndpoints}, currently in ${curStationName}`;
 
-    const nodesEl           = document.getElementById("tabi-track-nodes");
-    const isDesktop         = window.matchMedia("(min-width: 640px)").matches;
-    const orderedIndices    = (dow === 0 || isDesktop) ? cfg.stations.map((_, i) => i) : [0, 1, 2, 3, 4, 5, 6, 13, 12, 11, 10, 9, 8, 7, 14, 15, 16, 17, 18, 19, 20];
-    nodesEl.className       = dow === 0 ? "grid grid-cols-6 sm:flex sm:flex-nowrap sm:justify-between gap-1.5 sm:gap-1 justify-items-center py-1" : "grid grid-cols-7 sm:flex sm:flex-nowrap sm:justify-between gap-2 sm:gap-1.5 justify-items-center py-1";
+    const nodesEl   = document.getElementById("tabi-track-nodes");
+    const isDesktop = window.matchMedia("(min-width: 640px)").matches;
 
-    nodesEl.innerHTML = orderedIndices.map((idx) => {
-        const stName    = cfg.stations[idx];
-        const isCurrent = idx === tabiState.station;
-        const isPassed  = dow !== 0 && idx < tabiState.station;
+    if (dow === 0) {
+        const radiusPct     = 44;
+        const nodeSize      = isDesktop ? "w-7 h-7 text-xs" : "w-6 h-6 text-[10px]";
+        nodesEl.className   = "relative mx-auto my-2 w-full max-w-[300px] sm:max-w-[360px] aspect-square";
+        nodesEl.innerHTML   = cfg.stations.map((stName, idx) => {
+            const angle     = ((idx / cfg.stations.length) * 2 * Math.PI) - (Math.PI / 2);
+            const leftPct   = 50 + radiusPct * Math.cos(angle);
+            const topPct    = 50 + radiusPct * Math.sin(angle);
+            const isCurrent = idx === tabiState.station;
+            const dotClass  = isCurrent ? "bg-indigo-600 text-white scale-110 ring-2 ring-indigo-400/50 z-10" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400";
 
-        const dotClass = isCurrent
-            ? "bg-indigo-600 text-white scale-110"
-            : isPassed
-                ? "bg-emerald-500/80 text-white"
-                : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400";
-        return `<div title="${escapeHTML(stName)}" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold cursor-help transition ${dotClass}">${idx}</div>`;
-    }).join("");
+            return `<div title="${escapeHTML(stName)}" style="left: ${leftPct.toFixed(2)}%; top: ${topPct.toFixed(2)}%;" class="absolute -translate-x-1/2 -translate-y-1/2 ${nodeSize} rounded-full flex items-center justify-center font-bold cursor-help transition ${dotClass}">${idx}</div>`;
+            }).join("") + `
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Laps</span>
+                <span class="text-lg sm:text-xl font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${tabiState.laps || 0}/5</span>
+            </div>
+        `;
+    } else {
+        const orderedIndices    = isDesktop ? cfg.stations.map((_, i) => i) : [0, 1, 2, 3, 4, 5, 6, 13, 12, 11, 10, 9, 8, 7, 14, 15, 16, 17, 18, 19, 20];
+        nodesEl.className       = "grid grid-cols-7 sm:flex sm:flex-nowrap sm:justify-between gap-2 sm:gap-1.5 justify-items-center py-1";
+
+        nodesEl.innerHTML = orderedIndices.map((idx) => {
+            const stName    = cfg.stations[idx];
+            const isCurrent = idx ===   tabiState.station;
+            const isPassed  = idx <     tabiState.station;
+
+            const dotClass = isCurrent
+                ? "bg-indigo-600 text-white scale-110"
+                : isPassed
+                    ? "bg-emerald-500/80 text-white"
+                    : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400";
+            return `<div title="${escapeHTML(stName)}" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold cursor-help transition ${dotClass}">${idx}</div>`;
+        }).join("");
+    }
 
     const idlePanel = document.getElementById("tabi-idle-panel");
     const playPanel = document.getElementById("tabi-play-panel");

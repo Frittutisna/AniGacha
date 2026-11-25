@@ -1789,6 +1789,30 @@ serve(async (req) => {
 
             const getPromptSignature = (p) => [p.kind, p.rule, p.value, p.genre, p.era, p.studio, p.source, p.franchise, p.tag, p.lexRule, p.lexVal, p.lexVal2].filter(Boolean).join("|");
 
+            const getPromptCriteria = (p) => {
+                const criteria = [];
+
+                if (["GENRE", "ERA", "STUDIO", "SOURCE", "FRANCHISE", "TAG"].includes(p.rule) && p.value)   criteria.push(`${p.rule}:${p.value}`)
+                if (p.genre)                                                                                criteria.push(`GENRE:${p.genre}`);
+                if (p.era)                                                                                  criteria.push(`ERA:${p.era}`);
+                if (p.studio)                                                                               criteria.push(`STUDIO:${p.studio}`);
+                if (p.source)                                                                               criteria.push(`SOURCE:${p.source}`);
+                if (p.franchise)                                                                            criteria.push(`FRANCHISE:${p.franchise}`);
+                if (p.tag)                                                                                  criteria.push(`TAG:${p.tag}`);
+
+                if (p.rule === "LEX_STARTS_ENDS") {
+                    criteria.push("LEX:LEX_STARTS_ENDS");
+
+                    if (p.lexVal)   criteria.push(`LEX_VAL:${p.lexVal}`);
+                    if (p.lexVal2)  criteria.push(`LEX_VAL:${p.lexVal2}`);
+                } else if (p.lexRule) {
+                    criteria.push(`LEX:${p.lexRule}`);
+                    if (p.lexVal) criteria.push(`LEX_VAL:${p.lexVal}`);
+                }
+
+                return criteria;
+            };
+
             const hasEnoughMatches = (prompt, minMatches = 25) => {
                 let count = 0;
 
@@ -1806,18 +1830,27 @@ serve(async (req) => {
                 return false;
             };
 
-            const pickValidPrompt = (builders, usedSignatures) => {
+            const pickValidPrompt = (builders, usedSignatures, usedCriteria) => {
+                const isUnused = (_, sig, criteria) => !usedSignatures.has(sig) && !criteria.some(c => usedCriteria.has(c));
+
+                const recordUsed = (sig, criteria) => {
+                    usedSignatures.add(sig);
+                    for (const c of criteria) usedCriteria.add(c);
+                };
+
                 for (let attempt = 0; attempt < 50; attempt++) {
                     const fn        = builders[Math.floor(rng() * builders.length)];
                     const candidate = fn();
 
                     if (!candidate) continue;
 
-                    const sig = getPromptSignature(candidate);
-                    if (usedSignatures.has(sig)) continue;
+                    const sig       = getPromptSignature    (candidate);
+                    const criteria  = getPromptCriteria     (candidate);
+
+                    if (!isUnused(candidate, sig, criteria)) continue;
 
                     if (hasEnoughMatches(candidate, 25)) {
-                        usedSignatures.add(sig);
+                        recordUsed(sig, criteria);
                         return candidate;
                     }
                 }
@@ -1826,10 +1859,11 @@ serve(async (req) => {
                     const fallback = fn();
                     if (!fallback) continue;
 
-                    const sig = getPromptSignature(fallback);
+                    const sig       = getPromptSignature    (fallback);
+                    const criteria  = getPromptCriteria     (fallback);
 
-                    if (!usedSignatures.has(sig)) {
-                        usedSignatures.add(sig);
+                    if (isUnused(fallback, sig, criteria)) {
+                        recordUsed(sig, criteria);
                         return fallback;
                     }
                 }
@@ -1851,6 +1885,7 @@ serve(async (req) => {
 
                 const prompts           = [];
                 const usedSignatures    = new Set();
+                const usedCriteria      = new Set();
                 let lastBucketIdx       = -1;
                 const eras              = gameData.themedOptions.ERA        || [];
                 const franchises        = gameData.themedOptions.FRANCHISE  || [];
@@ -1914,7 +1949,7 @@ serve(async (req) => {
                             const chosenBucketIdx   = pick(eligibleIndices);
                             lastBucketIdx           = chosenBucketIdx;
 
-                            prompts.push(pickValidPrompt(buckets[chosenBucketIdx], usedSignatures));
+                            prompts.push(pickValidPrompt(buckets[chosenBucketIdx], usedSignatures, usedCriteria));
                         }
                     } else {
                         const singleBuilders = [
@@ -1951,7 +1986,7 @@ serve(async (req) => {
                             const chosenBucketIdx   = pick(eligibleIndices);
                             lastBucketIdx           = chosenBucketIdx;
 
-                            prompts.push(pickValidPrompt(buckets[chosenBucketIdx], usedSignatures));
+                            prompts.push(pickValidPrompt(buckets[chosenBucketIdx], usedSignatures, usedCriteria));
                         }
                     }
                 }
