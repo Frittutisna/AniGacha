@@ -561,7 +561,7 @@
                 <form id="quiz-setup-form" onsubmit="return false;" class="grid grid-cols-2 sm:flex sm:items-center sm:justify-center gap-2">
                     <div id="quiz-settings-wrapper" class="relative col-span-1 sm:w-auto">
                         <button type="button" id="quiz-settings-trigger"
-                            class="w-full h-10 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                            class="w-full h-8 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-2.5 pr-8 text-sm text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
                             <span id="quiz-settings-label" class="truncate font-semibold">Quiz Settings</span>
                         </button>
                         <svg id="quiz-settings-chevron" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -720,7 +720,7 @@
                             </div>
                         </div>
                     </div>
-                    <button id="quiz-start" class="w-full sm:w-32 py-2 leading-5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base disabled:opacity-40 transition flex items-center justify-center" disabled>Start</button>
+                    <button id="quiz-start" class="w-full sm:w-32 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm disabled:opacity-40 transition flex items-center justify-center" disabled>Start</button>
                 </form>
             </div>
             <div id="quiz-active" class="hidden w-0 min-w-full space-y-3 mt-3">
@@ -759,7 +759,7 @@
                             <option value="ROULETTE">Roulette</option>
                             <option value="FX">Forex</option>
                         </select>
-                        <button type="button" class="custom-select-trigger w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 py-1.5 text-sm font-bold text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
+                        <button type="button" class="custom-select-trigger w-full h-8 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg pl-3 pr-8 text-sm font-bold text-left flex items-center justify-between focus:outline-none focus:border-indigo-500 transition">
                             <span class="custom-select-label whitespace-nowrap">Blackjack</span>
                         </button>
                         <svg class="custom-select-chevron w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -769,35 +769,35 @@
                     </div>
                     <span id="casino-rules-pill" data-tooltip-title="Rules"
                         title="Uses your Deck Collection/basic cards for empty slots&#10;Jokers are worth 0 and never bust&#10;Dealer stands on &#8805;17s&#10;2-card Blackjack pays 3:2"
-                        class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-help select-none">
+                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-help select-none">
                         ?
                     </span>
                 </div>
                 <div id="bj-bet-controls" class="flex items-center gap-1.5">
                     <input id="bj-bet-input" type="number" min="1" step="1" value="10"
-                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
-                    <button id="bj-deal-btn" type="button" class="w-16 py-1 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        class="w-16 h-8 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="bj-deal-btn" type="button" class="w-16 h-8 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Deal
                     </button>
                 </div>
                 <div id="rl-bet-controls" class="hidden flex items-center gap-1.5">
                     <input id="rl-bet-input" type="number" min="1" step="1" value="10"
-                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
-                    <button id="rl-spin-btn" type="button" class="w-16 py-1 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        class="w-16 h-8 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="rl-spin-btn" type="button" class="w-16 h-8 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Spin
                     </button>
                 </div>
                 <div id="fx-bet-controls" class="hidden flex items-center gap-1.5">
                     <input id="fx-bet-input" type="number" min="1" step="1" value="10"
-                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
-                    <button id="fx-close-btn" type="button" class="hidden px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        class="w-16 h-8 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="fx-close-btn" type="button" class="hidden h-8 px-2.5 rounded-lg text-sm font-bold bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Close All
                     </button>
                 </div>
                 <div id="syn-bet-controls" class="hidden flex items-center gap-1.5">
                     <input id="syn-bet-input" type="number" min="1" step="1" value="10"
-                        class="w-16 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
-                    <button id="syn-start-btn" type="button" class="w-16 py-1 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
+                        class="w-16 h-8 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 text-sm font-bold text-center tabular-nums focus:outline-none focus:border-indigo-500" />
+                    <button id="syn-start-btn" type="button" class="w-16 h-8 rounded-lg text-sm font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition">
                         Deal
                     </button>
                 </div>
@@ -992,7 +992,7 @@
                 <div id="tabi-history-list"></div>
                 <div id="tabi-start-wrap" class="flex justify-center mb-3">
                     <button id="tabi-start-btn" type="button"
-                        class="px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition">
+                        class="px-6 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition">
                         Start
                     </button>
                 </div>
