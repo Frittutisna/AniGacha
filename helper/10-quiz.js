@@ -142,8 +142,7 @@ function loadAniQuizData() {
 }
 
 const VINTAGE_CHECKPOINTS   = [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025];
-const DIFF_CHECKPOINTS      = [20, 25, 30, 35];
-const DIFF_SPAN_MODS        = [0.6, 0.3, 0, -0.3, -0.6];
+const DIFF_CHECKPOINTS      = [20, 25, 30, 35, 40, 45, 50, 55, 60];
 
 function aniQuizSettings() {
     const cats              = ["op", "ed", "in"].filter(k => document.getElementById("quiz-" + k).checked);
@@ -176,13 +175,10 @@ function aniQuizVintageM(vMin, vMax) {
 }
 
 function aniQuizDiffM(dMin, dMax) {
-    const startIdx  = dMin === null ? 0 : DIFF_CHECKPOINTS.indexOf(dMin) + 1;
-    const endIdx    = dMax === null ? DIFF_CHECKPOINTS.length + 1 : DIFF_CHECKPOINTS.indexOf(dMax) + 1;
+    const lowerSteps = dMin === null ? 0 : (dMin - 20) / 5 + 1;
+    const upperSteps = dMax === null ? 9 : (dMax - 20) / 5;
 
-    let mod = 0;
-    for (let i = startIdx; i < endIdx; i++) mod += DIFF_SPAN_MODS[i];
-
-    return Math.max(0.2, Number((1 + mod / (endIdx - startIdx)).toFixed(2)));
+    return Math.max(0.25, Number((2 - (lowerSteps + upperSteps) * 0.25).toFixed(2)));
 }
 
 function aniQuizMultiplier(settings, best) {
@@ -193,9 +189,10 @@ function aniQuizMultiplier(settings, best) {
     const streakM   = best >= 15 ? 1.6 : best >= 10 ? 1.4 : best >= 5 ? 1.2 : 1;
     const vintageM  = aniQuizVintageM(settings.vintageMin, settings.vintageMax);
     const diffM     = aniQuizDiffM(settings.diffMin, settings.diffMax);
+    const rawValue  = catM * chantM * timeM * modeM * streakM * vintageM * diffM;
 
     return {
-        value: catM * chantM * timeM * modeM * streakM * vintageM * diffM,
+        value: Math.min(4, Math.max(0.25, rawValue)),
         parts: {catM, chantM, timeM, modeM, streakM, vintageM, diffM}
     };
 }

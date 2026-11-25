@@ -1,4 +1,4 @@
-# AniGacha v0.a.1-beta
+# AniGacha v0.b.0-beta
 
 **AniGacha** is an anime character gacha website with AMQ, Casino, and Tabi side-games built with static client-side hydration, a full in-memory guest simulation mode, and a server-authoritative Supabase Edge Function backed by Discord OAuth and AniList GraphQL integration
 
@@ -82,7 +82,7 @@
         </tr>
         <tr>
             <td><code>10-quiz.js</code></td>
-            <td>Fetches timestamped song archives from <code>Frittutisna/Stats-Archive</code>, filters song pools, computes score multipliers, runs Entry and Multiple Choice modes with audio/guess timers, provides ranked autocomplete suggestions, and tracks 12 daily missions</td>
+            <td>Fetches compact song archives from <code>quiz-data.json</code>, filters song pools, computes score multipliers, runs Entry and Multiple Choice modes with audio/guess timers, provides ranked autocomplete suggestions, and tracks daily missions</td>
         </tr>
         <tr>
             <td><code>11-deck-builder.js</code></td>
@@ -508,16 +508,16 @@ $$S_{\text{group}} = P_{\text{comp}} + P_{\text{power}} + \sum_{\text{attr}} w_{
 ## AMQ
 
 ### Data Source and Gameplay
-* **Dataset**: Dynamically discovers timestamped `search.json` and `name.json` archives from `Frittutisna/Stats-Archive` on GitHub, deduplicating songs by URL and filtering out WebM entries
+* **Dataset**: Loads pre-compiled compact song and title arrays from `quiz-data.json`, prefixing relative audio paths with `https://naedist.animemusicquiz.com/`
 * **Configurable Settings**:
   * **Type**: Opening, Ending, and Insert
   * **Chanting**: Include/exclude chanting songs
   * **Time**: Sound playback and silent guess time; possible options are <code>2+8</code>, <code>5+0</code>, <code>15+0</code>, and <code>20+0</code>
-  * **Mode**: **Entry** (free-text input with bigram/prefix-ranked auto-complete suggestions) or **Multiple Choice** (includes 3 bigram-similarity-clustered distractors)
-  * **Filters**: Vintage (1980-2025) and difficulty (20-35) checkpoints; requires 100+ valid songs in the filtered pool to start
-* **Multipliers**: The total Quiz Stars multiplier $M$ is the product of **7** independent modifiers:
+  * **Mode**: **Entry** (free-text input with exact/prefix/substring-ranked auto-complete suggestions) or **Multiple Choice** (includes 3 bigram-similarity-clustered distractors)
+  * **Filters**: Vintage (1980-2025) and difficulty (20-60) checkpoints; requires 100+ valid songs in the filtered pool to start
+* **Multipliers**: The total Quiz Stars multiplier $M$ is the product of **7** independent modifiers, clamped between **0.25** and **4**:
 
-$$M = M_{\text{time}} \times M_{\text{mode}} \times M_{\text{vint}} \times M_{\text{diff}} \times M_{\text{type}} \times M_{\text{chant}} \times M_{\text{streak}}$$
+$$M = \min\!\left(4,\; \max\!\left(0.25,\; M_{\text{time}} \times M_{\text{mode}} \times M_{\text{vint}} \times M_{\text{diff}} \times M_{\text{type}} \times M_{\text{chant}} \times M_{\text{streak}}\right)\right)$$
 
 <table>
     <thead>
@@ -561,8 +561,8 @@ $$M = M_{\text{time}} \times M_{\text{mode}} \times M_{\text{vint}} \times M_{\t
         </tr>
         <tr>
             <td>Difficulty</td>
-            <td><code>1 + (Σw<sub>i</sub>) / N<sub>spans</sub></code></td>
-            <td>0.4-1.6</td>
+            <td><code>max(0.25, 2 - 0.25 × N<sub>excluded</sub>)</code></td>
+            <td>0.25-2</td>
         </tr>
         <tr>
             <td rowspan="3">Type</td>
@@ -886,4 +886,4 @@ $$\text{Stations Moved} = \max\!\left(1,\; \min\!\left(S_{\max},\; \left\lceil \
 ## Others
 
 * **Reset**: Daily free ★ claim/10-pull, banner rotation, quiz/Tabi/casino caps, weekly Tabi progress, as well as yearly display name and Discord/AniList usernames reset at **midnight JST**
-* **Mode**: When logged out, AniGacha runs locally in browser memory without saving progress[cite: 1, 3]
+* **Mode**: When logged out, AniGacha runs locally in browser memory without saving progress
