@@ -97,6 +97,7 @@ let tabiPromptsCache        = {date: null, prompts: []};
 let tabiBusy                = false;
 let tabiTimerRaf            = null;
 let tabiActiveQuestionKey   = null;
+let tabiPendingTargetPage   = null;
 
 function tabiHashSeed(str) {
     let h = 1779033703 ^ str.length;
@@ -971,3 +972,47 @@ document.getElementById("tabi-share-btn")?.addEventListener("click", async () =>
         shareModalEl?.      classList.remove    ("hidden");
     } catch {prompt("Copy your Tabi result:", shareText);}
 });
+
+const tabiAbortModal = document.getElementById("tabi-abort-modal");
+
+const closeTabiAbortModal = () => {
+    tabiPendingTargetPage = null;
+    tabiAbortModal?.classList.add("hidden");
+};
+
+function tabiPromptAbort(targetPage = "HOME") {
+    tabiPendingTargetPage = targetPage;
+    tabiAbortModal?.classList.remove("hidden");
+    document.getElementById("tabi-abort-confirm")?.focus();
+}
+
+async function tabiConfirmAbort() {
+    if (tabiBusy) return;
+    const destination = tabiPendingTargetPage;
+
+    closeTabiAbortModal ();
+    tabiStopTimer       ();
+
+    if (currentUser) {
+        tabiBusy = true;
+
+        try {await sendGachaAction({action: "TABI_ABORT"})}
+        finally {
+            tabiBusy = false;
+            tabiRender();
+        }
+    } else if (tabiState) {
+        tabiState.completed     = true;
+        tabiState.dailyAwarded  = true;
+        tabiState.dailyEarned   = 0;
+
+        tabiRender();
+    }
+
+    if (destination && typeof switchHeaderPage === "function") switchHeaderPage(destination);
+}
+
+document.getElementById("tabi-abort-cancel")?.  addEventListener("click",           closeTabiAbortModal);
+document.getElementById("tabi-abort-confirm")?. addEventListener("click",           tabiConfirmAbort);
+tabiAbortModal?.                                addEventListener("click",           (e) => {if (e.target === tabiAbortModal)                    closeTabiAbortModal ()});
+window.                                         addEventListener("beforeunload",    (e) => {if (tabiState?.started && !tabiState?.completed)    e.preventDefault    ()});

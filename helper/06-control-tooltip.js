@@ -275,11 +275,12 @@ function initSortFilterDropdown() {
                 return;
             }
 
-            document.getElementById("deck-modal")?.     classList.add("hidden");
-            document.getElementById("share-modal")?.    classList.add("hidden");
-            document.getElementById("photo-modal")?.    classList.add("hidden");
-            document.getElementById("quiz-end-modal")?. classList.add("hidden");
-            document.getElementById("sell-all-modal")?. classList.add("hidden");
+            document.getElementById("deck-modal")?.         classList.add("hidden");
+            document.getElementById("share-modal")?.        classList.add("hidden");
+            document.getElementById("photo-modal")?.        classList.add("hidden");
+            document.getElementById("quiz-end-modal")?.     classList.add("hidden");
+            document.getElementById("sell-all-modal")?.     classList.add("hidden");
+            document.getElementById("tabi-abort-modal")?.   classList.add("hidden");
         }
     });
 }
@@ -625,12 +626,18 @@ function switchHeaderPage(targetPage) {
     const casinoPage    = document.getElementById("casino-page");
     const tabiPage      = document.getElementById("tabi-page");
     const leavingQuiz   = !quizPage.classList.contains("hidden") && targetPage !== "QUIZ";
+    const leavingTabi   = !tabiPage.classList.contains("hidden") && targetPage !== "TABI" && tabiPage;
 
     if (leavingQuiz && typeof aniQuizRun !== "undefined" && aniQuizRun && !document.getElementById("quiz-active").classList.contains("hidden")) {
         aniQuizEndToHome = (targetPage === "HOME");
         quizEndModal?.classList.remove("hidden");
         document.getElementById("quiz-end-confirm")?.focus();
 
+        return;
+    }
+
+    if (leavingTabi && typeof tabiState !== "undefined" && tabiState?.started && !tabiState?.completed) {
+        if (typeof tabiPromptAbort === "function") tabiPromptAbort(targetPage);
         return;
     }
 

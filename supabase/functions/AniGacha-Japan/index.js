@@ -540,7 +540,8 @@ serve(async (req) => {
             CASINO_ROULETTE         : 100,
             CASINO_FX               : 100,
             TABI_START              : 10,
-            TABI_ANSWER             : 100
+            TABI_ANSWER             : 100,
+            TABI_ABORT              : 10
         };
 
         const actionLimit = RATE_LIMITS[action] ?? 10;
@@ -1710,9 +1711,22 @@ serve(async (req) => {
             }
 
             throw new Error("Invalid Synergy action");
+        } else if (action === "TABI_ABORT") {
+            const td = save.tabiDaily;
+
+            if (!td.started)    throw new Error("Today's Tabi hasn't started");
+            if (td.completed)   throw new Error("Today's Tabi has ended");
+
+            td.completed    = true;
+            td.dailyAwarded = true;
+            td.dailyEarned  = 0;
+
+            const conflictResponse = await persistPlayerSave(adminClient, userId, saveVersion, save);
+            if (conflictResponse) return conflictResponse;
+            return new Response(JSON.stringify({save, dailyBanners: bannerPayload}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
         } else if (action === "TABI_START" || action === "TABI_ANSWER") {
             const [y, m, d] = dailyBanners.jstDate.split("-").map(Number);
-            const dow       = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun, 1=Mon..6=Sat
+            const dow       = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 
             const DAY_CONFIG = {
                 1: {route: "West",  qCount: 7, target: 20, maxStep: 5,  types: Array(7).fill("PERSON")},
