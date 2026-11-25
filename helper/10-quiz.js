@@ -98,6 +98,7 @@ function aniQuizAccepted(song) {return [song.romaji, song.english, ...(Array.isA
 
 let aniQuizLoadPromise  = null;
 let aniQuizPoolCache    = new Map();
+const AMQ_AUDIO_PREFIX  = "https://naedist.animemusicquiz.com/";
 
 function loadAniQuizData() {
     if (aniQuizLoadPromise) return aniQuizLoadPromise;
@@ -107,77 +108,21 @@ function loadAniQuizData() {
         loading?.classList.remove("hidden");
 
         try {
-            const treeRes = await fetch("https://api.github.com/repos/Frittutisna/Stats-Archive/git/trees/main?recursive=1");
-            if (!treeRes.ok) throw new Error("Could not list Stats-Archive files (" + treeRes.status + ")");
+            const res = await fetch("./supabase/functions/AniGacha-Japan/quiz-data.json");
+            if (!res.ok) throw new Error("Failed to fetch quiz-data.json (HTTP " + res.status + ")");
 
-            const tree          = await treeRes.json();
-            const paths         = (tree.tree || []).map(x => x.path);
-            const timestampDirs = [...new Set(paths.map(p => p.match(/^(\d{10,})\/jsons\/search\.json$/)?.[1]).filter(Boolean))].sort();
-            const namePaths     = paths.filter(p => /^\d{10,}\/jsons\/name\.json$/.test(p)).sort();
+            const {names, songs} = await res.json();
+            aniQuizNames = (Array.isArray(names) ? names : []).map(title => ({title, norm: aniQuizNorm(title)}));
 
-            if (!timestampDirs.length || !namePaths.length) throw new Error("No timestamped quiz JSON files were found.");
-
-            const base          = "https://raw.githubusercontent.com/Frittutisna/Stats-Archive/main/";
-            const all           = [];
-            const concurrency   = 10;
-            let nextIndex       = 0;
-
-            async function fetchWorker() {
-                while (nextIndex < timestampDirs.length) {
-                    const index = nextIndex++;
-                    const ts    = timestampDirs[index];
-
-                    try {
-                        const response = await fetch(base + ts + "/jsons/search.json");
-                        if (!response.ok) continue;
-
-                        const data = await response.json();
-                        if (Array.isArray(data)) all.push(...data);
-                    } catch (error) {console.warn("Could not load Quiz data:", ts, error)}
-                }
-            }
-
-            await Promise.all(Array.from({length: Math.min(concurrency, timestampDirs.length)}, () => fetchWorker()));
-
-            const nr = await fetch(base + namePaths[namePaths.length - 1]);
-            if (!nr.ok) throw new Error("Could not load the newest anime title list.");
-
-            const rawNames          = await nr.json();
-            const pooledTitles      = [];
-            const seenTitles        = new Set();
-
-            const addPooledTitle = (t) => {
-                const trimmed   = String(t || "").trim();
-                const key       = trimmed;
-
-                if (!trimmed || seenTitles.has(key)) return;
-
-                seenTitles      .add    (key);
-                pooledTitles    .push   ({title: trimmed, norm: aniQuizNorm(trimmed)});
-            };
-
-            for (const entry of (Array.isArray(rawNames) ? rawNames : [])) {for (const part of String(entry || "").split(" || ")) addPooledTitle(part)}
-
-            for (const s of all) {
-                addPooledTitle(s?.romaji);
-                addPooledTitle(s?.english);
-
-                if (Array.isArray(s?.alts)) {for (const alt of s.alts) addPooledTitle(alt)}
-            }
-
-            aniQuizNames    = pooledTitles;
-            const seen      = new Set();
-
-            aniQuizSongs = all.filter(s => {
-                if (!s?.video_url || !s?.romaji && !s?.english) return false;
-                const key = String(s.video_url).trim();
-
-                if (key.toLowerCase().split("?")[0].endsWith(".webm"))  return false;
-                if (seen.has(key))                                      return false;
-
-                seen.add(key);
-                return true;
-            });
+            aniQuizSongs = (Array.isArray(songs) ? songs : []).map(([audioSuffix, romaji, english, alts, , chanting, year, difficulty, type, song, artist_raw]) => ({
+                video_url       : audioSuffix.startsWith("http") ? audioSuffix : AMQ_AUDIO_PREFIX + audioSuffix,
+                romaji, english, alts, type,
+                chanting        : chanting === 1    ? "yes"         : "no",
+                vintage         : year              ? String(year)  : "",
+                difficulty,
+                start_sample    : 0,
+                song, artist_raw
+            }));
 
             aniQuizPoolCache.clear  ();
             aniQuizBuildMcIndex     ();
@@ -188,7 +133,7 @@ function loadAniQuizData() {
             aniQuizUpdateSettingsPreview    ();
         } catch (e) {
             aniQuizLoadPromise = null;
-            loading.textContent = "Quiz data could not be loaded: " + e.message;
+            if (loading) loading.textContent = "Quiz data could not be loaded: " + e.message;
             console.error(e);
         }
     })();
@@ -1169,6 +1114,3 @@ document.getElementById("quiz-answer").addEventListener("input", e => {
     aniQuizFilteredNames = aniQuizRankMatches(aniQuizNames, q);
     aniQuizRenderSuggestions(wrap, e.target);
 });
-
-if (document.readyState === "loading")  document.addEventListener("DOMContentLoaded", () => {loadAniQuizData()}, {once: true});
-else                                    loadAniQuizData();

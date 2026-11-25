@@ -81,9 +81,6 @@
     --color-slate-800: oklch(27.9% 0.041 260.031);
     --color-slate-900: oklch(20.8% 0.042 265.755);
     --color-slate-950: oklch(12.9% 0.042 264.695);
-    --color-neutral-200: oklch(92.2% 0 none);
-    --color-neutral-400: oklch(70.8% 0 none);
-    --color-neutral-800: oklch(26.9% 0 none);
     --color-black: #000;
     --color-white: #fff;
     --spacing: 0.25rem;
@@ -1719,6 +1716,9 @@
   .select-none {
     -webkit-user-select: none;
     user-select: none;
+  }
+  .\[iksi\:d\] {
+    iksi: d;
   }
   @media (hover: hover) {
     :is(:where(.group):hover .group-hover\:scale-105) {

@@ -126,6 +126,9 @@ function getGameData() {
     return dataLoadPromise;
 }
 
+const QUIZ_DATA_URL         = "https://frittutisna.github.io/AniGacha/supabase/functions/AniGacha-Japan/quiz-data.json";
+const AMQ_AUDIO_PREFIX      = "https://naedist.animemusicquiz.com/";
+const QUIZ_CAT_MAP          = ["op", "ed", "in"];
 let cachedQuizSongs         = null;
 let quizSongsLoadPromise    = null;
 
@@ -134,68 +137,28 @@ function getQuizSongsMeta() {
     if (quizSongsLoadPromise)   return quizSongsLoadPromise;
 
     quizSongsLoadPromise = (async () => {
-        const treeRes = await fetch("https://api.github.com/repos/Frittutisna/Stats-Archive/git/trees/main?recursive=1");
+        try {
+            const res = await fetch(QUIZ_DATA_URL);
+            if (!res.ok) throw new Error(`Failed to load quiz-data.json (HTTP ${res.status})`);
 
-        if (!treeRes.ok) {
+            const parsed    = await res.json();
+            const rawSongs  = Array.isArray(parsed?.songs) ? parsed.songs : [];
+
+            cachedQuizSongs = rawSongs.map(([audioSuffix, romaji, english, alts, catCode, chanting, year, difficulty, type, song, artist_raw]) => ({
+                video_url       : audioSuffix.startsWith("http") ? audioSuffix : AMQ_AUDIO_PREFIX + audioSuffix,
+                romaji, english, alts,
+                category        : QUIZ_CAT_MAP[catCode] || "op",
+                chanting        : chanting === 1,
+                year, difficulty,
+                start_sample    : 0,
+                type, song, artist_raw
+            }));
+
+            return cachedQuizSongs;
+        } catch (error) {
             quizSongsLoadPromise = null;
-            throw new Error("Failed to load song database");
+            throw error;
         }
-
-        const tree          = await treeRes.json();
-        const paths         = (tree.tree || []).map(x => x.path);
-        const timestampDirs = [...new Set(paths.map(p => p.match(/^(\d{10,})\/jsons\/search\.json$/)?.[1]).filter(Boolean))].sort();
-        const base          = "https://raw.githubusercontent.com/Frittutisna/Stats-Archive/main/";
-        const seen          = new Set();
-        const songs         = [];
-
-        for (let i = 0; i < timestampDirs.length; i += 5) {
-            const batch = await Promise.all(
-                timestampDirs.slice(i, i + 5).map(async ts => {
-                    const r = await fetch(`${base}${ts}/jsons/search.json`);
-                    if (!r.ok) return [];
-
-                    const data = await r.json();
-                    return Array.isArray(data) ? data : [];
-                })
-            );
-
-            for (const list of batch) {
-                for (const s of list) {
-                    if (!s?.video_url || (!s.romaji && !s.english)) continue;
-
-                    const key = String(s.video_url).trim();
-                    if (key.toLowerCase().split("?")[0].endsWith(".webm") || seen.has(key)) continue;
-                    seen.add(key);
-
-
-                    const type = String(s.type || "").toLowerCase();
-
-                    const category = type.includes("opening") ? "op" : type.includes("ending") ? "ed" : type.includes("insert") ? "in" : null;
-                    if (!category) continue;
-
-                    const chanting  = ["yes", "true", "1"].includes(String(s.chanting ?? "no").toLowerCase());
-                    const yearMatch = String(s.vintage || "").match(/\b(19\d{2}|20\d{2})\b/);
-                    const year      = yearMatch ? Number(yearMatch[1]) : null;
-                    const diff      = parseFloat(s.difficulty);
-
-                    songs.push({
-                        video_url       : key,
-                        romaji          : s.romaji                  || "",
-                        english         : s.english                 || "",
-                        alts            : Array.isArray(s.alts) ? s.alts    : [],
-                        category, chanting, year,
-                        difficulty      : Number.isFinite(diff) ? diff      : null,
-                        start_sample    : Number(s.start_sample)    || 0,
-                        type            : s.type                    || "",
-                        song            : s.song                    || "",
-                        artist_raw      : s.artist_raw              || ""
-                    });
-                }
-            }
-        }
-
-        cachedQuizSongs = songs;
-        return songs;
     })();
 
     return quizSongsLoadPromise;

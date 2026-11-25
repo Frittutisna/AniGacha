@@ -1,5 +1,6 @@
-import fs   from "node:fs";
-import Papa from "papaparse";
+import fs       from "node:fs";
+import readline from "node:readline";
+import Papa     from "papaparse";
 
 const RARITIES = [
     {tier: "SSR",   dist: 0.005},
@@ -392,14 +393,14 @@ const clientChars = chars.map(c => {
     return [c.uniqueKey, name, c.animeId, img, c.count, c.tier, deck.rank, deck.suit];
 });
 
-const clientEraOptions = rawEras.map((row, i) => {
+const clientEraOptions = rawEras.map((row, _) => {
     const title     = getField(row, ["era", "name"]);
     const s         = getField(row, ["start"]);
     const e         = getField(row, ["end"]);
     const startYear = s !== null ? Math.floor(Number(s)) : null;
     const endYear   = e !== null ? Math.floor(Number(e)) : null;
     const hasStart  = startYear !== null && !Number.isNaN(startYear);
-    const hasEnd    = endYear !== null && !Number.isNaN(endYear);
+    const hasEnd    = endYear   !== null && !Number.isNaN(endYear);
     const isSpecial = title === "Pre-2000s" || title === "2000s";
     const hover     = (title && hasStart && hasEnd && !isSpecial) ? `${title} (${startYear}-${endYear})` : title;
     const opt       = themedOptions.ERA.find(o => o.title === title);
@@ -413,4 +414,72 @@ fs.writeFileSync("./supabase/functions/AniGacha-Japan/client-data.json", JSON.st
     themedOptions   : {...themedOptions, ERA: clientEraOptions}
 }));
 
-console.log(`Generated server-data.json and client-data.json`);
+async function buildQuizData() {
+    const rl = readline.createInterface({
+        input       : fs.createReadStream("./supabase/functions/AniGacha-Japan/song_data.jsonl", "utf8"),
+        crlfDelay   : Infinity
+    });
+
+    const seenAudio = new Set();
+    const seenNames = new Set();
+    const names     = [];
+    const songs     = [];
+
+    const addName = (val) => {
+        const trimmed = String(val || "").trim();
+        if (!trimmed || seenNames.has(trimmed)) return;
+
+        seenNames.add   (trimmed);
+        names.push      (trimmed);
+    };
+
+    for await (const line of rl) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        let s;
+
+        try     {s = JSON.parse(trimmed)}
+        catch   {continue}
+
+        addName(s?.animeENName);
+        addName(s?.animeJPName);
+
+        if (Array.isArray(s?.animeAltName)) for (const alt of s.animeAltName) addName(alt);
+        const rawAudio = typeof s?.audio === "string" ? s.audio.trim() : "";
+
+        if (!rawAudio || !rawAudio.toLowerCase().split("?")[0].endsWith(".mp3"))    continue;
+        if (!s.animeJPName && !s.animeENName)                                       continue;
+
+        const cleanAudio = rawAudio.replace(/^https?:\/\/naedist\.animemusicquiz\.com\//i, "").replace(/^\/+/, "");
+        if (seenAudio.has(cleanAudio)) continue;
+        seenAudio.add(cleanAudio);
+
+        const type = String(s.songType || "").toLowerCase();
+
+        const catCode = type.includes("opening") ? 0 : type.includes("ending") ? 1 : type.includes("insert") ? 2 : -1;
+        if (catCode === -1) continue;
+
+        const chanting  = String(s.songCategory || "").trim().toLowerCase() === "chanting" ? 1 : 0;
+        const yearMatch = String(s.animeVintage || "").match(/\b(19\d{2}|20\d{2})\b/);
+        const year      = yearMatch ? Number(yearMatch[1]) : null;
+        const diff      = parseFloat(s.songDifficulty);
+
+        songs.push([
+            cleanAudio,
+            s.animeJPName   || "",
+            s.animeENName   || "",
+            Array.isArray(s.animeAltName)   ? s.animeAltName    : [],
+            catCode, chanting, year,
+            Number.isFinite(diff)           ? diff              : null,
+            s.songType      || "",
+            s.songName      || "",
+            s.songArtist    || ""
+        ]);
+    }
+
+    fs.writeFileSync("./supabase/functions/AniGacha-Japan/quiz-data.json", JSON.stringify({names, songs}));
+    console.log(`Generated server-data.json, client-data.json, and quiz-data.json`);
+}
+
+await buildQuizData();
