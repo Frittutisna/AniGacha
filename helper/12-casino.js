@@ -402,17 +402,17 @@ async function runBlackjackAction(subAction) {
             const remBj = getRemainingDailyCasinoBet("BLACKJACK");
 
             if (remBj < 1) {
-                alert("Reached daily bet limit");
+                showAlertModal("Reached daily bet limit", "Blackjack");
                 return;
             }
 
             if (bet > remBj) {
-                alert(`Exceeds daily bet limit (${remBj.toLocaleString()} Stars remaining)`);
+                showAlertModal(`Exceeds daily bet limit (${remBj.toLocaleString()} Stars remaining)`, "Blackjack");
                 return;
             }
 
             if (stars < bet) {
-                alert("Not enough stars");
+                showAlertModal("Not enough stars", "Blackjack");
                 return;
             }
         }
@@ -893,7 +893,7 @@ async function runSynergyAction(subAction) {
 
     if (subAction === "START") {
         if (getOwnedCollectionKeys().length < 56) {
-            alert("You need at least 56 cards in your collection to play Synergy");
+            showAlertModal("You need at least 56 cards in your collection to play Synergy", "Synergy");
             return;
         }
 
@@ -901,17 +901,17 @@ async function runSynergyAction(subAction) {
             const remSyn = getRemainingDailyCasinoBet("SYNERGY");
 
             if (remSyn < 1) {
-                alert("Reached daily bet limit");
+                showAlertModal("Reached daily bet limit", "Synergy");
                 return;
             }
 
             if (bet > remSyn) {
-                alert(`Exceeds daily bet limit (${remSyn.toLocaleString()} Stars remaining)`);
+                showAlertModal(`Exceeds daily bet limit (${remSyn.toLocaleString()} Stars remaining)`, "Synergy");
                 return;
             }
 
             if (stars < bet) {
-                alert("Not enough stars");
+                showAlertModal("Not enough stars", "Synergy");
                 return;
             }
         }
@@ -1214,17 +1214,17 @@ async function runRouletteSpin() {
         const remRl = getRemainingDailyCasinoBet("ROULETTE");
 
         if (remRl < 1) {
-            alert("Reached daily bet limit");
+            showAlertModal("Reached daily bet limit", "Roulette");
             return;
         }
 
         if (bet > remRl) {
-            alert(`Exceeds daily bet limit (${remRl.toLocaleString()} Stars remaining)`);
+            showAlertModal(`Exceeds daily bet limit (${remRl.toLocaleString()} Stars remaining)`, "Roulette");
             return;
         }
 
         if (stars < bet) {
-            alert("Not enough stars");
+            showAlertModal("Not enough stars", "Roulette");
             return;
         }
     }
@@ -1644,17 +1644,17 @@ async function placeForexOrder(side) {
         const remFx = getRemainingDailyCasinoBet("FX");
 
         if (remFx < 1) {
-            alert("Reached daily bet limit");
+            showAlertModal("Reached daily bet limit", "Forex");
             return;
         }
 
         if (bet > remFx) {
-            alert(`Exceeds daily bet limit (${remFx.toLocaleString()} Stars remaining)`);
+            showAlertModal(`Exceeds daily bet limit (${remFx.toLocaleString()} Stars remaining)`, "Forex");
             return;
         }
 
         if (stars < bet) {
-            alert("Not enough stars");
+            showAlertModal("Not enough stars", "Forex");
             return;
         }
     }

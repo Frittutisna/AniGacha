@@ -2,8 +2,7 @@ async function loadSharedCollection(targetUserId) {
     const {data, error} = await sb.functions.invoke("AniGacha-Japan", {body: {action: "GET_SHARED_PROFILE", userId: targetUserId}});
 
     if (error || !data?.profile) {
-        alert("Could not load shared collection; link may be invalid");
-        window.location.href = window.location.origin + window.location.pathname;
+        showAlertModal("Could not load shared collection; link may be invalid", "Share", () => {window.location.href = window.location.origin + window.location.pathname});
         return;
     }
 

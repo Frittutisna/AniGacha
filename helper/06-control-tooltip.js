@@ -234,27 +234,81 @@ function initSortFilterDropdown() {
         if (quizChevron)    quizChevron .classList.remove   ("rotate-180");
     });
 
-    document.addEventListener("keydown", (e) => {if (e.key === "Escape") {
-        closeAllCustomSelects();
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            const alertModalEl = document.getElementById("alert-modal");
+            const shareModalEl = document.getElementById("share-modal");
 
-        menu.       classList.add       ("hidden");
-        chevron?.   classList.remove    ("rotate-180");
+            if (alertModalEl && !alertModalEl.classList.contains("hidden")) {
+                e.preventDefault    ();
+                closeAlertModal     ();
 
-        closeAnilistModal();
-        const logoutModalEl = document.getElementById("logout-modal");
+                return;
+            }
 
-        if (logoutModalEl && !logoutModalEl.classList.contains("hidden")) {
-            logoutModalEl.classList.add("hidden");
-            return;
+            if (shareModalEl && !shareModalEl.classList.contains("hidden")) {
+                e.preventDefault            ();
+                shareModalEl.classList.add  ("hidden");
+
+                return;
+            }
         }
 
-        document.getElementById("deck-modal")?.     classList.add("hidden");
-        document.getElementById("share-modal")?.    classList.add("hidden");
-        document.getElementById("photo-modal")?.    classList.add("hidden");
-        document.getElementById("quiz-end-modal")?. classList.add("hidden");
-        document.getElementById("sell-all-modal")?. classList.add("hidden");
-    }});
+        if (e.key === "Escape") {
+            closeAllCustomSelects();
+
+            menu.       classList.add       ("hidden");
+            chevron?.   classList.remove    ("rotate-180");
+
+            const alertModalEl = document.getElementById("alert-modal");
+
+            if (alertModalEl && !alertModalEl.classList.contains("hidden")) {
+                closeAlertModal();
+                return;
+            }
+
+            closeAnilistModal();
+            const logoutModalEl = document.getElementById("logout-modal");
+
+            if (logoutModalEl && !logoutModalEl.classList.contains("hidden")) {
+                logoutModalEl.classList.add("hidden");
+                return;
+            }
+
+            document.getElementById("deck-modal")?.     classList.add("hidden");
+            document.getElementById("share-modal")?.    classList.add("hidden");
+            document.getElementById("photo-modal")?.    classList.add("hidden");
+            document.getElementById("quiz-end-modal")?. classList.add("hidden");
+            document.getElementById("sell-all-modal")?. classList.add("hidden");
+        }
+    });
 }
+
+let alertModalOnClose = null;
+
+function closeAlertModal() {
+    const modal = document.getElementById("alert-modal");
+    if (!modal || modal.classList.contains("hidden")) return;
+    modal.classList.add("hidden");
+
+    const cb = alertModalOnClose;
+    alertModalOnClose = null;
+    if (typeof cb === "function") cb();
+}
+
+function showAlertModal(message, title = "Notice", onClose = null) {
+    const modal = document.getElementById("alert-modal");
+    if (!modal) return;
+
+    document.getElementById("alert-modal-title")    .textContent    = title;
+    document.getElementById("alert-modal-message")  .textContent    = message;
+    alertModalOnClose                                               = onClose;
+
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    modal.classList.remove("hidden");
+}
+
+document.getElementById("alert-modal")?.addEventListener("click", (e) => {if (e.target.id === "alert-modal") closeAlertModal()});
 
 initSortFilterDropdown();
 

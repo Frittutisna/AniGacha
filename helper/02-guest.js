@@ -232,7 +232,7 @@ async function handleGuestLinkAnilist(username) {
     const json = await res.json().catch(() => null);
 
     if (!res.ok || json?.errors || !json?.data?.MediaListCollection) {
-        alert(json?.errors?.[0]?.message || "Could not fetch AniList user list");
+        showAlertModal(json?.errors?.[0]?.message || "Could not fetch AniList user list", "AniList");
         return null;
     }
 
@@ -301,7 +301,7 @@ async function sendGachaAction(payload) {
             const fullMsg   = `${prefix}: ${detail}`;
 
             console.error("Server action failed:", fullMsg, error);
-            if (payload.action !== "INIT") alert(fullMsg)
+            if (payload.action !== "INIT") showAlertModal(fullMsg, "Error");
             return null;
         }
 

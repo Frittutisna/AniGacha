@@ -363,7 +363,7 @@ function tabiRender() {
         const stepLabel = a.stationsMoved > 0 ? `+${a.stationsMoved}` : "0";
 
         return `
-            <div class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-xs">
+            <div class="flex items-center justify-between px-3 py-1.5 mt-3 mb-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-xs">
                 <span class="truncate">Q${i + 1}: ${escapeHTML(entityTitle)}</span>
                 <span class="shrink-0 tabular-nums">${stepLabel}</span>
             </div>
@@ -379,8 +379,8 @@ function tabiRender() {
         historyEl.innerHTML = renderLogHTML();
 
         if (tabiState.completed) {
-            startBtn    .classList.add      ("hidden");
-            summaryEl   .classList.remove   ("hidden");
+            document.getElementById("tabi-start-wrap").classList.add("hidden");
+            summaryEl.classList.remove("hidden");
 
             const maxWon = dailyEarned >= 120;
 
@@ -398,7 +398,7 @@ function tabiRender() {
                     ? `Tabi ended at ${curStationName} after ${tabiState.laps} laps (★ ${dailyEarned})`
                     : `Tabi ended at ${curStationName} (★ ${dailyEarned})`;
         } else {
-            startBtn.classList.remove("hidden");
+            document.getElementById("tabi-start-wrap").classList.remove("hidden");
             startBtn.disabled = tabiBusy;
 
             summaryEl.classList.add("hidden");
@@ -414,7 +414,12 @@ function tabiRender() {
 
     document.getElementById("tabi-prompt-subtitle") .textContent    = `Q${tabiState.qIndex + 1}/${cfg.qCount} • ${typeLabel}`;
     document.getElementById("tabi-prompt-text")     .textContent    = prompt.text;
-    document.getElementById("tabi-step-log")        .innerHTML      = renderLogHTML();
+
+    const stepLogEl = document.getElementById("tabi-step-log");
+    const logHTML   = renderLogHTML();
+
+    stepLogEl.innerHTML = logHTML;
+    stepLogEl.classList.toggle("hidden", logHTML.trim() === "");
 
     const inputEl       = document.getElementById("tabi-answer-input");
     inputEl.placeholder = prompt.kind === "PERSON" ? "Search character name" : "Search anime title";
@@ -537,7 +542,7 @@ async function tabiSubmitAnswer(timedOut = false) {
     let selectedId = tabiSelectedSuggestion;
 
     if (!timedOut && !selectedId) {
-        alert("Select a valid option from the suggestions");
+        showAlertModal("Select a valid option from the suggestions", "Tabi", () => {document.getElementById("tabi-answer-input")?.focus()});
         return;
     }
 
@@ -563,7 +568,7 @@ async function tabiSubmitAnswer(timedOut = false) {
         }
     };
 
-    const rejectWrongAnswer = (msg) => {
+    const rejectWrongAnswer = () => {
         const inputEl = document.getElementById("tabi-answer-input");
         inputEl.value = "";
 
@@ -571,7 +576,8 @@ async function tabiSubmitAnswer(timedOut = false) {
         tabiSuggestionIndex     = -1;
 
         document.getElementById("tabi-suggestions").classList.add("hidden");
-        alert(msg);
+        inputEl.classList.add("border-rose-500", "ring-2", "ring-rose-500/40");
+        setTimeout(() => inputEl.classList.remove("border-rose-500", "ring-2", "ring-rose-500/40"), 250);
         inputEl.focus();
     };
 
@@ -714,6 +720,7 @@ document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) =>
 
     if (e.key === "Enter") {
         e.preventDefault();
+        if (!document.getElementById("alert-modal")?.classList.contains("hidden")) return;
 
         if (tabiSuggestionIndex >= 0 && items[tabiSuggestionIndex]) {
             items[tabiSuggestionIndex].click();

@@ -319,7 +319,7 @@ document.getElementById("save-photo-btn").addEventListener("click", async () => 
     const nameChanged   = effective !== currentName;
 
     if (nameChanged && !isFreeDiscordNameVariant(effective) && !hasYearlyNameChangeAvailable()) {
-        alert("You have already used your custom name change this year (resets Jan 1 JST)");
+        showAlertModal("You have already used your custom name change this year (resets Jan 1 JST)", "Display Name");
         return;
     }
 
@@ -332,7 +332,7 @@ document.getElementById("save-photo-btn").addEventListener("click", async () => 
     ));
 
     if (anilistChanged && !isFreeAnilist && !hasYearlyAnilistChangeAvailable()) {
-        alert("You have already used your AniList account change this year (resets Jan 1 JST)");
+        showAlertModal("You have already used your AniList account change this year (resets Jan 1 JST)", "AniList");
         return;
     }
 

@@ -10,7 +10,7 @@ async function performSummon(_, bannerType = "STANDARD") {
         if (currentUser)    await sendGachaAction({action: "INIT"});
         else                applyDailyBanners(getClientDailyBanners());
 
-        alert("Daily banners rotates at midnight JST; review today's banners before summoning");
+        showAlertModal("Daily banners rotate at midnight JST; review today's banners before summoning", "Banner Rotation");
         return;
     }
 

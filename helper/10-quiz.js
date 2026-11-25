@@ -388,7 +388,7 @@ async function aniQuizStart() {
     try {await aniQuizStartInternal()}
     catch (error) {
         console.error("Quiz start failed:", error);
-        alert("Could not start the quiz; please try again");
+        showAlertModal("Could not start the quiz; please try again", "Quiz");
     } finally {if (!aniQuizRun) {
         startBtn.textContent = "Start";
         aniQuizUpdateSettingsPreview();
@@ -399,14 +399,14 @@ async function aniQuizStartInternal() {
     const settings = aniQuizSettings();
 
     if (!settings.cats.length) {
-        alert("Select at least one song category");
+        showAlertModal("Select at least one song category", "Quiz");
         return;
     }
 
     const pool = aniQuizGetFilteredPool(settings);
 
     if (pool.length < 100) {
-        alert(`Only ${pool.length} songs match these settings; at least 100 valid songs are required`);
+        showAlertModal(`Only ${pool.length} songs match these settings; at least 100 valid songs are required`, "Quiz");
         return;
     }
 
@@ -430,7 +430,7 @@ async function aniQuizStartInternal() {
         const result = await sendGachaAction({action: "QUIZ_START", settings: serverSettings});
 
         if (!result?.quizId || !Array.isArray(result.songUrls)) {
-            alert("Could not create a secure quiz session");
+            showAlertModal("Could not create a secure quiz session", "Quiz");
             return;
         }
 
@@ -438,7 +438,7 @@ async function aniQuizStartInternal() {
         selectedSongs = result.songUrls.map(url => songMap.get(url));
 
         if (selectedSongs.length !== settings.count || selectedSongs.some(song => !song)) {
-            alert("Server-issued quiz songs couldn't be loaded; please try again");
+            showAlertModal("Server-issued quiz songs couldn't be loaded; please try again", "Quiz");
             return;
         }
 
