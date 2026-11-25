@@ -609,10 +609,10 @@ function tabiRender() {
 
     document.getElementById("tabi-daily-reward").innerHTML = `<span>★</span> <span>${dailyEarned}/120</span>`;
 
-    const daysDone      = Math.min(6, tabiWeeklyState.completedDates?.length || 0);
+    const daysDone      = Math.min(5, tabiWeeklyState.completedDates?.length || 0);
     const weeklyStar    = tabiWeeklyState.weeklyAwarded ? 120 : 0;
 
-    document.getElementById("tabi-weekly-label")    .textContent    = `Weekly Stars: ${daysDone}/6`;
+    document.getElementById("tabi-weekly-label")    .textContent    = `Weekly Stars: ${daysDone}/5`;
     document.getElementById("tabi-weekly-reward")   .innerHTML      = `<span>★</span> <span>${weeklyStar}/120</span>`;
 
     const routeEndpoints = dow === 0 ? "Tokyo ↻ Tokyo" : `${cfg.stations[0]} ➜ ${cfg.stations[20]}`;
@@ -722,7 +722,7 @@ function tabiRender() {
             const rulesPill     = document.getElementById("tabi-rules-pill");
 
             if (rulesPill) {
-                const rulesText = "Travel between stations by entering the answers to each question\nReach the terminus in the allocated questions\nQuestion count reduces as the week progresses\nOn Sundays, you must do 5+ laps and return to Tokyo\nObscure answers move you further\n20 seconds per question\n6 perfect days in a week awards ★ 120";
+                const rulesText = "Travel between stations by entering the answers to each question\nReach the terminus in the allocated questions\nQuestion count reduces as the week progresses\nOn Sundays, you must do 5+ laps and return to Tokyo\nObscure answers move you further\n20 seconds per question\n5 perfect days in a week awards ★ 120";
 
                 rulesPill.setAttribute      ("data-tooltip", rulesText);
                 rulesPill.removeAttribute   ("title");
@@ -941,7 +941,7 @@ async function tabiSubmitAnswer(timedOut = false) {
 
             if (earnedStars >= 120) {
                 if (!tabiWeeklyState.completedDates.includes(jstDate))  tabiWeeklyState.completedDates.push(jstDate);
-                if (tabiWeeklyState.completedDates.length >= 6)         tabiWeeklyState.weeklyAwarded = true;
+                if (tabiWeeklyState.completedDates.length >= 5)         tabiWeeklyState.weeklyAwarded = true;
             }
         }
     }

@@ -2055,7 +2055,7 @@ serve(async (req) => {
                         if (earnedStars >= 120) {
                             if (!save.tabiWeekly.completedDates.includes(dailyBanners.jstDate)) save.tabiWeekly.completedDates.push(dailyBanners.jstDate);
 
-                            if (save.tabiWeekly.completedDates.length >= 6 && !save.tabiWeekly.weeklyAwarded) {
+                            if (save.tabiWeekly.completedDates.length >= 5 && !save.tabiWeekly.weeklyAwarded) {
                                 save.tabiWeekly.weeklyAwarded = true;
                                 save.stars += 120;
                             }

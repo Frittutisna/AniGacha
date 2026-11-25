@@ -872,7 +872,7 @@ $$\text{Stations Moved} = \max\!\left(1,\; \min\!\left(S_{\max},\; \left\lceil \
 * **Daily Stars**:
   * **Monday–Saturday**: Ends immediately upon reaching station 20 or exhausting all questions, awarding **★ 6** per station reached (up to **★ 120**)
   * **Sunday**: Runs all 6 questions around the 30-station Yamanote Line, awarding **★ 20** per completed lap (up to **★ 100**) plus $\max(0,\; 20 - 5 \cdot d_{\text{Tokyo}})$ based on final station distance $d_{\text{Tokyo}}$ from Tokyo Station (up to **★ 120** for 5+ laps ending at Tokyo Station)
-* **Weekly Stars**: Completing **6** perfect days (**★ 120** each) within the same week awards an additional **★ 120**
+* **Weekly Stars**: Completing **5** perfect days (**★ 120** each) within the same week awards an additional **★ 120**
 
 ## Account
 
