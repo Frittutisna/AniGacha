@@ -244,7 +244,8 @@ for (const [id, a] of animeMap.entries()) {
         Array.from(a.genres),
         Array.from(a.tags),
         Array.from(a.studios),
-        a.source
+        a.source,
+        a.animeCount
     ];
 }
 

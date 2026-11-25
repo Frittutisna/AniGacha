@@ -100,8 +100,17 @@ function getGameData() {
                 }
             }
 
+            const sortedAnimeIds = Array.from(animeToCharKeys.keys()).sort((a, b) => {
+                const countA = Number(animesMap[a]?.[6]) || 0;
+                const countB = Number(animesMap[b]?.[6]) || 0;
+
+                return countB - countA;
+            });
+
+            const animeRankMap = new Map(sortedAnimeIds.map((id, idx) => [id, idx]));
             RARITIES.forEach(r => {if (globalBuckets[r.tier].length === 0) globalBuckets[r.tier].push(charList[0][0])});
-            cachedData = {charList, charMap, animeToCharKeys, globalBuckets, themedOptions: parsed.themedOptions};
+
+            cachedData = {charList, charMap, animeToCharKeys, animeRankMap, globalBuckets, themedOptions: parsed.themedOptions};
             return cachedData;
 
         } catch (error) {
@@ -1799,8 +1808,6 @@ serve(async (req) => {
                 let obscurityPct    = 0;
 
                 if (!passed) {
-                    if (td.answers.some(a => (uniqueKey && a.uniqueKey === uniqueKey) || (animeId && a.animeId === animeId))) throw new Error("Answer already used today");
-
                     if (prompt.kind === "PERSON") {
                         const char = gameData.charMap.get(uniqueKey);
                         if (!char) throw new Error("Character not found");
@@ -1812,7 +1819,7 @@ serve(async (req) => {
                             ((prompt.rule === "ERA" || prompt.rule === "STUDIO")    && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
 
                         const rankRatio     = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
-                        const curvedRatio   = Math.pow      (rankRatio, 1);
+                        const curvedRatio   = Math.pow      (rankRatio, 0.5);
                         obscurityPct        = Math.round    (rankRatio * 100);
                         stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
                         label               = uniqueKey;
@@ -1828,13 +1835,9 @@ serve(async (req) => {
                             (prompt.rule === "SOURCE"   && repChar?.source !== prompt.value)    ||
                             (prompt.rule === "TAG"      && !prompt.idxs?.has(repIdx))) throw new Error("Wrong anime");
 
-                        const bestIdx = Math.min(...keysForAnime.map(k => {
-                            const idx = gameData.charList.findIndex(row => row[0] === k);
-                            return idx >= 0 ? idx : gameData.charList.length - 1;
-                        }));
-
-                        const rankRatio     = bestIdx / Math.max(1, gameData.charList.length - 1);
-                        const curvedRatio   = Math.pow      (rankRatio, 1);
+                        const animeIdx      = gameData.animeRankMap.get(animeId) ?? Math.max(0, gameData.animeRankMap.size - 1);
+                        const rankRatio     = animeIdx / Math.max(1, gameData.animeRankMap.size - 1);
+                        const curvedRatio   = Math.pow      (rankRatio, 0.5);
                         obscurityPct        = Math.round    (rankRatio * 100);
                         stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
                         label               = animeId;

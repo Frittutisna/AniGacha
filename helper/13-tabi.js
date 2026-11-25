@@ -142,23 +142,22 @@ function tabiBuildAnimeCatalog() {
 
         if (!entry) {
             entry = {
-                animeId     : c.animeId,
-                romaji      : c.animeRomaji  || c.animeEnglish || `Anime #${c.animeId}`,
-                english     : c.animeEnglish || c.animeRomaji  || `Anime #${c.animeId}`,
-                genres      : c.genres instanceof Set ? c.genres : new Set(c.genres || []),
-                source      : c.source,
-                bestRankIdx : rankIdx,
-                charKeys    : new Set([c.uniqueKey])
+                animeId         : c.animeId,
+                romaji          : c.animeRomaji     || c.animeEnglish   || `Anime #${c.animeId}`,
+                english         : c.animeEnglish    || c.animeRomaji    || `Anime #${c.animeId}`,
+                genres          : c.genres instanceof Set ? c.genres : new Set(c.genres || []),
+                source          : c.source,
+                animeCount      : Number(c.animeCount) || 0,
+                animeRankIdx    : 0,
+                charKeys        : new Set([c.uniqueKey])
             };
 
             byAnime.set(c.animeId, entry);
-        } else {
-            if (rankIdx < entry.bestRankIdx) entry.bestRankIdx = rankIdx;
-            entry.charKeys.add(c.uniqueKey);
-        }
+        } else entry.charKeys.add(c.uniqueKey);
     });
 
-    tabiAnimeCatalog = Array.from(byAnime.values());
+    tabiAnimeCatalog = Array.from(byAnime.values()).sort((a, b) => b.animeCount - a.animeCount);
+    tabiAnimeCatalog.forEach((entry, idx) => { entry.animeRankIdx = idx; });
 }
 
 function tabiGetDailyPrompts(jstDate) {
@@ -459,15 +458,12 @@ function tabiMatchSuggestions(query) {
 
     if (!prompt) return [];
 
-    const usedKeys      = new Set((tabiState.answers || []).map(a => a.uniqueKey)   .filter(Boolean));
-    const usedAnimes    = new Set((tabiState.answers || []).map(a => a.animeId)     .filter(Boolean));
-
     if (prompt.kind === "PERSON") {
         const out = [];
 
         for (let i = 0; i < characterPool.length; i++) {
             const c = characterPool[i];
-            if (usedKeys.has(c.uniqueKey) || !c.name.toLowerCase().includes(q)) continue;
+            if (!c.name.toLowerCase().includes(q)) continue;
 
             const series = titleLang === "EN" ? (c.animeEnglish || c.animeRomaji || "") : (c.animeRomaji || c.animeEnglish || "");
             out.push({id: c.uniqueKey, label: c.name, sub: series, rankIdx: i});
@@ -479,12 +475,10 @@ function tabiMatchSuggestions(query) {
         const out = [];
 
         for (const a of tabiAnimeCatalog) {
-            if (usedAnimes.has(a.animeId)) continue;
-
             const disp = titleLang === "EN" ? a.english : a.romaji;
             if (!a.romaji.toLowerCase().includes(q) && !a.english.toLowerCase().includes(q)) continue;
 
-            out.push({id: a.animeId, label: disp, sub: a.source || "", rankIdx: a.bestRankIdx});
+            out.push({id: a.animeId, label: disp, sub: a.source || "", rankIdx: a.animeRankIdx});
             if (out.length >= 30) break;
         }
 
@@ -537,6 +531,19 @@ async function tabiHandleStart() {
     }
 }
 
+function tabiFindExactMatch(rawInput, prompt) {
+    const q = String(rawInput || "").trim().toLowerCase();
+    if (!q || !prompt || !tabiState) return null;
+
+    if (prompt.kind === "PERSON") {
+        const match = characterPool.find(c => c.name.trim().toLowerCase() === q);
+        return match ? match.uniqueKey : null;
+    } else {
+        const match = tabiAnimeCatalog.find(a => a.romaji.trim().toLowerCase() === q || a.english.trim().toLowerCase() === q);
+        return match ? match.animeId : null;
+    }
+}
+
 async function tabiSubmitAnswer(timedOut = false) {
     if (tabiBusy || !tabiState?.started || tabiState?.completed) return;
 
@@ -549,6 +556,11 @@ async function tabiSubmitAnswer(timedOut = false) {
     if (!prompt) return;
 
     let selectedId = tabiSelectedSuggestion;
+
+    if (!timedOut && !selectedId) {
+        const rawText   = document.getElementById("tabi-answer-input")?.value || "";
+        selectedId      = tabiFindExactMatch(rawText, prompt);
+    }
 
     if (!timedOut && !selectedId) {
         showAlertModal("Select a valid option from the suggestions", "Tabi", () => {document.getElementById("tabi-answer-input")?.focus()});
@@ -638,13 +650,13 @@ async function tabiSubmitAnswer(timedOut = false) {
         if (prompt.kind === "PERSON") {
             const idx           = characterPool.findIndex(c => c.uniqueKey === selectedId);
             const rankRatio     = idx >= 0 ? (idx / Math.max(1, characterPool.length - 1)) : 0;
-            const curvedRatio   = Math.pow      (rankRatio, 1);
+            const curvedRatio   = Math.pow      (rankRatio, 0.5);
             obscurityPct        = Math.round    (rankRatio * 100);
             stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         } else {
             const an            = tabiAnimeCatalog.find(a => a.animeId === selectedId);
-            const rankRatio     = an ? (an.bestRankIdx / Math.max(1, characterPool.length - 1)) : 0;
-            const curvedRatio   = Math.pow      (rankRatio, 1);
+            const rankRatio     = an ? (an.animeRankIdx / Math.max(1, tabiAnimeCatalog.length - 1)) : 0;
+            const curvedRatio   = Math.pow      (rankRatio, 0.5);
             obscurityPct        = Math.round    (rankRatio * 100);
             stationsMoved       = Math.max      (1, Math.min(cfg.maxStep, Math.ceil(curvedRatio * cfg.maxStep)));
         }
