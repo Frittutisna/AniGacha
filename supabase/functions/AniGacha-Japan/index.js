@@ -751,7 +751,19 @@ serve(async (req) => {
                 [pool[i], pool[j]] = [pool[j], pool[i]];
             }
 
-            const selected      = pool.slice(0, settings.count);
+            const selected  = [];
+            const seenSongs = new Set();
+
+            for (const song of pool) {
+                const sig = [song.romaji, song.english, ...song.alts].filter(Boolean).sort().join("|");
+                if (seenSongs.has(sig)) continue;
+
+                seenSongs.add(sig);
+                selected.push(song);
+
+                if (selected.length === settings.count) break;
+            }
+
             const privateSongs  = selected.map(song => ({video_url: song.video_url, acceptedAnswers: [song.romaji, song.english, ...song.alts].filter(Boolean), chanting: song.chanting}));
             const expiresAt     = new Date(Date.now() + 120 * 60 * 1000).toISOString();
 

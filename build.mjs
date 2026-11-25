@@ -416,14 +416,15 @@ fs.writeFileSync("./supabase/functions/AniGacha-Japan/client-data.json", JSON.st
 
 async function buildQuizData() {
     const rl = readline.createInterface({
-        input       : fs.createReadStream("./supabase/functions/AniGacha-Japan/song_data.jsonl", "utf8"),
+        input       : fs.createReadStream("./supabase/functions/AniGacha-Japan/song-data.jsonl", "utf8"),
         crlfDelay   : Infinity
     });
 
-    const seenAudio = new Set();
-    const seenNames = new Set();
-    const names     = [];
-    const songs     = [];
+    const seenAudio     = new Set();
+    const seenNames     = new Set();
+    const names         = [];
+    const rawEntries    = [];
+    const titlesByAmqId = new Map();
 
     const addName = (val) => {
         const trimmed = String(val || "").trim();
@@ -446,6 +447,23 @@ async function buildQuizData() {
         addName(s?.animeJPName);
 
         if (Array.isArray(s?.animeAltName)) for (const alt of s.animeAltName) addName(alt);
+        const amqId = s?.amqSongId != null ? String(s.amqSongId).trim() : "";
+
+        if (amqId) {
+            if (!titlesByAmqId.has(amqId)) titlesByAmqId.set(amqId, new Set());
+            const titleSet = titlesByAmqId.get(amqId);
+
+            if (s.animeJPName) titleSet.add(String(s.animeJPName).trim());
+            if (s.animeENName) titleSet.add(String(s.animeENName).trim());
+
+            if (Array.isArray(s.animeAltName)) {
+                for (const alt of s.animeAltName) {
+                    const t = String(alt || "").trim();
+                    if (t) titleSet.add(t);
+                }
+            }
+        }
+
         const rawAudio = typeof s?.audio === "string" ? s.audio.trim() : "";
 
         if (!rawAudio || !rawAudio.toLowerCase().split("?")[0].endsWith(".mp3"))    continue;
@@ -465,18 +483,29 @@ async function buildQuizData() {
         const year      = yearMatch ? Number(yearMatch[1]) : null;
         const diff      = parseFloat(s.songDifficulty);
 
-        songs.push([
+        rawEntries.push({
             cleanAudio,
-            s.animeJPName   || "",
-            s.animeENName   || "",
-            Array.isArray(s.animeAltName)   ? s.animeAltName    : [],
+            amqId,
+            jpName      : s.animeJPName || "",
+            enName      : s.animeENName || "",
+            alts        : Array.isArray(s.animeAltName) ? s.animeAltName    : [],
             catCode, chanting, year,
-            Number.isFinite(diff)           ? diff              : null,
-            s.songType      || "",
-            s.songName      || "",
-            s.songArtist    || ""
-        ]);
+            diff        : Number.isFinite(diff)         ? diff              : null,
+            songType    : s.songType    || "",
+            songName    : s.songName    || "",
+            artist      : s.songArtist  || ""
+        });
     }
+
+    const songs = rawEntries.map(e => {
+        const mergedAlts = new Set(e.alts.map(a => String(a || "").trim()).filter(Boolean));
+        if (e.amqId && titlesByAmqId.has(e.amqId)) for (const t of titlesByAmqId.get(e.amqId)) mergedAlts.add(t);
+
+        mergedAlts.delete(e.jpName);
+        mergedAlts.delete(e.enName);
+
+        return [e.cleanAudio, e.jpName, e.enName, Array.from(mergedAlts), e.catCode, e.chanting, e.year, e.diff, e.songType, e.songName, e.artist];
+    });
 
     fs.writeFileSync("./supabase/functions/AniGacha-Japan/quiz-data.json", JSON.stringify({names, songs}));
     console.log(`Generated server-data.json, client-data.json, and quiz-data.json`);

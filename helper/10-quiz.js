@@ -386,14 +386,25 @@ async function aniQuizStartInternal() {
 
         quizId = result.quizId;
     } else {
-        selectedSongs = [...pool];
+        const shuffled = [...pool];
 
-        for (let i = selectedSongs.length - 1; i > 0; i--) {
-            const j                                 = Math.floor(Math.random() * (i + 1));
-            [selectedSongs[i], selectedSongs[j]]    = [selectedSongs[j], selectedSongs[i]];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j                     = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]]  = [shuffled[j], shuffled[i]];
         }
 
-        selectedSongs = selectedSongs.slice(0, settings.count);
+        selectedSongs   = [];
+        const seenSongs = new Set();
+
+        for (const song of shuffled) {
+            const sig = [song.romaji, song.english, ...(Array.isArray(song.alts) ? song.alts : [])].filter(Boolean).sort().join("|");
+            if (seenSongs.has(sig)) continue;
+
+            seenSongs.add       (sig);
+            selectedSongs.push  (song);
+
+            if (selectedSongs.length === settings.count) break;
+        }
     }
 
     aniQuizRun = {
@@ -564,9 +575,14 @@ function aniQuizBuildMcIndex() {
         const key       = `${normJp}|${normEn}`;
 
         if ((!normJp && !normEn) || seen.has(key)) continue;
+        seen.add(key);
 
-        seen.add    (key);
-        list.push   ({jp, en, normJp, normEn, gramsJp: aniQuizMakeBigrams(jp), gramsEn: aniQuizMakeBigrams(en)});
+        list.push({
+            jp, en, normJp, normEn,
+            allNorms    : aniQuizAccepted       (s),
+            gramsJp     : aniQuizMakeBigrams    (jp),
+            gramsEn     : aniQuizMakeBigrams    (en)
+        });
     }
 
     aniQuizMcEntries = list;
@@ -594,7 +610,7 @@ function aniQuizMakeChoices() {
     const candidates        = [];
 
     for (const entry of aniQuizMcEntries) {
-        if (acceptedSet.has(entry.normJp) || acceptedSet.has(entry.normEn)) continue;
+        if (entry.allNorms.some(n => acceptedSet.has(n))) continue;
 
         const normDisp = useJp ? entry.normJp : entry.normEn;
         if (!normDisp || seenDisplay.has(normDisp)) continue;
