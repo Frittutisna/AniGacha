@@ -174,18 +174,18 @@ function tabiBuildAnimeCatalog() {
     }
 }
 
-function tabiGetPromptAnimeSet(p) {
-    if (!p.keys)        return null;
-    if (p._animeIds)    return p._animeIds;
+function tabiKeysToAnimeSet(keys, cacheProp, p) {
+    if (!keys)          return null;
+    if (p[cacheProp])   return p[cacheProp];
 
     const ids = new Set();
 
-    for (const k of p.keys) {
+    for (const k of keys) {
         const animeId = characterMap.get(k)?.animeId;
         if (animeId) ids.add(animeId);
     }
 
-    p._animeIds = ids;
+    p[cacheProp] = ids;
     return ids;
 }
 
@@ -196,13 +196,21 @@ function tabiFirstAlpha(str) {
     return m ? m[0].toUpperCase() : null;
 }
 
+function tabiLastAlpha(str) {
+    const m = String(str || "").trim().match(/[A-Za-z](?=[^A-Za-z]*$)/);
+    return m ? m[0].toUpperCase() : null;
+}
+
 function tabiCheckLexicalPerson(c, lexRule, lexVal) {
     const name  = String(c?.name || "").trim();
     const words = name.split(/\s+/).filter(Boolean);
 
-    if (lexRule === "MONONYM")      return words.length === 1;
-    if (lexRule === "ALLITERATION") return words.length >= 2 && tabiFirstAlpha(words[0]) !== null && tabiFirstAlpha(words[0]) === tabiFirstAlpha(words[words.length - 1]);
-    if (lexRule === "STARTS_WITH")  return tabiFirstAlpha(name) === lexVal;
+    if (lexRule === "MONONYM")          return words.length === 1;
+    if (lexRule === "THREE_PLUS_WORDS") return words.length >=  3;
+    if (lexRule === "ALLITERATION")     return words.length >=  2 && tabiFirstAlpha(words[0]) !== null && tabiFirstAlpha(words[0]) === tabiFirstAlpha(words[words.length - 1]);
+    if (lexRule === "STARTS_WITH")      return tabiFirstAlpha   (name) === lexVal;
+    if (lexRule === "ENDS_WITH")        return tabiLastAlpha    (name) === lexVal;
+    if (lexRule === "DOUBLE_LETTER")    return /([A-Za-z])\1/i.test(name);
 
     return false;
 }
@@ -211,9 +219,12 @@ function tabiCheckLexicalWork(a, lexRule, lexVal) {
     const titles = [a?.romaji, a?.english].filter(Boolean).map(t => String(t).trim());
     if (!titles.length) return false;
 
-    if (lexRule === "ONE_WORD")     return titles.some(t => tabiCountWords(t) ===   1);
-    if (lexRule === "LONG_TITLE")   return titles.some(t => tabiCountWords(t) >=    5);
-    if (lexRule === "STARTS_WITH")  return titles.some(t => tabiFirstAlpha(t) ===   lexVal);
+    if (lexRule === "ONE_WORD")         return titles.some(t => tabiCountWords(t) ===   1);
+    if (lexRule === "TWO_WORDS")        return titles.some(t => tabiCountWords(t) ===   2);
+    if (lexRule === "LONG_TITLE")       return titles.some(t => tabiCountWords(t) >=    5);
+    if (lexRule === "STARTS_WITH")      return titles.some(t => tabiFirstAlpha(t) ===   lexVal);
+    if (lexRule === "HAS_NUMBER")       return titles.some(t => /\d/.test(t));
+    if (lexRule === "HAS_PUNCTUATION")  return titles.some(t => /[:!?]/.test(t));
 
     return false;
 }
@@ -223,36 +234,38 @@ function tabiCheckPromptCandidate(p, id) {
         const c = characterMap.get(id);
         if (!c) return false;
 
-        if (p.rule === "GENRE")             return tabiHasGenre(c.genres, p.value);
-        if (p.rule === "ERA")               return Boolean(p.keys?.has(id));
-        if (p.rule === "STUDIO")            return Boolean(p.keys?.has(id));
-        if (p.rule === "SOURCE")            return c.source === p.value;
-        if (p.rule === "FRANCHISE")         return Boolean(p.keys?.has(id));
-        if (p.rule === "INT_GENRE_ERA")     return tabiHasGenre(c.genres, p.genre) && Boolean(p.keys?.has(id));
-        if (p.rule === "INT_GENRE_STUDIO")  return tabiHasGenre(c.genres, p.genre) && Boolean(p.keys?.has(id));
-        if (p.rule === "INT_SOURCE_ERA")    return c.source === p.source && Boolean(p.keys?.has(id));
-        if (p.rule === "LEX_PERSON")        return tabiCheckLexicalPerson(c, p.lexRule, p.lexVal);
+        if (p.rule === "GENRE")                                                                 return tabiHasGenre(c.genres, p.value);
+        if (p.rule === "SOURCE")                                                                return c.source === p.value;
+        if (["ERA", "STUDIO", "FRANCHISE"]                                  .includes(p.rule))  return Boolean(p.keys?.has(id));
+        if (["INT_GENRE_ERA", "INT_GENRE_STUDIO", "INT_GENRE_FRANCHISE"]    .includes(p.rule))  return tabiHasGenre(c.genres, p.genre) && Boolean(p.keys?.has(id));
+        if (p.rule === "INT_GENRE_SOURCE")                                                      return tabiHasGenre(c.genres, p.genre) && c.source === p.source;
+        if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_FRANCHISE"] .includes(p.rule))  return c.source === p.source && Boolean(p.keys?.has(id));
+        if (["INT_ERA_STUDIO", "INT_ERA_FRANCHISE", "INT_STUDIO_FRANCHISE"] .includes(p.rule))  return Boolean(p.keysA?.has(id)) && Boolean(p.keysB?.has(id));
+        if (p.rule === "LEX_PERSON")                                                            return tabiCheckLexicalPerson(c, p.lexRule, p.lexVal);
 
         return true;
     } else {
         const a = tabiAnimeMap.get(id);
         if (!a) return false;
 
-        const hasAnime = () => Boolean(tabiGetPromptAnimeSet(p)?.has(id));
+        const hasAnime  = () => Boolean(tabiKeysToAnimeSet(p.keys,  "_animeIds",    p)?.has(id));
+        const hasAnimeA = () => Boolean(tabiKeysToAnimeSet(p.keysA, "_animeIdsA",   p)?.has(id));
+        const hasAnimeB = () => Boolean(tabiKeysToAnimeSet(p.keysB, "_animeIdsB",   p)?.has(id));
 
-        if (p.rule === "GENRE")             return tabiHasGenre(a.genres, p.value);
-        if (p.rule === "ERA")               return hasAnime();
-        if (p.rule === "STUDIO")            return hasAnime();
-        if (p.rule === "SOURCE")            return a.source === p.value;
-        if (p.rule === "TAG")               return hasAnime();
-        if (p.rule === "INT_GENRE_ERA")     return tabiHasGenre(a.genres, p.genre) && hasAnime();
-        if (p.rule === "INT_GENRE_STUDIO")  return tabiHasGenre(a.genres, p.genre) && hasAnime();
-        if (p.rule === "INT_GENRE_TAG")     return tabiHasGenre(a.genres, p.genre) && hasAnime();
-        if (p.rule === "LEX_WORK")          return tabiCheckLexicalWork(a, p.lexRule, p.lexVal);
+        if (p.rule === "GENRE")                                                             return tabiHasGenre(a.genres, p.value);
+        if (p.rule === "SOURCE")                                                            return a.source === p.value;
+        if (["ERA", "STUDIO", "TAG"]                                    .includes(p.rule))  return hasAnime();
+        if (["INT_GENRE_ERA", "INT_GENRE_STUDIO", "INT_GENRE_TAG"]      .includes(p.rule))  return tabiHasGenre(a.genres, p.genre) && hasAnime();
+        if (p.rule === "INT_GENRE_SOURCE")                                                  return tabiHasGenre(a.genres, p.genre) && a.source === p.source;
+        if (["INT_SOURCE_ERA", "INT_SOURCE_STUDIO", "INT_SOURCE_TAG"]   .includes(p.rule))  return a.source === p.source && hasAnime();
+        if (["INT_ERA_STUDIO", "INT_ERA_TAG", "INT_STUDIO_TAG"]         .includes(p.rule))  return hasAnimeA() && hasAnimeB();
+        if (p.rule === "LEX_WORK")                                                          return tabiCheckLexicalWork(a, p.lexRule, p.lexVal);
 
         return true;
     }
 }
+
+function tabiGetPromptSignature(p) {return [p.kind, p.rule, p.value, p.genre, p.era, p.studio, p.source, p.franchise, p.tag, p.lexRule, p.lexVal].filter(Boolean).join("|")}
 
 function tabiHasEnoughMatches(prompt, minMatches = 25) {
     let count = 0;
@@ -270,12 +283,32 @@ function tabiHasEnoughMatches(prompt, minMatches = 25) {
     return false;
 }
 
-function tabiPickValidPrompt(rng, builders) {
-    for (let attempt = 0; attempt < 25; attempt++) {
+function tabiPickValidPrompt(rng, builders, usedSignatures) {
+    for (let attempt = 0; attempt < 50; attempt++) {
         const fn        = builders[Math.floor(rng() * builders.length)];
         const candidate = fn();
 
-        if (candidate && tabiHasEnoughMatches(candidate, 25)) return candidate;
+        if (!candidate) continue;
+
+        const sig = tabiGetPromptSignature(candidate);
+        if (usedSignatures.has(sig)) continue;
+
+        if (tabiHasEnoughMatches(candidate, 25)) {
+            usedSignatures.add(sig);
+            return candidate;
+        }
+    }
+
+    for (const fn of builders) {
+        const fallback = fn();
+        if (!fallback) continue;
+
+        const sig = tabiGetPromptSignature(fallback);
+
+        if (!usedSignatures.has(sig)) {
+            usedSignatures.add(sig);
+            return fallback;
+        }
     }
 
     return builders[0]();
@@ -299,138 +332,86 @@ function tabiGetDailyPrompts(jstDate) {
         return arr;
     })() : Array(cfg.qCount).fill(dow % 2 === 1 ? "PERSON" : "WORK");
 
-    const eras          = THEMED_BANNERS.ERA        ?.allOptions || [];
-    const franchises    = THEMED_BANNERS.FRANCHISE  ?.allOptions || [];
-    const genres        = THEMED_BANNERS.GENRE      ?.allOptions || [];
-    const studios       = THEMED_BANNERS.STUDIO     ?.allOptions || [];
-    const sources       = THEMED_BANNERS.SOURCE     ?.allOptions || [];
-    const tags          = THEMED_BANNERS.TAG        ?.allOptions || [];
-    const letters       = "ABCDEFGHKLMNOPRSTW".split("");
-    const prompts       = [];
+    const eras              = THEMED_BANNERS.ERA        ?.allOptions || [];
+    const franchises        = THEMED_BANNERS.FRANCHISE  ?.allOptions || [];
+    const genres            = THEMED_BANNERS.GENRE      ?.allOptions || [];
+    const studios           = THEMED_BANNERS.STUDIO     ?.allOptions || [];
+    const sources           = THEMED_BANNERS.SOURCE     ?.allOptions || [];
+    const tags              = THEMED_BANNERS.TAG        ?.allOptions || [];
+    const letters           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const prompts           = [];
+    const usedSignatures    = new Set();
+    const pick              = (arr) => arr[Math.floor(rng() * arr.length)];
 
     for (let i = 0; i < cfg.qCount; i++) {
         const kind = types[i];
 
         if (kind === "PERSON") {
             const singleBuilders = [
-                genres.length ? () => {
-                    const g = genres[Math.floor(rng() * genres.length)];
-                    return {kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from ${tabiWithArticle(g.title)} anime`};
-                } : null,
-
-                eras.length ? () => {
-                    const e = eras[Math.floor(rng() * eras.length)];
-                    return {kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from an anime in the ${e.title}`};
-                } : null,
-
-                studios.length ? () => {
-                    const s = studios[Math.floor(rng() * studios.length)];
-                    return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`};
-                } : null,
-
-                sources.length ? () => {
-                    const src = sources[Math.floor(rng() * sources.length)];
-                    return {kind: "PERSON", rule: "SOURCE", value: src.title, text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)}`};
-                } : null,
-
-                franchises.length ? () => {
-                    const f = franchises[Math.floor(rng() * franchises.length)];
-                    return {kind: "PERSON", rule: "FRANCHISE", value: f.title, keys: f.eligibleKeys, text: `Name a character from the ${f.title} franchise`};
-                } : null
+                genres      .length     ? () => {const g    = pick(genres);     return {kind: "PERSON", rule: "GENRE",      value: g.title,                         text: `Name a character from ${tabiWithArticle(g.title)} anime`}}                   : null,
+                eras        .length     ? () => {const e    = pick(eras);       return {kind: "PERSON", rule: "ERA",        value: e.title, keys: e.eligibleKeys,   text: `Name a character from an anime in the ${e.title}`}}                          : null,
+                studios     .length     ? () => {const s    = pick(studios);    return {kind: "PERSON", rule: "STUDIO",     value: s.title, keys: s.eligibleKeys,   text: `Name a character from an anime made by ${s.title}`}}                         : null,
+                sources     .length     ? () => {const src  = pick(sources);    return {kind: "PERSON", rule: "SOURCE",     value: src.title,                       text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)}`}} : null,
+                franchises  .length     ? () => {const f    = pick(franchises); return {kind: "PERSON", rule: "FRANCHISE",  value: f.title, keys: f.eligibleKeys,   text: `Name a character from the ${f.title} franchise`}}                            : null
             ].filter(Boolean);
 
             const intersectionBuilders = [
-                (genres.length && eras.length) ? () => {
-                    const g = genres[Math.floor(rng() * genres.length)];
-                    const e = eras  [Math.floor(rng() * eras  .length)];
-                    return {kind: "PERSON", rule: "INT_GENRE_ERA", genre: g.title, era: e.title, keys: e.eligibleKeys, text: `Name a character from ${tabiWithArticle(g.title)} anime in the ${e.title}`};
-                } : null,
-
-                (genres.length && studios.length) ? () => {
-                    const g = genres [Math.floor(rng() * genres .length)];
-                    const s = studios[Math.floor(rng() * studios.length)];
-                    return {kind: "PERSON", rule: "INT_GENRE_STUDIO", genre: g.title, studio: s.title, keys: s.eligibleKeys, text: `Name a character from ${tabiWithArticle(g.title)} anime made by ${s.title}`};
-                } : null,
-
-                (sources.length && eras.length) ? () => {
-                    const src = sources[Math.floor(rng() * sources.length)];
-                    const e   = eras   [Math.floor(rng() * eras   .length)];
-                    return {kind: "PERSON", rule: "INT_SOURCE_ERA", source: src.title, era: e.title, keys: e.eligibleKeys, text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)} in the ${e.title}`};
-                } : null
+                (genres     .length && eras         .length) ? () => {const g   = pick(genres),     e   = pick(eras);       return {kind: "PERSON", rule: "INT_GENRE_ERA",        genre     : g.title,      era         : e.title, keys     : e.eligibleKeys,                           text: `Name a character from ${tabiWithArticle(g.title)} anime in the ${e.title}`}}                             : null,
+                (genres     .length && studios      .length) ? () => {const g   = pick(genres),     s   = pick(studios);    return {kind: "PERSON", rule: "INT_GENRE_STUDIO",     genre     : g.title,      studio      : s.title, keys     : s.eligibleKeys,                           text: `Name a character from ${tabiWithArticle(g.title)} anime made by ${s.title}`}}                            : null,
+                (genres     .length && sources      .length) ? () => {const g   = pick(genres),     src = pick(sources);    return {kind: "PERSON", rule: "INT_GENRE_SOURCE",     genre     : g.title,      source      : src.title,                                                    text: `Name a character from ${tabiWithArticle(g.title)} anime adapted from ${tabiWithArticle(src.title)}`}}    : null,
+                (genres     .length && franchises   .length) ? () => {const g   = pick(genres),     f   = pick(franchises); return {kind: "PERSON", rule: "INT_GENRE_FRANCHISE",  genre     : g.title,      franchise   : f.title, keys     : f.eligibleKeys,                           text: `Name a character from ${tabiWithArticle(g.title)} anime in the ${f.title} franchise`}}                   : null,
+                (eras       .length && studios      .length) ? () => {const e   = pick(eras),       s   = pick(studios);    return {kind: "PERSON", rule: "INT_ERA_STUDIO",       era       : e.title,      studio      : s.title, keysA    : e.eligibleKeys, keysB: s.eligibleKeys,    text: `Name a character from an anime made by ${s.title} in the ${e.title}`}}                                   : null,
+                (eras       .length && sources      .length) ? () => {const e   = pick(eras),       src = pick(sources);    return {kind: "PERSON", rule: "INT_SOURCE_ERA",       source    : src.title,    era         : e.title, keys     : e.eligibleKeys,                           text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)} in the ${e.title}`}}           : null,
+                (eras       .length && franchises   .length) ? () => {const e   = pick(eras),       f   = pick(franchises); return {kind: "PERSON", rule: "INT_ERA_FRANCHISE",    era       : e.title,      franchise   : f.title, keysA    : e.eligibleKeys, keysB: f.eligibleKeys,    text: `Name a character from the ${f.title} franchise in the ${e.title}`}}                                      : null,
+                (studios    .length && sources      .length) ? () => {const s   = pick(studios),    src = pick(sources);    return {kind: "PERSON", rule: "INT_SOURCE_STUDIO",    source    : src.title,    studio      : s.title, keys     : s.eligibleKeys,                           text: `Name a character from an anime made by ${s.title} adapted from ${tabiWithArticle(src.title)}`}}          : null,
+                (studios    .length && franchises   .length) ? () => {const s   = pick(studios),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_STUDIO_FRANCHISE", studio    : s.title,      franchise   : f.title, keysA    : s.eligibleKeys, keysB: f.eligibleKeys,    text: `Name a character from the ${f.title} franchise made by ${s.title}`}}                                     : null,
+                (sources    .length && franchises   .length) ? () => {const src = pick(sources),    f   = pick(franchises); return {kind: "PERSON", rule: "INT_SOURCE_FRANCHISE", source    : src.title,    franchise   : f.title, keys     : f.eligibleKeys,                           text: `Name a character from the ${f.title} franchise adapted from ${tabiWithArticle(src.title)}`}}             : null
             ].filter(Boolean);
 
             const lexicalBuilders = [
-                () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "MONONYM", text: "Name a character with a one-word name (mononym)"}),
-                () => ({kind: "PERSON", rule: "LEX_PERSON", lexRule: "ALLITERATION", text: "Name a character whose first and last name start with the same letter"}),
-
-                () => {
-                    const l = letters[Math.floor(rng() * letters.length)];
-                    return {kind: "PERSON", rule: "LEX_PERSON", lexRule: "STARTS_WITH", lexVal: l, text: `Name a character whose name starts with the letter ${l}`};
-                }
+                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "MONONYM",                    text: "Name a character with a one-word name"}),
+                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "THREE_PLUS_WORDS",           text: "Name a character whose name has 3 or more words"}),
+                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "ALLITERATION",               text: "Name a character whose first and last name start with the same letter"}),
+                () => (                                 {kind: "PERSON", rule: "LEX_PERSON", lexRule: "DOUBLE_LETTER",              text: "Name a character whose name has doubled letters"}),
+                () => {const l = pick(letters); return  {kind: "PERSON", rule: "LEX_PERSON", lexRule: "STARTS_WITH",    lexVal: l,  text: `Name a character whose name starts with the letter ${l}`}},
+                () => {const l = pick(letters); return  {kind: "PERSON", rule: "LEX_PERSON", lexRule: "ENDS_WITH",      lexVal: l,  text: `Name a character whose name ends with the letter ${l}`}}
             ];
 
-            const bucket = (i % 3 === 1 && intersectionBuilders.length) ? intersectionBuilders : (i % 3 === 2 ? lexicalBuilders : singleBuilders);
-            if (bucket.length) prompts.push(tabiPickValidPrompt(rng, bucket));
+            const buckets = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
+            if (buckets.length) prompts.push(tabiPickValidPrompt(rng, pick(buckets), usedSignatures));
         } else {
             const singleBuilders = [
-                genres.length ? () => {
-                    const g = genres[Math.floor(rng() * genres.length)];
-                    return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`};
-                } : null,
-
-                eras.length ? () => {
-                    const e = eras[Math.floor(rng() * eras.length)];
-                    return {kind: "WORK", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name an anime from the ${e.title}`};
-                } : null,
-
-                studios.length ? () => {
-                    const s = studios[Math.floor(rng() * studios.length)];
-                    return {kind: "WORK", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name an anime made by ${s.title}`};
-                } : null,
-
-                sources.length ? () => {
-                    const src = sources[Math.floor(rng() * sources.length)];
-                    return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`};
-                } : null,
-
-                tags.length ? () => {
-                    const t = tags[Math.floor(rng() * tags.length)];
-                    return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`};
-                } : null
+                genres  .length ? () => {const g    = pick(genres);     return {kind: "WORK", rule: "GENRE",  value: g.title,                           text: `Name ${tabiWithArticle(g.title)} anime`}}                    : null,
+                eras    .length ? () => {const e    = pick(eras);       return {kind: "WORK", rule: "ERA",    value: e.title,   keys: e.eligibleKeys,   text: `Name an anime from the ${e.title}`}}                         : null,
+                studios .length ? () => {const s    = pick(studios);    return {kind: "WORK", rule: "STUDIO", value: s.title,   keys: s.eligibleKeys,   text: `Name an anime made by ${s.title}`}}                          : null,
+                sources .length ? () => {const src  = pick(sources);    return {kind: "WORK", rule: "SOURCE", value: src.title,                         text: `Name an anime adapted from ${tabiWithArticle(src.title)}`}}  : null,
+                tags    .length ? () => {const t    = pick(tags);       return {kind: "WORK", rule: "TAG",    value: t.title,   keys: t.eligibleKeys,   text: `Name an anime with the ${t.title} tag`}}                     : null
             ].filter(Boolean);
 
             const intersectionBuilders = [
-                (genres.length && eras.length) ? () => {
-                    const g = genres[Math.floor(rng() * genres.length)];
-                    const e = eras  [Math.floor(rng() * eras  .length)];
-                    return {kind: "WORK", rule: "INT_GENRE_ERA", genre: g.title, era: e.title, keys: e.eligibleKeys, text: `Name ${tabiWithArticle(g.title)} anime from the ${e.title}`};
-                } : null,
-
-                (genres.length && studios.length) ? () => {
-                    const g = genres [Math.floor(rng() * genres .length)];
-                    const s = studios[Math.floor(rng() * studios.length)];
-                    return {kind: "WORK", rule: "INT_GENRE_STUDIO", genre: g.title, studio: s.title, keys: s.eligibleKeys, text: `Name ${tabiWithArticle(g.title)} anime made by ${s.title}`};
-                } : null,
-
-                (genres.length && tags.length) ? () => {
-                    const g = genres[Math.floor(rng() * genres.length)];
-                    const t = tags  [Math.floor(rng() * tags  .length)];
-                    return {kind: "WORK", rule: "INT_GENRE_TAG", genre: g.title, tag: t.title, keys: t.eligibleKeys, text: `Name ${tabiWithArticle(g.title)} anime with the ${t.title} tag`};
-                } : null
+                (genres     .length && eras     .length) ? () => {const g   = pick(genres),     e   = pick(eras);       return {kind: "WORK", rule: "INT_GENRE_ERA",      genre     : g.title,      era     : e.title,  keys    : e.eligibleKeys,                           text: `Name ${tabiWithArticle(g.title)} anime from the ${e.title}`}}                        : null,
+                (genres     .length && studios  .length) ? () => {const g   = pick(genres),     s   = pick(studios);    return {kind: "WORK", rule: "INT_GENRE_STUDIO",   genre     : g.title,      studio  : s.title,  keys    : s.eligibleKeys,                           text: `Name ${tabiWithArticle(g.title)} anime made by ${s.title}`}}                         : null,
+                (genres     .length && sources  .length) ? () => {const g   = pick(genres),     src = pick(sources);    return {kind: "WORK", rule: "INT_GENRE_SOURCE",   genre     : g.title,      source  : src.title,                                                    text: `Name ${tabiWithArticle(g.title)} anime adapted from ${tabiWithArticle(src.title)}`}} : null,
+                (genres     .length && tags     .length) ? () => {const g   = pick(genres),     t   = pick(tags);       return {kind: "WORK", rule: "INT_GENRE_TAG",      genre     : g.title,      tag     : t.title,  keys    : t.eligibleKeys,                           text: `Name ${tabiWithArticle(g.title)} anime with the ${t.title} tag`}}                    : null,
+                (eras       .length && studios  .length) ? () => {const e   = pick(eras),       s   = pick(studios);    return {kind: "WORK", rule: "INT_ERA_STUDIO",     era       : e.title,      studio  : s.title,  keysA   : e.eligibleKeys, keysB: s.eligibleKeys,    text: `Name an anime made by ${s.title} from the ${e.title}`}}                              : null,
+                (eras       .length && sources  .length) ? () => {const e   = pick(eras),       src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_ERA",     source    : src.title,    era     : e.title,  keys    : e.eligibleKeys,                           text: `Name an anime adapted from ${tabiWithArticle(src.title)} from the ${e.title}`}}      : null,
+                (eras       .length && tags     .length) ? () => {const e   = pick(eras),       t   = pick(tags);       return {kind: "WORK", rule: "INT_ERA_TAG",        era       : e.title,      tag     : t.title,  keysA   : e.eligibleKeys, keysB: t.eligibleKeys,    text: `Name an anime with the ${t.title} tag from the ${e.title}`}}                         : null,
+                (studios    .length && sources  .length) ? () => {const s   = pick(studios),    src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_STUDIO",  source    : src.title,    studio  : s.title,  keys    : s.eligibleKeys,                           text: `Name an anime made by ${s.title} adapted from ${tabiWithArticle(src.title)}`}}       : null,
+                (studios    .length && tags     .length) ? () => {const s   = pick(studios),    t   = pick(tags);       return {kind: "WORK", rule: "INT_STUDIO_TAG",     studio    : s.title,      tag     : t.title,  keysA   : s.eligibleKeys, keysB: t.eligibleKeys,    text: `Name an anime made by ${s.title} with the ${t.title} tag`}}                          : null,
+                (sources    .length && tags     .length) ? () => {const src = pick(sources),    t   = pick(tags);       return {kind: "WORK", rule: "INT_SOURCE_TAG",     source    : src.title,    tag     : t.title,  keys    : t.eligibleKeys,                           text: `Name an anime adapted from ${tabiWithArticle(src.title)} with the ${t.title} tag`}}  : null
             ].filter(Boolean);
 
             const lexicalBuilders = [
-                () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "ONE_WORD", text: "Name an anime with a one-word title"}),
-                () => ({kind: "WORK", rule: "LEX_WORK", lexRule: "LONG_TITLE", text: "Name an anime with 5 or more words in its title"}),
-
-                () => {
-                    const l = letters[Math.floor(rng() * letters.length)];
-                    return {kind: "WORK", rule: "LEX_WORK", lexRule: "STARTS_WITH", lexVal: l, text: `Name an anime whose title starts with the letter ${l}`};
-                }
+                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "ONE_WORD",               text: "Name an anime with a one-word title"}),
+                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "TWO_WORDS",              text: "Name an anime with a two-word title"}),
+                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "LONG_TITLE",             text: "Name an anime with 5 or more words in its title"}),
+                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "HAS_NUMBER",             text: "Name an anime with a number in its title"}),
+                () => (                                 {kind: "WORK", rule: "LEX_WORK", lexRule: "HAS_PUNCTUATION",        text: "Name an anime with :, !, or ? in its title"}),
+                () => {const l = pick(letters); return  {kind: "WORK", rule: "LEX_WORK", lexRule: "STARTS_WITH", lexVal: l, text: `Name an anime whose title starts with the letter ${l}`}}
             ];
 
-            const bucket = (i % 3 === 1 && intersectionBuilders.length) ? intersectionBuilders : (i % 3 === 2 ? lexicalBuilders : singleBuilders);
-            if (bucket.length) prompts.push(tabiPickValidPrompt(rng, bucket));
+            const buckets = [singleBuilders, intersectionBuilders, lexicalBuilders].filter(b => b.length);
+            if (buckets.length) prompts.push(tabiPickValidPrompt(rng, pick(buckets), usedSignatures));
         }
     }
 
