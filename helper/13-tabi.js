@@ -145,7 +145,9 @@ function tabiBuildAnimeCatalog() {
                 animeId         : c.animeId,
                 romaji          : c.animeRomaji     || c.animeEnglish   || `Anime #${c.animeId}`,
                 english         : c.animeEnglish    || c.animeRomaji    || `Anime #${c.animeId}`,
-                genres          : c.genres instanceof Set ? c.genres : new Set(c.genres || []),
+                animeYear       : c.animeYear       ?? null,
+                genres          : c.genres  instanceof Set ? c.genres   : new Set(c.genres  || []),
+                studios         : c.studios instanceof Set ? c.studios  : new Set(c.studios || []),
                 source          : c.source,
                 animeCount      : Number(c.animeCount) || 0,
                 animeRankIdx    : 0,
@@ -178,12 +180,13 @@ function tabiGetDailyPrompts(jstDate) {
         return arr;
     })() : Array(cfg.qCount).fill(dow % 2 === 1 ? "PERSON" : "WORK");
 
-    const eras      = THEMED_BANNERS.ERA    ?.allOptions    || [];
-    const genres    = THEMED_BANNERS.GENRE  ?.allOptions    || [];
-    const studios   = THEMED_BANNERS.STUDIO ?.allOptions    || [];
-    const sources   = THEMED_BANNERS.SOURCE ?.allOptions    || [];
-    const tags      = THEMED_BANNERS.TAG    ?.allOptions    || [];
-    const prompts   = [];
+    const eras          = THEMED_BANNERS.ERA        ?.allOptions || [];
+    const franchises    = THEMED_BANNERS.FRANCHISE  ?.allOptions || [];
+    const genres        = THEMED_BANNERS.GENRE      ?.allOptions || [];
+    const studios       = THEMED_BANNERS.STUDIO     ?.allOptions || [];
+    const sources       = THEMED_BANNERS.SOURCE     ?.allOptions || [];
+    const tags          = THEMED_BANNERS.TAG        ?.allOptions || [];
+    const prompts       = [];
 
     for (let i = 0; i < cfg.qCount; i++) {
         const kind = types[i];
@@ -203,6 +206,16 @@ function tabiGetDailyPrompts(jstDate) {
                 studios.length ? () => {
                     const s = studios[Math.floor(rng() * studios.length)];
                     return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`}
+                } : null,
+
+                sources.length ? () => {
+                    const src = sources[Math.floor(rng() * sources.length)];
+                    return {kind: "PERSON", rule: "SOURCE", value: src.title, text: `Name a character from an anime adapted from ${tabiWithArticle(src.title)}`}
+                } : null,
+
+                franchises.length ? () => {
+                    const f = franchises[Math.floor(rng() * franchises.length)];
+                    return {kind: "PERSON", rule: "FRANCHISE", value: f.title, keys: f.eligibleKeys, text: `Name a character from the ${f.title} franchise`}
                 } : null
             ].filter(Boolean);
 
@@ -214,6 +227,16 @@ function tabiGetDailyPrompts(jstDate) {
                     return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`}
                 } : null,
 
+                eras.length ? () => {
+                    const e = eras[Math.floor(rng() * eras.length)];
+                    return {kind: "WORK", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name an anime from the ${e.title}`}
+                } : null,
+
+                studios.length ? () => {
+                    const s = studios[Math.floor(rng() * studios.length)];
+                    return {kind: "WORK", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name an anime made by ${s.title}`}
+                } : null,
+
                 sources.length ? () => {
                     const src = sources[Math.floor(rng() * sources.length)];
                     return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`}
@@ -222,7 +245,7 @@ function tabiGetDailyPrompts(jstDate) {
                 tags.length ? () => {
                     const t = tags[Math.floor(rng() * tags.length)];
                     return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`}
-                }: null
+                } : null
             ].filter(Boolean);
 
             if (pools.length) prompts.push(pools[i % pools.length]());
@@ -575,6 +598,8 @@ async function tabiSubmitAnswer(timedOut = false) {
             if (p.rule === "GENRE")     return tabiHasGenre(c.genres, p.value);
             if (p.rule === "ERA")       return Boolean(p.keys?.has(id));
             if (p.rule === "STUDIO")    return Boolean(p.keys?.has(id));
+            if (p.rule === "SOURCE")    return c.source === p.value;
+            if (p.rule === "FRANCHISE") return Boolean(p.keys?.has(id));
 
             return true;
         } else {
@@ -582,6 +607,8 @@ async function tabiSubmitAnswer(timedOut = false) {
             if (!a) return false;
 
             if (p.rule === "GENRE")     return tabiHasGenre(a.genres, p.value);
+            if (p.rule === "ERA")       return [...a.charKeys].some(k => p.keys?.has(k));
+            if (p.rule === "STUDIO")    return [...a.charKeys].some(k => p.keys?.has(k));
             if (p.rule === "SOURCE")    return a.source === p.value;
             if (p.rule === "TAG")       return [...a.charKeys].some(k => p.keys?.has(k));
 

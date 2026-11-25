@@ -1735,12 +1735,13 @@ serve(async (req) => {
                     return arr;
                 })() : cfg.types;
 
-                const prompts   = [];
-                const eras      = gameData.themedOptions.ERA    || [];
-                const genres    = gameData.themedOptions.GENRE  || [];
-                const studios   = gameData.themedOptions.STUDIO || [];
-                const sources   = gameData.themedOptions.SOURCE || [];
-                const tags      = gameData.themedOptions.TAG    || [];
+                const prompts       = [];
+                const eras          = gameData.themedOptions.ERA        || [];
+                const franchises    = gameData.themedOptions.FRANCHISE  || [];
+                const genres        = gameData.themedOptions.GENRE      || [];
+                const studios       = gameData.themedOptions.STUDIO     || [];
+                const sources       = gameData.themedOptions.SOURCE     || [];
+                const tags          = gameData.themedOptions.TAG        || [];
 
                 for (let i = 0; i < cfg.qCount; i++) {
                     const kind = types[i];
@@ -1749,17 +1750,27 @@ serve(async (req) => {
                         const pools = [
                             genres.length ? () => {
                                 const g = genres[Math.floor(rng() * genres.length)];
-                                return {kind: "PERSON", rule: "GENRE", value: g.title, text: `Name a character from ${tabiWithArticle(g.title)} anime`}
+                                return {kind: "PERSON", rule: "GENRE", value: g.title}
                             } : null,
 
                             eras.length ? () => {
                                 const e = eras[Math.floor(rng() * eras.length)];
-                                return {kind: "PERSON", rule: "ERA", value: e.title, keys: e.eligibleKeys, text: `Name a character from an anime in the ${e.title}`}
+                                return {kind: "PERSON", rule: "ERA", value: e.title, idxs: new Set(e.idxs)}
                             } : null,
 
                             studios.length ? () => {
                                 const s = studios[Math.floor(rng() * studios.length)];
-                                return {kind: "PERSON", rule: "STUDIO", value: s.title, keys: s.eligibleKeys, text: `Name a character from an anime made by ${s.title}`}
+                                return {kind: "PERSON", rule: "STUDIO", value: s.title, idxs: new Set(s.idxs)}
+                            } : null,
+
+                            sources.length ? () => {
+                                const src = sources[Math.floor(rng() * sources.length)];
+                                return {kind: "PERSON", rule: "SOURCE", value: src.title}
+                            } : null,
+
+                            franchises.length ? () => {
+                                const f = franchises[Math.floor(rng() * franchises.length)];
+                                return {kind: "PERSON", rule: "FRANCHISE", value: f.title, idxs: new Set(f.idxs)}
                             } : null
                         ].filter(Boolean);
 
@@ -1768,18 +1779,28 @@ serve(async (req) => {
                         const pools = [
                             genres.length ? () => {
                                 const g = genres[Math.floor(rng() * genres.length)];
-                                return {kind: "WORK", rule: "GENRE", value: g.title, text: `Name ${tabiWithArticle(g.title)} anime`}
+                                return {kind: "WORK", rule: "GENRE", value: g.title}
+                            } : null,
+
+                            eras.length ? () => {
+                                const e = eras[Math.floor(rng() * eras.length)];
+                                return {kind: "WORK", rule: "ERA", value: e.title, idxs: new Set(e.idxs)}
+                            } : null,
+
+                            studios.length ? () => {
+                                const s = studios[Math.floor(rng() * studios.length)];
+                                return {kind: "WORK", rule: "STUDIO", value: s.title, idxs: new Set(s.idxs)}
                             } : null,
 
                             sources.length ? () => {
                                 const src = sources[Math.floor(rng() * sources.length)];
-                                return {kind: "WORK", rule: "SOURCE", value: src.title, text: `Name an anime adapted from ${tabiWithArticle(src.title)}`}
+                                return {kind: "WORK", rule: "SOURCE", value: src.title}
                             } : null,
 
                             tags.length ? () => {
                                 const t = tags[Math.floor(rng() * tags.length)];
-                                return {kind: "WORK", rule: "TAG", value: t.title, keys: t.eligibleKeys, text: `Name an anime with the ${t.title} tag`}
-                            }: null
+                                return {kind: "WORK", rule: "TAG", value: t.title, idxs: new Set(t.idxs)}
+                            } : null
                         ].filter(Boolean);
 
                         if (pools.length) prompts.push(pools[i % pools.length]());
@@ -1815,8 +1836,9 @@ serve(async (req) => {
                         const charIdx       = gameData.charList.findIndex(row => row[0] === uniqueKey);
                         const hasCharGenre  = Array.isArray(char.genres) ? char.genres.includes(prompt.value) : Boolean(char.genres?.has?.(prompt.value));
 
-                        if (prompt.rule === "GENRE"                                 && !hasCharGenre ||
-                            ((prompt.rule === "ERA" || prompt.rule === "STUDIO")    && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
+                        if ((prompt.rule === "GENRE"    && !hasCharGenre)                   ||
+                            (prompt.rule === "SOURCE"   && char.source !== prompt.value)    ||
+                            (["ERA", "STUDIO", "FRANCHISE"].includes(prompt.rule) && !prompt.idxs?.has(charIdx))) throw new Error("Wrong character");
 
                         const rankRatio     = charIdx >= 0 ? (charIdx / Math.max(1, gameData.charList.length - 1)) : 0;
                         const curvedRatio   = Math.pow      (rankRatio, 0.5);
@@ -1833,7 +1855,7 @@ serve(async (req) => {
 
                         if ((prompt.rule === "GENRE"    && !hasRepGenre)                        ||
                             (prompt.rule === "SOURCE"   && repChar?.source !== prompt.value)    ||
-                            (prompt.rule === "TAG"      && !prompt.idxs?.has(repIdx))) throw new Error("Wrong anime");
+                            (["ERA", "STUDIO", "TAG"].includes(prompt.rule) && !prompt.idxs?.has(repIdx))) throw new Error("Wrong anime");
 
                         const animeIdx      = gameData.animeRankMap.get(animeId) ?? Math.max(0, gameData.animeRankMap.size - 1);
                         const rankRatio     = animeIdx / Math.max(1, gameData.animeRankMap.size - 1);
