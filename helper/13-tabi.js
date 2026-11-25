@@ -399,7 +399,16 @@ function tabiRender() {
                     : `Tabi ended at ${curStationName} (★ ${dailyEarned})`;
         } else {
             document.getElementById("tabi-start-wrap").classList.remove("hidden");
-            startBtn.disabled = tabiBusy;
+
+            startBtn.disabled   = tabiBusy;
+            const rulesPill     = document.getElementById("tabi-rules-pill");
+
+            if (rulesPill) {
+                const rulesText = "Travel between stations by entering the answers to each question\nReach the terminus in the allocated questions\nQuestion count reduces as the week progresses\nOn Sundays, you must do 5+ laps and return to Tokyo\nObscure answers move you further20 seconds per question\n6 perfect days in a week awards ★ 120";
+
+                rulesPill.setAttribute      ("data-tooltip", rulesText);
+                rulesPill.removeAttribute   ("title");
+            }
 
             summaryEl.classList.add("hidden");
         }
