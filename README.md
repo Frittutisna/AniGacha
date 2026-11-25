@@ -1,18 +1,12 @@
-# AniGacha v0.9.f-beta
+# AniGacha v0.a.0-beta
 
-**AniGacha** is an anime character gacha website with AMQ and casino side-games built with static client-side hydration, a full in-memory guest simulation mode, and a server-authoritative Supabase Edge Function backed by Discord OAuth and AniList GraphQL integration
+**AniGacha** is an anime character gacha website with AMQ, Casino, and Tabi side-games built with static client-side hydration, a full in-memory guest simulation mode, and a server-authoritative Supabase Edge Function backed by Discord OAuth and AniList GraphQL integration
 
 ## Changelog
 1. Added Tabi
 2. Moved data JSONs to GitHub Pages
 3. Changed header navigation
 4. Unified alerts
-5. Tweaked Tabi curve
-6. Removed Tabi no-repeat rule
-7. Added question variants to Tabi
-
-## Todo
-1. Add Tabi questions
 
 ## Table of Contents
 
@@ -24,8 +18,8 @@
 6. [Deck](#deck)
 7. [AMQ](#amq)
 8. [Casino](#casino)
-9. [Account](#account)
-10. [Others](#others)
+9. [Tabi](#tabi)
+10. [Account](#account)
 
 ## Structure
 
@@ -43,11 +37,11 @@
         </tr>
         <tr>
             <td><code>index.js</code></td>
-            <td>Server-authoritative Deno backend validating user sessions, RNG summons, star balances, spark redemptions, 50/50 targets, AniList GraphQL queries, quiz sessions/rewards, and casino payouts</td>
+            <td>Server-authoritative Deno backend validating user sessions, RNG summons, star balances, spark redemptions, 50/50 targets, AniList GraphQL queries, AMQ/Tabi sessions/rewards, and casino payouts</td>
         </tr>
         <tr>
             <td><code>index.html</code></td>
-            <td>Defines the responsive layout, dark/light theme support, gacha banner carousel, rates/economy table, collection grid, modals, and AMQ/Casino pages</td>
+            <td>Defines the responsive layout, dark/light theme support, gacha banner carousel, rates/economy table, collection grid, modals, and AMQ/Casino/Tabi pages</td>
         </tr>
         <tr>
             <td><code>01-state-banner.js</code></td>
@@ -96,6 +90,10 @@
         <tr>
             <td><code>12-casino.js</code></td>
             <td>Implements <strong>Blackjack</strong>, <strong>Synergy</strong>, <strong>Roulette</strong>, and <strong>Forex</strong> mini-games with daily bet caps and active recovery across page reloads</td>
+        </tr>
+        <tr>
+            <td><code>13-tabi.js</code></td>
+            <td>Implements the daily <strong>Tabi</strong> station-travel trivia game with seeded prompt generation, 20-second question timers, obscurity-weighted movement, and daily/weekly star rewards</td>
         </tr>
     </tbody>
 </table>
@@ -798,6 +796,83 @@ $$E(s) = M_{\text{total}} + \sum_{i} \text{bet}_i \cdot L_i \cdot d_i \left(\fra
 * **Margin Call**: If $E(s) \le 0.15 \cdot M_{\text{total}}$, the position is liquidated immediately (**★ 0** payout)
 * **Take-Profit**: If $E(s) \ge 4 \cdot M_{\text{total}}$, the position auto-closes at the **4×** cap
 
+## Tabi
+
+### Overview
+
+**Tabi** is a daily railway trivia mini-game inspired by **[Krillion](https://krillion.io/)** where players travel across Japanese train stations by naming valid anime characters or titles within a **20-second** timer per prompt. Daily prompts are deterministically seeded per JST date across single-/multi-attribute intersection and lexical rules with at least **25** valid database matches, and the route, question count, and target change depending on the weekday:
+
+<table>
+    <thead>
+        <tr>
+            <th>Weekday</th>
+            <th>Route</th>
+            <th>Type</th>
+            <th>Station Count</th>
+            <th>Question Count</th>
+            <th>Maximum Step per Answer</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Monday</td>
+            <td>West: Tokyo ➜ Nishi-Oyama</td>
+            <td>Character</td>
+            <td rowspan=6>20</td>
+            <td rowspan=2>7</td>
+            <td rowspan=6>5</td>
+        </tr>
+        <tr>
+            <td>Tuesday</td>
+            <td>North: Tokyo ➜ Wakkanai</td>
+            <td>Anime</td>
+        </tr>
+        <tr>
+            <td>Wednesday</td>
+            <td>West: Tokyo ➜ Nishi-Oyama</td>
+            <td>Character</td>
+            <td rowspan=2>6</td>
+        </tr>
+        <tr>
+            <td>Thursday</td>
+            <td>North: Tokyo ➜ Wakkanai</td>
+            <td>Anime</td>
+        </tr>
+        <tr>
+            <td>Friday</td>
+            <td>West: Tokyo ➜ Nishi-Oyama</td>
+            <td>Character</td>
+            <td rowspan=2>5</td>
+        </tr>
+        <tr>
+            <td>Saturday</td>
+            <td>North: Tokyo ➜ Wakkanai</td>
+            <td>Anime</td>
+        </tr>
+        <tr>
+            <td>Sunday</td>
+            <td>Loop: Tokyo ↻ Tokyo</td>
+            <td>Both</td>
+            <td>150 (5 laps @ 30)</td>
+            <td>6</td>
+            <td>30</td>
+        </tr>
+    </tbody>
+</table>
+
+### Movement
+
+Each valid answer advances the player based on the entity's popularity rank ratio $r \in [0, 1]$ (where $0$ is the most popular and $1$ is the most obscure). Timing out or submitting an empty answer passes the turn (**0** stations moved), while invalid/wrong submissions can be re-tried until the 20-second timer expires
+
+$$\text{Stations Moved} = \max\!\left(1,\; \min\!\left(S_{\max},\; \left\lceil \sqrt{r} \cdot S_{\max} \right\rceil\right)\right)$$
+
+### Reward
+
+* **Daily Stars**:
+  * **Monday–Saturday**: Ends immediately upon reaching station 20 or exhausting all questions, awarding **★ 6** per station reached (up to **★ 120**)
+  * **Sunday**: Runs all 6 questions around the 30-station Yamanote Line, awarding **★ 20** per completed lap (up to **★ 100**) plus $\max(0,\; 20 - 5 \cdot d_{\text{Tokyo}})$ based on final station distance $d_{\text{Tokyo}}$ from Tokyo Station (up to **★ 120** for 5+ laps ending at Tokyo Station)
+* **Weekly Stars**: Completing **6** perfect days (**★ 120** each) within the same week awards an additional **★ 120**
+
 ## Account
 
 * **Discord OAuth**: Signs users in via Discord and syncs cloud saves through Supabase
@@ -809,5 +884,5 @@ $$E(s) = M_{\text{total}} + \sum_{i} \text{bet}_i \cdot L_i \cdot d_i \left(\fra
 
 ## Others
 
-* **Reset**: Daily free ★ claim/10-pull, banner rotation, quiz/casino caps, as well as yearly display name and Discord/AniList usernames reset at **midnight JST**
-* **Mode**: When logged out, AniGacha runs locally in browser memory without saving progress
+* **Reset**: Daily free ★ claim/10-pull, banner rotation, quiz/Tabi/casino caps, weekly Tabi progress, as well as yearly display name and Discord/AniList usernames reset at **midnight JST**
+* **Mode**: When logged out, AniGacha runs locally in browser memory without saving progress[cite: 1, 3]

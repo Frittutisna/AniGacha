@@ -97,8 +97,6 @@ let tabiPromptsCache        = {date: null, prompts: []};
 let tabiBusy                = false;
 let tabiTimerRaf            = null;
 let tabiActiveQuestionKey   = null;
-let tabiSelectedSuggestion  = null;
-let tabiSuggestionIndex     = -1;
 
 function tabiHashSeed(str) {
     let h = 1779033703 ^ str.length;
@@ -667,7 +665,7 @@ function tabiRender() {
         const stepLabel = a.stationsMoved > 0 ? `+${a.stationsMoved}` : "0";
 
         return `
-            <div class="flex items-center justify-between px-3 py-1.5 mt-3 mb-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-xs text-bold">
+            <div class="flex items-center justify-between px-3 py-2 mt-3 mb-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-sm font-bold">
                 <span class="truncate">Q${i + 1}: ${escapeHTML(entityTitle)}</span>
                 <span class="shrink-0 tabular-nums">${stepLabel}</span>
             </div>
@@ -754,68 +752,6 @@ function tabiHasGenre(genreCollection, targetGenre) {
     return false;
 }
 
-function tabiMatchSuggestions(query) {
-    const q = query.trim().toLowerCase();
-    if (!q || !tabiState) return [];
-
-    const prompts   = tabiGetDailyPrompts(tabiState.date);
-    const prompt    = prompts[tabiState.qIndex];
-
-    if (!prompt) return [];
-
-    if (prompt.kind === "PERSON") {
-        const out = [];
-
-        for (let i = 0; i < characterPool.length; i++) {
-            const c = characterPool[i];
-            if (!c.name.toLowerCase().includes(q)) continue;
-
-            const series = titleLang === "EN" ? (c.animeEnglish || c.animeRomaji || "") : (c.animeRomaji || c.animeEnglish || "");
-            out.push({id: c.uniqueKey, label: c.name, sub: series, rankIdx: i});
-            if (out.length >= 30) break;
-        }
-
-        return out;
-    } else {
-        const out = [];
-
-        for (const a of tabiAnimeCatalog) {
-            const disp = titleLang === "EN" ? a.english : a.romaji;
-            if (!a.romaji.toLowerCase().includes(q) && !a.english.toLowerCase().includes(q)) continue;
-
-            out.push({id: a.animeId, label: disp, sub: a.source || "", rankIdx: a.animeRankIdx});
-            if (out.length >= 30) break;
-        }
-
-        return out;
-    }
-}
-
-function tabiRenderSuggestions() {
-    const inputEl = document.getElementById("tabi-answer-input");
-    const sugWrap = document.getElementById("tabi-suggestions");
-    const matches = tabiMatchSuggestions(inputEl.value);
-
-    tabiSuggestionIndex = -1;
-
-    if (matches.length === 0) {
-        sugWrap.classList.add("hidden");
-        sugWrap.innerHTML = "";
-
-        return;
-    }
-
-    sugWrap.innerHTML = matches.map(m => `
-        <button type="button" data-tabi-id="${escapeHTML(m.id)}" data-tabi-label="${escapeHTML(m.label)}"
-            class="w-full px-3 py-2 text-left text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 flex items-center justify-between gap-2 transition">
-            <span class="font-bold truncate">${escapeHTML(m.label)}</span>
-            <span class="text-[11px] text-slate-400 truncate max-w-[45%]">${escapeHTML(m.sub)}</span>
-        </button>
-    `).join("");
-
-    sugWrap.classList.remove("hidden");
-}
-
 async function tabiHandleStart() {
     if (tabiBusy) return;
     tabiEnsureLocalState();
@@ -860,15 +796,15 @@ async function tabiSubmitAnswer(timedOut = false) {
     const prompt = prompts[tabiState.qIndex];
     if (!prompt) return;
 
-    let selectedId = tabiSelectedSuggestion;
+    let selectedId = null;
 
-    if (!timedOut && !selectedId) {
+    if (!timedOut) {
         const rawText   = document.getElementById("tabi-answer-input")?.value || "";
         selectedId      = tabiFindExactMatch(rawText, prompt);
     }
 
     if (!timedOut && !selectedId) {
-        showAlertModal("Select a valid option from the suggestions", "Tabi", () => {document.getElementById("tabi-answer-input")?.focus()});
+        showAlertModal(prompt.kind === "PERSON" ? "Character not found in database" : "Anime not found in database", "Tabi", () => {document.getElementById("tabi-answer-input")?.focus()});
         return;
     }
 
@@ -878,10 +814,6 @@ async function tabiSubmitAnswer(timedOut = false) {
         const inputEl = document.getElementById("tabi-answer-input");
         inputEl.value = "";
 
-        tabiSelectedSuggestion  = null;
-        tabiSuggestionIndex     = -1;
-
-        document.getElementById("tabi-suggestions").classList.add("hidden");
         inputEl.classList.add("border-rose-500", "ring-2", "ring-rose-500/40");
         setTimeout(() => inputEl.classList.remove("border-rose-500", "ring-2", "ring-rose-500/40"), 250);
         inputEl.focus();
@@ -893,7 +825,6 @@ async function tabiSubmitAnswer(timedOut = false) {
     }
 
     tabiStopTimer();
-    document.getElementById("tabi-suggestions").classList.add("hidden");
 
     if (currentUser) {
         tabiBusy = true;
@@ -909,11 +840,7 @@ async function tabiSubmitAnswer(timedOut = false) {
             };
 
             res = await sendGachaAction(payload);
-
-            if (res) {
-                document.getElementById("tabi-answer-input").value = "";
-                tabiSelectedSuggestion = null;
-            }
+            if (res) document.getElementById("tabi-answer-input").value = "";
         } finally {
             tabiBusy = false;
             if (res) tabiRender();
@@ -985,66 +912,17 @@ async function tabiSubmitAnswer(timedOut = false) {
     }
 
     document.getElementById("tabi-answer-input").value = "";
-
-    tabiSelectedSuggestion  = null;
-    tabiSuggestionIndex     = -1;
-
     tabiRender();
 }
 
 document.getElementById("tabi-start-btn")?.addEventListener("click", tabiHandleStart);
 
-document.getElementById("tabi-answer-input")?.addEventListener("input", () => {
-    tabiSelectedSuggestion  = null;
-    tabiSuggestionIndex     = -1;
-
-    tabiRenderSuggestions();
-});
-
 document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) => {
-    const sugWrap   = document.getElementById("tabi-suggestions");
-    const items     = sugWrap && !sugWrap.classList.contains("hidden") ? [...sugWrap.querySelectorAll("[data-tabi-id]")] : [];
-
-    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && items.length > 0) {
-        e.preventDefault();
-        tabiSuggestionIndex = (tabiSuggestionIndex + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-
-        items.forEach((b, i) => {
-            b.classList.toggle("bg-indigo-100",     i === tabiSuggestionIndex);
-            b.classList.toggle("dark:bg-slate-800", i === tabiSuggestionIndex);
-        });
-
-        items[tabiSuggestionIndex]?.scrollIntoView({block: "nearest"});
-        return;
-    }
-
-    if (e.key === "Escape" && items.length > 0) {
-        sugWrap.classList.add("hidden");
-        tabiSuggestionIndex = -1;
-        return;
-    }
-
     if (e.key === "Enter") {
         e.preventDefault();
+
         if (!document.getElementById("alert-modal")?.classList.contains("hidden")) return;
-
-        if (tabiSuggestionIndex >= 0 && items[tabiSuggestionIndex]) {
-            items[tabiSuggestionIndex].click();
-            return;
-        }
-
         const isEmpty = e.currentTarget.value.trim() === "";
         tabiSubmitAnswer(isEmpty);
     }
-});
-
-document.getElementById("tabi-suggestions")?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-tabi-id]");
-    if (!btn) return;
-
-    tabiSelectedSuggestion  = btn.getAttribute("data-tabi-id");
-    tabiSuggestionIndex     = -1;
-
-    document.getElementById("tabi-answer-input").value = btn.getAttribute("data-tabi-label");
-    document.getElementById("tabi-suggestions").classList.add("hidden");
 });
