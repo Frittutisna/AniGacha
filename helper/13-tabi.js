@@ -733,7 +733,7 @@ function tabiRender() {
     stepLogEl.classList.toggle("hidden", logHTML.trim() === "");
 
     const inputEl       = document.getElementById("tabi-answer-input");
-    inputEl.placeholder = prompt.kind === "PERSON" ? "Search character name" : "Search anime title";
+    inputEl.placeholder = "";
     inputEl.disabled    = tabiBusy;
 
     const qKey = `${jstDate}:${tabiState.qIndex}`;
