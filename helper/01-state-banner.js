@@ -271,6 +271,16 @@ let currentUser             = null;
 let lastDailyBannersPayload = null;
 let isSharedView            = Boolean(sharedUserId);
 let viewerAnilistUsername   = null;
+let listBannerShowingThemed = false;
+
+const THEMED_TRIANGLE_COLORS = {
+    ERA         : "bg-amber-500 hover:bg-amber-400",
+    FRANCHISE   : "bg-rose-500 hover:bg-rose-400",
+    GENRE       : "bg-emerald-500 hover:bg-emerald-400",
+    SOURCE      : "bg-sky-500 hover:bg-sky-400",
+    STUDIO      : "bg-violet-500 hover:bg-violet-400",
+    TAG         : "bg-teal-500 hover:bg-teal-400"
+};
 
 function getCurrentJstDate() {
     return new Intl.DateTimeFormat("en-CA", {
@@ -518,24 +528,37 @@ function applyDailyBanners(dailyBanners) {
     lastDailyBannersPayload = dailyBanners;
     activeDailyJstDate      = dailyBanners.jstDate;
     const isLinked          = Boolean(anilistUsername);
+    const secondCat         = dailyBanners.activeCategories[1] || null;
 
-    const visibleCategories = isLinked
-        ? dailyBanners.activeCategories.slice(0, 1)
-        : dailyBanners.activeCategories;
+    if (!isLinked) listBannerShowingThemed = false;
 
-    const activeSet = new Set(visibleCategories);
+    const visibleCategories = isLinked ? (listBannerShowingThemed ? dailyBanners.activeCategories.slice(0, 2) : dailyBanners.activeCategories.slice(0, 1)) : dailyBanners.activeCategories;
+    const activeSet         = new Set(visibleCategories);
 
     ALL_THEMED_KEYS.forEach(key => {
         const banner = THEMED_BANNERS[key];
         const cardEl = document.getElementById(banner.cardElId);
+        const flipEl = cardEl?.querySelector(".flip-banner-btn");
 
         if (!activeSet.has(key)) {
-            cardEl.classList.add("hidden");
+            cardEl.     classList.add("hidden");
+            flipEl?.    classList.add("hidden");
+
             banner.active = null;
             return;
         }
 
         cardEl.classList.remove("hidden");
+
+        if (flipEl) {
+            const showFlip = isLinked && listBannerShowingThemed && key === secondCat;
+            flipEl.classList.toggle("hidden", !showFlip);
+
+            if (showFlip) {
+                flipEl.setAttribute("title",        `Switch to the ${anilistUsername} banner`);
+                flipEl.setAttribute("aria-label",   `Switch to the ${anilistUsername} banner`);
+            }
+        }
 
         const targetTitle   = dailyBanners.activeTitles[key];
         const options       = banner.allOptions || [];
@@ -571,11 +594,21 @@ function applyDailyBanners(dailyBanners) {
     });
 
     const listCardEl = document.getElementById("banner-card-list");
+    const listFlipEl = document.getElementById("flip-list-banner-btn");
 
     if (listCardEl) {
-        if (isLinked) {
+        if (isLinked && !listBannerShowingThemed) {
             listCardEl.classList.remove("hidden");
             document.getElementById("list-banner-title").textContent = anilistUsername;
+
+            if (listFlipEl) {
+                const secondTitle       = secondCat ? (dailyBanners.activeTitles[secondCat] || secondCat) : "Themed";
+                const triColor          = THEMED_TRIANGLE_COLORS[secondCat] || "bg-amber-500 hover:bg-amber-400";
+                listFlipEl.className    = `flip-banner-btn absolute top-0 left-0 w-6 h-6 ${triColor} transition z-10`;
+
+                listFlipEl.setAttribute("title",        `Switch to the ${secondTitle} banner`);
+                listFlipEl.setAttribute("aria-label",   `Switch to the ${secondTitle} banner`);
+            }
 
             const listPillEl = document.getElementById("list-banner-pill");
             listPillEl.setAttribute("data-tooltip-title", `List: ${anilistUsername}`);
@@ -587,8 +620,11 @@ function applyDailyBanners(dailyBanners) {
                 "Sparks stay in this banner"
             ].join("\n"));
 
-            listPillEl.removeAttribute  ("title");
-        } else listCardEl.classList.add ("hidden");
+            listPillEl.removeAttribute("title");
+        } else {
+            listCardEl.     classList.add("hidden");
+            listFlipEl?.    classList.add("hidden");
+        }
     }
 
     if (!fiftyFifty.THEMED || typeof fiftyFifty.THEMED !== "object") fiftyFifty.THEMED = {}

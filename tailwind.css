@@ -1051,6 +1051,9 @@
   .bg-\[\#e11d48\] {
     background-color: #e11d48;
   }
+  .bg-amber-500 {
+    background-color: var(--color-amber-500);
+  }
   .bg-amber-500\/10 {
     background-color: color-mix(in srgb, oklch(76.9% 0.188 70.08) 10%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -1089,6 +1092,9 @@
   }
   .bg-emerald-100 {
     background-color: var(--color-emerald-100);
+  }
+  .bg-emerald-500 {
+    background-color: var(--color-emerald-500);
   }
   .bg-emerald-500\/15 {
     background-color: color-mix(in srgb, oklch(69.6% 0.17 162.48) 15%, transparent);
@@ -1153,6 +1159,9 @@
   .bg-rose-50 {
     background-color: var(--color-rose-50);
   }
+  .bg-rose-500 {
+    background-color: var(--color-rose-500);
+  }
   .bg-rose-500\/15 {
     background-color: color-mix(in srgb, oklch(64.5% 0.246 16.439) 15%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -1204,8 +1213,14 @@
       background-color: color-mix(in oklab, var(--color-slate-950) 80%, transparent);
     }
   }
+  .bg-teal-500 {
+    background-color: var(--color-teal-500);
+  }
   .bg-teal-600 {
     background-color: var(--color-teal-600);
+  }
+  .bg-violet-500 {
+    background-color: var(--color-violet-500);
   }
   .bg-violet-600 {
     background-color: var(--color-violet-600);
@@ -1775,6 +1790,9 @@
     .hover\:bg-\[\#4752C4\]:hover {
       background-color: #4752C4;
     }
+    .hover\:bg-amber-400:hover {
+      background-color: var(--color-amber-400);
+    }
     .hover\:bg-amber-500:hover {
       background-color: var(--color-amber-500);
     }
@@ -1788,6 +1806,9 @@
     }
     .hover\:bg-blue-500:hover {
       background-color: var(--color-blue-500);
+    }
+    .hover\:bg-emerald-400:hover {
+      background-color: var(--color-emerald-400);
     }
     .hover\:bg-emerald-500:hover {
       background-color: var(--color-emerald-500);
@@ -1812,6 +1833,9 @@
     .hover\:bg-red-500:hover {
       background-color: var(--color-red-500);
     }
+    .hover\:bg-rose-400:hover {
+      background-color: var(--color-rose-400);
+    }
     .hover\:bg-rose-500:hover {
       background-color: var(--color-rose-500);
     }
@@ -1830,8 +1854,14 @@
     .hover\:bg-slate-950:hover {
       background-color: var(--color-slate-950);
     }
+    .hover\:bg-teal-400:hover {
+      background-color: var(--color-teal-400);
+    }
     .hover\:bg-teal-500:hover {
       background-color: var(--color-teal-500);
+    }
+    .hover\:bg-violet-400:hover {
+      background-color: var(--color-violet-400);
     }
     .hover\:bg-violet-500:hover {
       background-color: var(--color-violet-500);

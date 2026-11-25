@@ -8,6 +8,7 @@
 3. Changed header navigation
 4. Unified alerts
 5. Moved AMQ database
+6. Added List/second Themed banner flip
 
 ## Table of Contents
 
@@ -242,7 +243,7 @@ All summons execute as **10-pulls**
             <td rowspan="6">Themed</td>
             <td>Era</td>
             <td rowspan="6">100</td>
-            <td rowspan="6">Rotates daily: 1/2 theme(s) with/out AniList. Slots 1-5 pull from the active theme pool; slots 6-10 pull from the global pool. Spark points are shared across all variants</td>
+            <td rowspan="6">Rotates daily; second covered (flippable) by List. Slots 1-5 pull from the active theme pool; slots 6-10 pull from the global pool. Spark points are shared across all variants</td>
         </tr>
         <tr>
             <td>Franchise</td>
@@ -263,7 +264,7 @@ All summons execute as **10-pulls**
             <td>List</td>
             <td rowspan=2>None</td>
             <td>120</td>
-            <td>Requires AniList link; all slots pull from the player's Watching/Completed pool</td>
+            <td>Requires AniList link; all slots pull from the player's Watching/Completed pool. Can flip to second Themed</td>
         </tr>
         <tr>
             <td>Premium</td>

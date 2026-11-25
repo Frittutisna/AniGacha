@@ -39,6 +39,16 @@ document.getElementById("fifty-list")?.             addEventListener("click", ()
 document.getElementById("spark-mode-indicator").    addEventListener("click", () => exitSparkMode       ());
 document.getElementById("fifty-mode-indicator").    addEventListener("click", () => exitFiftyFiftyMode  ());
 
+document.getElementById("banner-carousel")?.addEventListener("click", (e) => {
+    const flipBtn = e.target.closest(".flip-banner-btn");
+    if (!flipBtn || !anilistUsername) return;
+
+    e.stopPropagation();
+
+    listBannerShowingThemed = !listBannerShowingThemed;
+    applyDailyBanners(lastDailyBannersPayload || getClientDailyBanners());
+});
+
 const sellAllModal      = document.getElementById("sell-all-modal");
 const closeSellAllModal = () => sellAllModal?.classList.add("hidden");
 

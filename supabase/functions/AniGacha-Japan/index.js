@@ -2119,9 +2119,7 @@ serve(async (req) => {
                 if ((save.inventory[uniqueKey] || 0) >= 6)                                  throw new Error("Character is already maxed out");
 
                 if (isThemed) {
-                    const availableCategories = save.anilistUsername
-                        ? dailyBanners.activeCategories.slice(0, 1)
-                        : dailyBanners.activeCategories;
+                    const availableCategories = dailyBanners.activeCategories;
 
                     if (!availableCategories.includes(bannerType))                          throw new Error("Banner not active today");
                     if (!dailyBanners.activeEntries[bannerType].keys.includes(uniqueKey))   throw new Error("Character not in banner");
@@ -2143,7 +2141,7 @@ serve(async (req) => {
             const isListBanner  = bannerType === "LIST";
 
             if (isThemed) {
-                const availableCategories = save.anilistUsername ? dailyBanners.activeCategories.slice(0, 1) : dailyBanners.activeCategories;
+                const availableCategories = dailyBanners.activeCategories;
                 if (!availableCategories.includes(bannerType)) throw new Error("That themed banner is not active today");
             }
 
@@ -2279,7 +2277,7 @@ serve(async (req) => {
             const isThemed                  = THEMED_KEYS.includes(bannerType);
 
             if (isThemed) {
-                const availableCategories = save.anilistUsername ? dailyBanners.activeCategories.slice(0, 1) : dailyBanners.activeCategories;
+                const availableCategories = dailyBanners.activeCategories;
 
                 if (!availableCategories                            .includes(bannerType))  throw new Error("Banner not active today");
                 if (!dailyBanners.activeEntries[bannerType].keys    .includes(uniqueKey))   throw new Error("Character not in banner");
