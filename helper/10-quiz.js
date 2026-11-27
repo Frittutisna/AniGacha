@@ -114,12 +114,13 @@ function loadAniQuizData() {
             const {names, songs} = await res.json();
             aniQuizNames = (Array.isArray(names) ? names : []).map(title => ({title, norm: aniQuizNorm(title)}));
 
-            aniQuizSongs = (Array.isArray(songs) ? songs : []).map(([audioSuffix, romaji, english, alts, , chanting, year, difficulty, type, song, artist_raw]) => ({
-                video_url       : audioSuffix.startsWith("http") ? audioSuffix : AMQ_AUDIO_PREFIX + audioSuffix,
+            aniQuizSongs = (Array.isArray(songs) ? songs : []).map(([audioSuffix, romaji, english, alts, , chanting, year, difficulty, type, song, artist_raw, songLength]) => ({
+                video_url       : audioSuffix.startsWith("http")        ? audioSuffix           : AMQ_AUDIO_PREFIX + audioSuffix,
                 romaji, english, alts, type,
-                chanting        : chanting === 1    ? "yes"         : "no",
-                vintage         : year              ? String(year)  : "",
+                chanting        : chanting === 1                        ? "yes"                 : "no",
+                vintage         : year                                  ? String(year)          : "",
                 difficulty,
+                songLength      : Number.isFinite(Number(songLength))   ? Number(songLength)    : null,
                 start_sample    : 0,
                 song, artist_raw
             }));
@@ -526,9 +527,23 @@ function aniQuizNext() {
 
     audio.removeAttribute("controls");
 
+    const pickRandomStart = (duration) => {
+        const windowNeeded  = total * 2;
+        const maxStart      = Math.max(0, duration - windowNeeded);
+
+        return Math.random() * maxStart;
+    };
+
+    aniQuizCurrent.start_sample = Number.isFinite(aniQuizCurrent.songLength)
+        ? pickRandomStart(aniQuizCurrent.songLength)
+        : 0;
+
     audio.addEventListener("loadedmetadata", () => {
-        const max           = Math.max(0, audio.duration - (s.sound || 20));
-        audio.currentTime   = Math.min(Number(aniQuizCurrent.start_sample) || 0, max);
+        if (!Number.isFinite(aniQuizCurrent.songLength) && Number.isFinite(audio.duration)) {
+            aniQuizCurrent.start_sample = pickRandomStart(audio.duration);
+        }
+        const maxStart      = Math.max(0, (audio.duration || Infinity) - total * 2);
+        audio.currentTime   = Math.min(aniQuizCurrent.start_sample, maxStart);
     }, {once: true});
 
     audio.play().catch(() => {
@@ -739,16 +754,17 @@ function aniQuizResolve(correct, submittedAnswer = null) {
     document.getElementById("quiz-skip").textContent = "Skip";
     document.getElementById("quiz-skip").classList.remove("hidden");
 
-    const audio = document.getElementById("quiz-audio");
-    audio.loop  = true;
-    audio.muted = false;
+    const s         = aniQuizRun.settings;
+    const total     = s.sound + s.extra;
+    const audio     = document.getElementById("quiz-audio");
+    const revealAt  = (aniQuizCurrent.start_sample || 0) + total;
+
+    audio.loop          = false;
+    audio.muted         = false;
+    audio.currentTime   = Number.isFinite(audio.duration) ? Math.min(revealAt, Math.max(0, audio.duration - total)) : revealAt;
 
     audio.play().catch(() => {});
-
-    const s     = aniQuizRun.settings;
-    const total = s.sound + s.extra;
     const start = performance.now();
-
     aniQuizUpdateTimerBars(s, 0, total);
 
     const tick = (now) => {

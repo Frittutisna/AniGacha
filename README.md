@@ -1,14 +1,11 @@
-# AniGacha v0.b.0-beta
+# AniGacha v0.b.1-beta
 
 **AniGacha** is an anime character gacha website with AMQ, Casino, and Tabi side-games built with static client-side hydration, a full in-memory guest simulation mode, and a server-authoritative Supabase Edge Function backed by Discord OAuth and AniList GraphQL integration
 
 ## Changelog
-1. Added Tabi
-2. Moved data JSONs to GitHub Pages
-3. Changed header navigation
-4. Unified alerts
-5. Moved AMQ database
-6. Added List/second Themed banner flip
+1. Removed dub/rebroadcast songs from Quiz
+2. Randomized Quiz samples
+3. Added no-dropdown indicator for Tabi
 
 ## Table of Contents
 

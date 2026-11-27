@@ -442,6 +442,8 @@ async function buildQuizData() {
         try     {s = JSON.parse(trimmed)}
         catch   {continue}
 
+        if (s?.isDub === true || s?.isRebroadcast === true) continue;
+
         addName(s?.animeENName);
         addName(s?.animeJPName);
 
@@ -481,18 +483,20 @@ async function buildQuizData() {
         const yearMatch = String(s.animeVintage || "").match(/\b(19\d{2}|20\d{2})\b/);
         const year      = yearMatch ? Number(yearMatch[1]) : null;
         const diff      = parseFloat(s.songDifficulty);
+        const length    = parseFloat(s.songLength);
 
         rawEntries.push({
             cleanAudio,
             amqId,
             jpName      : s.animeJPName || "",
             enName      : s.animeENName || "",
-            alts        : Array.isArray(s.animeAltName) ? s.animeAltName    : [],
+            alts        : Array.isArray(s.animeAltName)         ? s.animeAltName    : [],
             catCode, chanting, year,
-            diff        : Number.isFinite(diff)         ? diff              : null,
+            diff        : Number.isFinite(diff)                 ? diff              : null,
             songType    : s.songType    || "",
             songName    : s.songName    || "",
-            artist      : s.songArtist  || ""
+            artist      : s.songArtist  || "",
+            length      : Number.isFinite(length) && length > 0 ? length            : null
         });
     }
 
@@ -503,7 +507,7 @@ async function buildQuizData() {
         mergedAlts.delete(e.jpName);
         mergedAlts.delete(e.enName);
 
-        return [e.cleanAudio, e.jpName, e.enName, Array.from(mergedAlts), e.catCode, e.chanting, e.year, e.diff, e.songType, e.songName, e.artist];
+        return [e.cleanAudio, e.jpName, e.enName, Array.from(mergedAlts), e.catCode, e.chanting, e.year, e.diff, e.songType, e.songName, e.artist, e.length];
     });
 
     fs.writeFileSync("./supabase/functions/AniGacha-Japan/quiz-data.json", JSON.stringify({names, songs}));

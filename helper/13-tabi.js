@@ -738,8 +738,9 @@ function tabiRender() {
     idlePanel.classList.add     ("hidden");
     playPanel.classList.remove  ("hidden");
 
-    const prompt    = prompts[tabiState.qIndex];
-    const typeLabel = prompt.kind === "PERSON" ? "Character" : "Anime";
+    const prompt        = prompts[tabiState.qIndex];
+    const typeLabel     = prompt.kind === "PERSON" ? "Character" : "Anime";
+    const noDropdown    = tabiIsLexicalPrompt(prompt);
 
     document.getElementById("tabi-prompt-subtitle") .textContent    = `Q${tabiState.qIndex + 1}/${cfg.qCount} • ${typeLabel}`;
     document.getElementById("tabi-prompt-text")     .textContent    = prompt.text;
@@ -753,7 +754,7 @@ function tabiRender() {
     const inputEl = document.getElementById("tabi-answer-input");
     const sugWrap = document.getElementById("tabi-suggestions");
 
-    inputEl.placeholder = "";
+    inputEl.placeholder = noDropdown ? "No Auto-Complete" : "";
     inputEl.disabled    = tabiBusy;
 
     if (sugWrap) {
