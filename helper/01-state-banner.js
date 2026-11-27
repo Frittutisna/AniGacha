@@ -528,11 +528,11 @@ function applyDailyBanners(dailyBanners) {
     lastDailyBannersPayload = dailyBanners;
     activeDailyJstDate      = dailyBanners.jstDate;
     const isLinked          = Boolean(anilistUsername);
-    const secondCat         = dailyBanners.activeCategories[1] || null;
+    const firstCat          = dailyBanners.activeCategories[0] || null;
 
     if (!isLinked) listBannerShowingThemed = false;
 
-    const visibleCategories = isLinked ? (listBannerShowingThemed ? dailyBanners.activeCategories.slice(0, 2) : dailyBanners.activeCategories.slice(0, 1)) : dailyBanners.activeCategories;
+    const visibleCategories = isLinked ? (listBannerShowingThemed ? dailyBanners.activeCategories.slice(0, 2) : dailyBanners.activeCategories.slice(1, 2)) : dailyBanners.activeCategories;
     const activeSet         = new Set(visibleCategories);
 
     ALL_THEMED_KEYS.forEach(key => {
@@ -551,7 +551,7 @@ function applyDailyBanners(dailyBanners) {
         cardEl.classList.remove("hidden");
 
         if (flipEl) {
-            const showFlip = isLinked && listBannerShowingThemed && key === secondCat;
+            const showFlip = isLinked && listBannerShowingThemed && key === firstCat;
             flipEl.classList.toggle("hidden", !showFlip);
 
             if (showFlip) {
@@ -602,12 +602,12 @@ function applyDailyBanners(dailyBanners) {
             document.getElementById("list-banner-title").textContent = anilistUsername;
 
             if (listFlipEl) {
-                const secondTitle       = secondCat ? (dailyBanners.activeTitles[secondCat] || secondCat) : "Themed";
-                const triColor          = THEMED_TRIANGLE_COLORS[secondCat] || "bg-amber-500 hover:bg-amber-400";
+                const firstTitle        = firstCat ? (dailyBanners.activeTitles[firstCat] || firstCat) : "Themed";
+                const triColor          = THEMED_TRIANGLE_COLORS[firstCat] || "bg-amber-500 hover:bg-amber-400";
                 listFlipEl.className    = `flip-banner-btn absolute top-0 left-0 w-6 h-6 ${triColor} transition z-10`;
 
-                listFlipEl.setAttribute("title",        `Switch to the ${secondTitle} banner`);
-                listFlipEl.setAttribute("aria-label",   `Switch to the ${secondTitle} banner`);
+                listFlipEl.setAttribute("title",        `Switch to the ${firstTitle} banner`);
+                listFlipEl.setAttribute("aria-label",   `Switch to the ${firstTitle} banner`);
             }
 
             const listPillEl = document.getElementById("list-banner-pill");
