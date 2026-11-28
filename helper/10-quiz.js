@@ -757,13 +757,13 @@ function aniQuizResolve(correct, submittedAnswer = null) {
     const s         = aniQuizRun.settings;
     const total     = s.sound + s.extra;
     const audio     = document.getElementById("quiz-audio");
-    const revealAt  = (aniQuizCurrent.start_sample || 0) + total;
+    const baseStart = aniQuizCurrent.start_sample || 0;
+    audio.loop      = false;
+    audio.muted     = false;
 
-    audio.loop          = false;
-    audio.muted         = false;
-    audio.currentTime   = Number.isFinite(audio.duration) ? Math.min(revealAt, Math.max(0, audio.duration - total)) : revealAt;
+    if (audio.readyState < 1 || audio.currentTime < baseStart)  audio.currentTime = Number.isFinite(audio.duration) ? Math.min(baseStart, Math.max(0, audio.duration - total)) : baseStart;
+    if (audio.paused)                                           audio.play().catch(() => {});
 
-    audio.play().catch(() => {});
     const start = performance.now();
     aniQuizUpdateTimerBars(s, 0, total);
 
