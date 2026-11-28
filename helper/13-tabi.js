@@ -89,12 +89,12 @@ const SCHEDULE = {
     0: {route: "Loop",  stations: LOOP_STATIONS,    qCount: 6, maxStep: 30}
 };
 
-const TIME_LIMIT            = 20;
-let tabiState               = null;
-let tabiWeeklyState         = null;
-let tabiAnimeCatalog        = [];
-let tabiPromptsCache        = {date: null, prompts: []};
-let tabiBusy                = false;
+const TIME_LIMIT                = 20;
+let tabiState                   = null;
+let tabiWeeklyState             = null;
+let tabiAnimeCatalog            = [];
+let tabiPromptsCache            = {date: null, isAuth: null, prompts: []};
+let tabiBusy                    = false;
 let tabiTimerRaf                = null;
 let tabiActiveQuestionKey       = null;
 let tabiPendingTargetPage       = null;
@@ -360,11 +360,13 @@ function tabiPickValidPrompt(rng, builders, usedSignatures, usedCriteria) {
 }
 
 function tabiGetDailyPrompts(jstDate) {
-    if (tabiPromptsCache.date === jstDate && tabiPromptsCache.prompts.length > 0) return tabiPromptsCache.prompts;
+    const isAuth = Boolean(currentUser);
+    if (tabiPromptsCache.date === jstDate && tabiPromptsCache.isAuth === isAuth && tabiPromptsCache.prompts.length > 0) return tabiPromptsCache.prompts;
 
-    const dow = tabiGetJstDow(jstDate);
-    const cfg = SCHEDULE[dow];
-    const rng = tabiMulberry32(tabiHashSeed(`anigacha-tabi-${jstDate}`));
+    const dow       = tabiGetJstDow(jstDate);
+    const cfg       = SCHEDULE[dow];
+    const seedKey   = isAuth ? `anigacha-tabi-${jstDate}` : `anigacha-tabi-guest-${jstDate}`;
+    const rng       = tabiMulberry32(tabiHashSeed(seedKey));
 
     const types = dow === 0 ? (() => {
         const arr = ["PERSON", "PERSON", "PERSON", "WORK", "WORK", "WORK"];
@@ -468,7 +470,7 @@ function tabiGetDailyPrompts(jstDate) {
                 (eras       .length && studios  .length)    ? () => {const e    = pick(eras),       s   = pick(studios);    return {kind: "WORK", rule: "INT_ERA_STUDIO",       era     : e.title,      studio  : s.title,                      keysA   : e.eligibleKeys, keysB: s.eligibleKeys,    text: `Name an anime made by ${s.title} from the ${e.title}`}}                                  : null,
                 (eras       .length && sources  .length)    ? () => {const e    = pick(eras),       src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_ERA",       source  : src.title,    era     : e.title,                      keys    : e.eligibleKeys,                           text: `Name an anime adapted from ${tabiWithArticle(src.title)} from the ${e.title}`}}          : null,
                 (eras       .length && tags     .length)    ? () => {const e    = pick(eras),       t   = pick(tags);       return {kind: "WORK", rule: "INT_ERA_TAG",          era     : e.title,      tag     : t.title,                      keysA   : e.eligibleKeys, keysB: t.eligibleKeys,    text: `Name an anime with the ${t.title} tag from the ${e.title}`}}                             : null,
-                (studios    .length && sources  .length)    ? () => {const s    = pick(studios),    src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_STUDIO",    source  : src.title,    studio  : s.title,                      keys    : e.eligibleKeys,                           text: `Name an anime made by ${s.title} adapted from ${tabiWithArticle(src.title)}`}}           : null,
+                (studios    .length && sources  .length)    ? () => {const s    = pick(studios),    src = pick(sources);    return {kind: "WORK", rule: "INT_SOURCE_STUDIO",    source  : src.title,    studio  : s.title,                      keys    : s.eligibleKeys,                           text: `Name an anime made by ${s.title} adapted from ${tabiWithArticle(src.title)}`}}           : null,
                 (studios    .length && tags     .length)    ? () => {const s    = pick(studios),    t   = pick(tags);       return {kind: "WORK", rule: "INT_STUDIO_TAG",       studio  : s.title,      tag     : t.title,                      keysA   : s.eligibleKeys, keysB: t.eligibleKeys,    text: `Name an anime made by ${s.title} with the ${t.title} tag`}}                              : null,
                 (sources    .length && tags     .length)    ? () => {const src  = pick(sources),    t   = pick(tags);       return {kind: "WORK", rule: "INT_SOURCE_TAG",       source  : src.title,    tag     : t.title,                      keys    : t.eligibleKeys,                           text: `Name an anime adapted from ${tabiWithArticle(src.title)} with the ${t.title} tag`}}      : null,
                 genres      .length                         ? () => {const g    = pick(genres),     l   = pick(letters);    return {kind: "WORK", rule: "INT_LEX_GENRE",        genre   : g.title,      lexRule : "STARTS_WITH",    lexVal: l,                                                      text: `Name ${tabiWithArticle(g.title)} anime whose title starts with ${l}`}}                   : null,
@@ -491,7 +493,7 @@ function tabiGetDailyPrompts(jstDate) {
         }
     }
 
-    tabiPromptsCache = {date: jstDate, prompts};
+    tabiPromptsCache = {date: jstDate, isAuth, prompts};
     return prompts;
 }
 
@@ -580,7 +582,7 @@ function tabiWarmUp() {
 function tabiOnPageOpen() {
     if (!databaseReady) return;
 
-    if (tabiAnimeCatalog.length > 0 && tabiPromptsCache.date === (tabiState?.date || activeDailyJstDate || getCurrentJstDate())) {
+    if (tabiAnimeCatalog.length > 0 && tabiPromptsCache.date === (tabiState?.date || activeDailyJstDate || getCurrentJstDate()) && tabiPromptsCache.isAuth === Boolean(currentUser)) {
         tabiEnsureLocalState    ();
         tabiRender              ();
 
@@ -1135,10 +1137,11 @@ document.getElementById("tabi-answer-input")?.addEventListener("keydown", (e) =>
 function tabiBuildShareText() {
     tabiEnsureLocalState();
 
-    const jstDate   = tabiState.date;
-    const dow       = tabiGetJstDow(jstDate);
-    const moves     = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("");
-    const siteUrl   = "https://frittutisna.github.io/AniGacha";
+    const playerLine    = currentUser ? (displayName || discordName || "Account") : "Guest Account";
+    const jstDate       = tabiState.date;
+    const dow           = tabiGetJstDow(jstDate);
+    const moves         = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("");
+    const siteUrl       = "https://frittutisna.github.io/AniGacha";
 
     if (dow === 0) {
         const laps          = Number(tabiState.laps) || 0;
@@ -1147,14 +1150,14 @@ function tabiBuildShareText() {
         const distFromTokyo = Math.min(tabiState.station, 30 - tabiState.station);
         const distPlural    = distFromTokyo === 1 ? "" : "s";
 
-        return [`AniGacha-Tabi: ${jstDate}`, `${laps} lap${lapPlural}, ${distFromTokyo} station${distPlural} ${direction} Tokyo Station`, moves, siteUrl].join("\n");
+        return [playerLine, `AniGacha-Tabi: ${jstDate}`, `${laps} lap${lapPlural}, ${distFromTokyo} station${distPlural} ${direction} Tokyo Station`, moves, siteUrl].join("\n");
     }
 
     const cfg           = SCHEDULE[dow];
     const totalStations = Number(tabiState.station) || 0;
     const stationName   = cfg.stations[totalStations] || "Tokyo";
 
-    return [`AniGacha-Tabi: ${jstDate}`, `${stationName} (${totalStations}/20): ${moves}`, siteUrl].join("\n");
+    return [playerLine, `AniGacha-Tabi: ${jstDate}`, `${stationName} (${totalStations}/20): ${moves}`, siteUrl].join("\n");
 }
 
 document.getElementById("tabi-share-btn")?.addEventListener("click", async () => {

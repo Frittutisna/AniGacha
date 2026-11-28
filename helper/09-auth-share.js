@@ -212,7 +212,15 @@ sb.auth.onAuthStateChange((event, session) => {
             casinoDailyBet              : null
         });
 
-        if (databaseReady) applyDailyBanners(getClientDailyBanners());
+        if (typeof tabiState !== "undefined") {
+            tabiState       = null;
+            tabiWeeklyState = null;
+        }
+
+        if (databaseReady) {
+            applyDailyBanners(getClientDailyBanners());
+            if (typeof tabiRender === "function") tabiRender();
+        }
     }
 });
 
