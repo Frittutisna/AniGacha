@@ -625,8 +625,8 @@ function tabiRender() {
 
     if (dow === 0) {
         const radiusPct     = 44;
-        const nodeSize      = isDesktop ? "w-7 h-7 text-xs" : "w-6 h-6 text-[10px]";
-        nodesEl.className   = "relative mx-auto my-2 w-full max-w-[300px] sm:max-w-[360px] aspect-square";
+        const nodeSize      = isDesktop ? "w-7 h-7 text-xs" : "w-5 h-5 text-[10px]";
+        nodesEl.className   = "relative mx-auto my-2 w-full max-w-[300px] sm:max-w-none sm:w-[400px] aspect-square";
         nodesEl.innerHTML   = cfg.stations.map((stName, idx) => {
             const angle     = ((idx / cfg.stations.length) * 2 * Math.PI) - (Math.PI / 2);
             const leftPct   = 50 + radiusPct * Math.cos(angle);
@@ -636,9 +636,8 @@ function tabiRender() {
 
             return `<div title="${escapeHTML(stName)}" style="left: ${leftPct.toFixed(2)}%; top: ${topPct.toFixed(2)}%;" class="absolute -translate-x-1/2 -translate-y-1/2 ${nodeSize} rounded-full flex items-center justify-center font-bold cursor-help transition ${dotClass}">${idx}</div>`;
             }).join("") + `
-            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Laps</span>
-                <span class="text-lg sm:text-xl font-extrabold text-slate-700 dark:text-slate-200 tabular-nums">${tabiState.laps || 0}/5</span>
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none text-center">
+                <span class="text-6xl sm:text-7xl font-black text-slate-700 dark:text-slate-200 tabular-nums">${tabiState.laps || 0}/5</span>
             </div>
         `;
     } else {
@@ -1140,7 +1139,7 @@ function tabiBuildShareText() {
     const playerLine    = currentUser ? (displayName || discordName || "Account") : "Guest Account";
     const jstDate       = tabiState.date;
     const dow           = tabiGetJstDow(jstDate);
-    const moves         = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("");
+    const moves         = (tabiState.answers || []).map(a => String(Number(a.stationsMoved) || 0)).join("-");
     const siteUrl       = "https://frittutisna.github.io/AniGacha";
 
     if (dow === 0) {
